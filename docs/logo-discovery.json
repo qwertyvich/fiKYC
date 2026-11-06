@@ -1,0 +1,586 @@
+{
+  "claude": {
+    "website": "https://claude.com",
+    "resolved": "https://claude.com/",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://claude.com/icon.png",
+        "kind": "icon",
+        "sizes": "192x192"
+      },
+      {
+        "url": "https://claude.com/icon.svg",
+        "kind": "icon",
+        "sizes": "any"
+      }
+    ]
+  },
+  "mail": {
+    "website": "https://www.pochta.ru",
+    "resolved": "https://www.pochta.ru/",
+    "status": 417,
+    "candidates": []
+  },
+  "cdek": {
+    "website": "https://www.cdek.ru/ru/",
+    "resolved": "https://www.cdek.ru/ru/",
+    "status": 200,
+    "candidates": []
+  },
+  "notion": {
+    "website": "https://www.notion.com",
+    "resolved": "https://www.notion.com/",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://www.notion.com/front-static/favicon.ico",
+        "kind": "icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://www.notion.com/front-static/logo-ios.png",
+        "kind": "apple-touch-icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://images.ctfassets.net/spoqsaf9291f/5zvQQUAMUwmWaGbC9qhXpK/633c8d40bbbb2b42faec7ea3339788ff/cursor-logo-mono.svg",
+        "kind": "logo"
+      },
+      {
+        "url": "https://images.ctfassets.net/spoqsaf9291f/2lvHXS3UJ5sJscJTW8GTpc/c22ac415979069ab3be881b2749e0d77/Faire_logo_-_black.svg",
+        "kind": "logo"
+      },
+      {
+        "url": "https://images.ctfassets.net/spoqsaf9291f/5noP5n1Gp9wULYfUEzujKv/49d56f55c09d72488606d57671e7d8c4/full-logo--black.svg",
+        "kind": "logo"
+      },
+      {
+        "url": "https://images.ctfassets.net/spoqsaf9291f/7hER3ka9QgDiTjLh5Fh3ZZ/acda79bc2449edf5d964a3fc89e19623/Discord-Logo-Black.svg",
+        "kind": "logo"
+      },
+      {
+        "url": "https://images.ctfassets.net/spoqsaf9291f/14SNuPmXDPWdGE0I8TMeNL/f0daf60f7c4fd8cf3a8c3587e776125f/Remote_Logo_Black.svg",
+        "kind": "logo"
+      },
+      {
+        "url": "https://images.ctfassets.net/spoqsaf9291f/6zW25mUZj4PMuydbiGSEIi/9b8c5eb1d8e0db2abf4c531433a39a6e/Ramp_Business_Corporation_Logo_1.svg",
+        "kind": "logo"
+      }
+    ]
+  },
+  "figma": {
+    "website": "https://www.figma.com",
+    "resolved": "https://www.figma.com/",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://static.figma.com/app/icon/2/icon-128.png",
+        "kind": "icon",
+        "sizes": "128x128"
+      },
+      {
+        "url": "https://static.figma.com/app/icon/2/icon-192.png",
+        "kind": "icon",
+        "sizes": "192x192"
+      },
+      {
+        "url": "https://static.figma.com/app/icon/2/icon-256.png",
+        "kind": "icon",
+        "sizes": "256x256"
+      },
+      {
+        "url": "https://static.figma.com/app/icon/2/favicon.png",
+        "kind": "icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://static.figma.com/app/icon/2/favicon.svg",
+        "kind": "icon",
+        "sizes": "any"
+      },
+      {
+        "url": "https://static.figma.com/app/icon/2/favicon.ico",
+        "kind": "icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://static.figma.com/app/icon/2/touch-76.png",
+        "kind": "apple-touch-icon",
+        "sizes": "76x76"
+      },
+      {
+        "url": "https://static.figma.com/app/icon/2/touch-120.png",
+        "kind": "apple-touch-icon",
+        "sizes": "120x120"
+      },
+      {
+        "url": "https://static.figma.com/app/icon/2/touch-152.png",
+        "kind": "apple-touch-icon",
+        "sizes": "152x152"
+      },
+      {
+        "url": "https://static.figma.com/app/icon/2/touch-167.png",
+        "kind": "apple-touch-icon",
+        "sizes": "167x167"
+      },
+      {
+        "url": "https://static.figma.com/app/icon/2/touch-180.png",
+        "kind": "apple-touch-icon",
+        "sizes": "180x180"
+      },
+      {
+        "url": "https://cdn.sanity.io/images/599r6htc/regionalized/717af6633a6896341b7c95807c05f449597ef769-98x32.svg?q=75&amp;fit=max&amp;auto=format",
+        "kind": "logo"
+      },
+      {
+        "url": "https://cdn.sanity.io/images/599r6htc/regionalized/855afc6ef4bb9d8394d6e431355190296391803d-155x32.svg?q=75&amp;fit=max&amp;auto=format",
+        "kind": "logo"
+      },
+      {
+        "url": "https://cdn.sanity.io/images/599r6htc/regionalized/b294234a9bfdd4a158e20e92fbac3c629f6e9170-124x32.svg?q=75&amp;fit=max&amp;auto=format",
+        "kind": "logo"
+      },
+      {
+        "url": "https://cdn.sanity.io/images/599r6htc/regionalized/04c81a93b530b57e29b1fabbb263cd398637e0c3-107x32.svg?q=75&amp;fit=max&amp;auto=format",
+        "kind": "logo"
+      },
+      {
+        "url": "https://cdn.sanity.io/images/599r6htc/regionalized/9e4f6f88c28e657c5b56355f210f3b0ca4f6f93c-87x32.svg?q=75&amp;fit=max&amp;auto=format",
+        "kind": "logo"
+      },
+      {
+        "url": "https://cdn.sanity.io/images/599r6htc/regionalized/6a3dc606d7d09fc8e5c6750e614571151be3700d-380x56.svg?q=75&amp;fit=max&amp;auto=format",
+        "kind": "logo"
+      },
+      {
+        "url": "https://cdn.sanity.io/images/599r6htc/regionalized/6b1738a69bdca9a6b7eb575a5e9aad7851edfab6-120x32.svg?q=75&amp;fit=max&amp;auto=format",
+        "kind": "logo"
+      }
+    ]
+  },
+  "bitget": {
+    "website": "https://www.bitget.com",
+    "resolved": "https://www.bitget.com/",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://www.bitget.com/baseasset/favicon4.png",
+        "kind": "icon",
+        "sizes": ""
+      },
+      {
+        "url": "data:image/png;base64,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",
+        "kind": "logo"
+      }
+    ]
+  },
+  "rapira": {
+    "website": "https://rapira.io",
+    "resolved": "https://rapira.io/",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://rapira.io/favicon.ico",
+        "kind": "icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://rapira.io/apple-touch-icon.png",
+        "kind": "apple-touch-icon",
+        "sizes": "180x180"
+      },
+      {
+        "url": "https://rapira.io/favicon-32x32.png",
+        "kind": "icon",
+        "sizes": "32x32"
+      },
+      {
+        "url": "https://rapira.io/favicon-16x16.png",
+        "kind": "icon",
+        "sizes": "16x16"
+      },
+      {
+        "url": "https://rapira.io/media/logos/rapira-logo-alt-dark.svg",
+        "kind": "logo"
+      },
+      {
+        "url": "https://rapira.io/media/logos/rapira-logo-alt.svg",
+        "kind": "logo"
+      }
+    ]
+  },
+  "emcd": {
+    "website": "https://emcd.io",
+    "resolved": "https://emcd.io/",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://emcd.io/favicon.svg",
+        "kind": "icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://emcd.io/safari-pinned-tab.svg",
+        "kind": "mask-icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://emcd.io/favicon.svg",
+        "kind": "shortcut icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://emcd.io/favicon-16x16.png",
+        "kind": "icon",
+        "sizes": "16x16"
+      },
+      {
+        "url": "https://emcd.io/favicon-32x32.png",
+        "kind": "icon",
+        "sizes": "32x32"
+      }
+    ]
+  },
+  "bybit": {
+    "website": "https://www.bybit.com",
+    "resolved": "https://www.bybit.com/",
+    "status": 200,
+    "candidates": []
+  },
+  "htx": {
+    "website": "https://www.htx.com",
+    "resolved": "https://www.htx.com/",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://www.htx.com/pwa/icon-pwa-180.png",
+        "kind": "apple-touch-icon",
+        "sizes": "180x180"
+      },
+      {
+        "url": "https://www.htx.com/web-v4/static/favicon.ico",
+        "kind": "icon",
+        "sizes": ""
+      }
+    ]
+  },
+  "wallet": {
+    "website": "https://walt.io",
+    "resolved": "https://walt.io/",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://walt.io/images/favicon/favicon.svg",
+        "kind": "icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://walt.io/images/favicon/favicon.ico",
+        "kind": "icon",
+        "sizes": "32x32"
+      }
+    ]
+  },
+  "kb": {
+    "website": "https://crypto.bot",
+    "resolved": "https://crypto.bot/",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://crypto.bot/favicon.ico",
+        "kind": "shortcut icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://crypto.bot/icon.svg",
+        "kind": "icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://crypto.bot/favicon.ico",
+        "kind": "icon",
+        "sizes": "16x16 32x32 48x48"
+      },
+      {
+        "url": "https://crypto.bot/apple-touch-icon.png",
+        "kind": "apple-touch-icon",
+        "sizes": ""
+      }
+    ]
+  },
+  "yapay": {
+    "website": "https://pay.yandex.ru",
+    "resolved": "https://pay.yandex.ru/",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://avatars.mds.yandex.net/get-lpc/17495851/654175cd-c03b-41a9-aec8-a4d7c1a31095/orig",
+        "kind": "shortcut icon",
+        "sizes": ""
+      }
+    ]
+  },
+  "millpay": {
+    "website": "https://millpay.io",
+    "resolved": "https://millpay.io/",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://millpay.io/favicon.svg",
+        "kind": "icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://millpay.io/logo.svg",
+        "kind": "logo"
+      },
+      {
+        "url": "https://millpay.io/logo.svg",
+        "kind": "logo"
+      },
+      {
+        "url": "https://millpay.io/logo.svg",
+        "kind": "logo"
+      }
+    ]
+  },
+  "altyn": {
+    "website": "https://altyn.in",
+    "resolved": "https://altyn.in/",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://altyn.in/favicon.svg",
+        "kind": "icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://altyn.in/assets/images/logo.svg",
+        "kind": "logo"
+      },
+      {
+        "url": "https://altyn.in/assets/images/logo.svg",
+        "kind": "logo"
+      }
+    ]
+  },
+  "yandex-id": {
+    "website": "https://id.yandex.ru",
+    "resolved": "https://passport.yandex.ru/auth/?retpath=https%3A%2F%2Fid.yandex.ru%2F&noreturn=1",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://passport.yandex.ru/favicon.ico",
+        "kind": "shortcut icon",
+        "sizes": ""
+      }
+    ]
+  },
+  "avito": {
+    "website": "https://www.avito.ru",
+    "resolved": "https://www.avito.ru/",
+    "status": 403,
+    "candidates": []
+  },
+  "yandex-drive": {
+    "website": "https://yandex.ru/drive",
+    "resolved": "https://yandex.ru/drive/lp/city/msk",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://avatars.mds.yandex.net/get-lpc/9736426/86a0dda4-cc53-4c49-8fb9-eccdaa53013f/orig",
+        "kind": "shortcut icon",
+        "sizes": ""
+      }
+    ]
+  },
+  "delimobil": {
+    "website": "https://delimobil.ru",
+    "resolved": "https://delimobil.ru/",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://delimobil.ru/favicon.png",
+        "kind": "shortcut icon",
+        "sizes": ""
+      }
+    ]
+  },
+  "belkacar": {
+    "website": "https://belkacar.ru",
+    "error": "HTTPSConnectionPool(host='belkacar.ru', port=443): Max retries exceeded with url: / (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)')))"
+  },
+  "citydrive": {
+    "website": "https://citydrive.ru",
+    "resolved": "https://citydrive.ru/",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://citydrive.ru/local/templates/project/build/images/favicon/apple-icon-72x72.png",
+        "kind": "apple-touch-icon",
+        "sizes": "72x72"
+      },
+      {
+        "url": "https://citydrive.ru/local/templates/project/build/images/favicon/apple-icon-144x144.png",
+        "kind": "apple-touch-icon",
+        "sizes": "144x144"
+      },
+      {
+        "url": "https://citydrive.ru/local/templates/project/build/images/favicon/apple-icon-152x152.png",
+        "kind": "apple-touch-icon",
+        "sizes": "152x152"
+      },
+      {
+        "url": "https://citydrive.ru/local/templates/project/build/images/favicon/favicon-16x16.png",
+        "kind": "icon",
+        "sizes": "16x16"
+      },
+      {
+        "url": "https://citydrive.ru/local/templates/project/build/images/favicon/favicon-32x32.png",
+        "kind": "icon",
+        "sizes": "32x32"
+      },
+      {
+        "url": "https://citydrive.ru/local/templates/project/build/images/favicon/favicon-48x48.png",
+        "kind": "icon",
+        "sizes": "48x48"
+      },
+      {
+        "url": "https://citydrive.ru/local/templates/project/build/images/favicon/ms-icon-144x144.png",
+        "kind": "icon",
+        "sizes": "144x144"
+      },
+      {
+        "url": "https://citydrive.ru/favicon.ico",
+        "kind": "shortcut icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://citydrive.ru/favicon.ico",
+        "kind": "icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://citydrive.ru/local/templates/project/build/images/svg/logo.svg",
+        "kind": "logo"
+      },
+      {
+        "url": "https://citydrive.ru/local/templates/project/build/images/autotrade/icons/logo_autotrade.svg",
+        "kind": "logo"
+      }
+    ]
+  },
+  "movly": {
+    "website": "https://www.movly.com",
+    "resolved": "https://www.movly.com/",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://www.movly.com/favicon.ico",
+        "kind": "icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://www.movly.com/apple-touch-icon.png",
+        "kind": "apple-touch-icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://www.movly.com/favicon-32x32.png",
+        "kind": "icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://www.movly.com/favicon-16x16.png",
+        "kind": "icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://www.movly.com/safari-pinned-tab.svg",
+        "kind": "mask-icon",
+        "sizes": ""
+      }
+    ]
+  },
+  "outdoorsy": {
+    "website": "https://www.outdoorsy.com",
+    "resolved": "https://www.outdoorsy.com/",
+    "status": 403,
+    "candidates": []
+  },
+  "bolt-rent": {
+    "website": "https://bolt.eu",
+    "resolved": "https://bolt.eu/pl-pl/",
+    "status": 200,
+    "candidates": [
+      {
+        "url": "https://assets.homepage.bolt.eu/1.24.25/public/common-assets/favicon.ico",
+        "kind": "icon",
+        "sizes": "16x16"
+      },
+      {
+        "url": "https://assets.homepage.bolt.eu/1.24.25/public/common-assets/icon.svg",
+        "kind": "icon",
+        "sizes": "any"
+      },
+      {
+        "url": "https://assets.homepage.bolt.eu/1.24.25/public/common-assets/apple-icon.png",
+        "kind": "apple-touch-icon",
+        "sizes": "180x180"
+      },
+      {
+        "url": "https://assets.homepage.bolt.eu/1.24.25/public/common-assets/android-chrome-192x192.png",
+        "kind": "icon",
+        "sizes": "192x192"
+      },
+      {
+        "url": "https://assets.homepage.bolt.eu/1.24.25/public/common-assets/android-chrome-512x512.png",
+        "kind": "icon",
+        "sizes": "512x512"
+      },
+      {
+        "url": "https://assets.homepage.bolt.eu/1.24.25/public/common-assets/bolt-logo-white.svg",
+        "kind": "logo"
+      }
+    ]
+  },
+  "booking": {
+    "website": "https://www.booking.com",
+    "resolved": "https://www.booking.com/",
+    "status": 202,
+    "candidates": []
+  },
+  "rove-travel": {
+    "website": "https://www.rovetravel.com",
+    "resolved": "https://www.rovetravel.com/",
+    "status": 200,
+    "candidates": []
+  },
+  "vrbo": {
+    "website": "https://www.vrbo.com",
+    "resolved": "https://www.vrbo.com/",
+    "status": 429,
+    "candidates": [
+      {
+        "url": "https://www.vrbo.com/favicon.ico",
+        "kind": "shortcut icon",
+        "sizes": "16x16 32x32"
+      },
+      {
+        "url": "https://www.vrbo.com/favicon.ico",
+        "kind": "icon",
+        "sizes": "16x16 32x32"
+      },
+      {
+        "url": "https://www.vrbo.com/favicon.ico",
+        "kind": "apple-touch-icon",
+        "sizes": ""
+      },
+      {
+        "url": "https://www.vrbo.com/_dms/header/logo.svg?locale=en_US&amp;siteid=9001001",
+        "kind": "logo"
+      }
+    ]
+  }
+}

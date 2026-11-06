@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-11-06T21:51:26.607Z",
+  "checks": [
+    "catalog: 51 products, no horizontal overflow",
+    "ordinary entry: Claude group and product use Claude; other group restores Ficus",
+    "search and empty state",
+    "filters, stock toggle, sorting and list layout",
+    "favorites persist across reload",
+    "cart, quantity, demo checkout, persistent order",
+    "admin edits description, price and order; hides Claude without deleting it",
+    "admin adds groups and products, exports and validates JSON imports",
+    "Claude referral falls back to catalog when group is hidden",
+    "referral locks Claude on catalog, other categories, cart and profile",
+    "320px, 440px and desktop do not overflow",
+    "fixed frame: same height across content, internal scroll, contained navigation and sheets",
+    "dark/light palettes, persisted switch, independent Claude branding and system appearance"
+  ],
+  "pageErrors": []
+}

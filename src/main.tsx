@@ -1,0 +1,11 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { App } from './App';
+import { ClawdMotionProvider } from './ClaudeSection';
+import { initTelegram } from './telegram';
+import './styles.css';
+import './themes.css';
+import './claude-section.css';
+import './commerce.css';
+initTelegram();
+createRoot(document.getElementById('root')!).render(<React.StrictMode><ClawdMotionProvider><App /></ClawdMotionProvider></React.StrictMode>);

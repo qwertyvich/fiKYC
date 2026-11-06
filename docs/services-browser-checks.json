@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-11-06T21:58:34.703Z",
+  "checks": [
+    "new and saved catalogs receive all services and USD products; custom data survives",
+    "all categories are reachable without horizontal scrolling",
+    "request validates date order, persists parameters, and never enters cart",
+    "topups and gift cards collect service, region, amount and currency",
+    "mixed currency basket and persistent order show separate RUB and USD totals",
+    "admin edits request availability, form type, aliases and USD currency",
+    "all downloaded brand assets load and no third-party image requests are needed",
+    "expanded categories and long service titles fit 320px, 390px and 440px"
+  ],
+  "pageErrors": []
+}

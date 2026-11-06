@@ -1,0 +1,267 @@
+{
+  "claude": {
+    "file": "logos/claude.svg",
+    "website": "https://claude.com",
+    "sourceUrl": "https://claude.com/icon.svg",
+    "resolvedUrl": "https://claude.com/icon.svg",
+    "sha256": "b150888bc7257af83e3b85d3c2be4294f88986026f8168f6c12fc1fde6697350",
+    "checkedAt": "2026-11-06T21:38:49.463156+00:00"
+  },
+  "mail": {
+    "file": "logos/mail.png",
+    "website": "https://t.me/russianpochta",
+    "sourceUrl": "https://cdn4.telesco.pe/file/X8PpZ9XWR0j9BECsjpgG708Z400Yr-bEDMzoQYYt5XM277yYLO6NXDILT9dnalzbvTQy9pcRUe-EAr_GPah_Okr8RN1ksdZLGTSMRLOSbS3tC6uzQwv9DBUZslPC3T15CY6afQO5KzuHYoq_I8FYDf6v0ooPdrE6hsSd637kLuFzZulZfuygJO4Fry-SumSANlHBDlVFjMKi7xcUVrxH4BL0Pk15Z9Dgq05LN68ZBJGpJJ_cWa8kNGr1FOlpDzZXuh0X_Su-mMaZu7DPqgCJUnwblA2kEkgymiLN8LVWTnORtTN2NzEJFChZBmEbsjvZ8ORL4er5vcVvb7lnFIkMDQ.jpg",
+    "resolvedUrl": "https://cdn4.telesco.pe/file/X8PpZ9XWR0j9BECsjpgG708Z400Yr-bEDMzoQYYt5XM277yYLO6NXDILT9dnalzbvTQy9pcRUe-EAr_GPah_Okr8RN1ksdZLGTSMRLOSbS3tC6uzQwv9DBUZslPC3T15CY6afQO5KzuHYoq_I8FYDf6v0ooPdrE6hsSd637kLuFzZulZfuygJO4Fry-SumSANlHBDlVFjMKi7xcUVrxH4BL0Pk15Z9Dgq05LN68ZBJGpJJ_cWa8kNGr1FOlpDzZXuh0X_Su-mMaZu7DPqgCJUnwblA2kEkgymiLN8LVWTnORtTN2NzEJFChZBmEbsjvZ8ORL4er5vcVvb7lnFIkMDQ.jpg",
+    "sha256": "ef54656719759e99c5b1b48becc13dff1ec4df1e889137efab478e9a49631826",
+    "checkedAt": "2026-11-06T21:46:16.149260+00:00"
+  },
+  "cdek": {
+    "file": "logos/cdek.png",
+    "website": "https://www.cdek.ru/ru/",
+    "sourceUrl": "https://cdn4.telesco.pe/file/t6j5hJHlqJujAkAtn4IzbT5kSUj30v4Y82n6Pq28VZ2_ORbXDemPhRwZdLX6UNXCSs3g_hmrKCQwrCDeQzjUMDLp9GERwhR0_1DclE7qCExQ38tlrUxehVkO_6DGQTLKX8cC6T99ODT3wQptRpHN8Lt9eJ24k3SyW-9XUahsO64bYIy825cyGqf2mNLsmuEMg8Y3GtdWn7QHfYpiZyLtubkGg_8v_oDeJCKi38SBvHhCcZkYceq9KQnhlc_D-rnXknNFhjb8Gj6awdL25blw7JDzNwwKHm2NP6j1_orMAmllM08ISx-GjtN7hmmrwcYiaucHqeaTz6HLIen06gqDog.jpg",
+    "resolvedUrl": "https://cdn4.telesco.pe/file/t6j5hJHlqJujAkAtn4IzbT5kSUj30v4Y82n6Pq28VZ2_ORbXDemPhRwZdLX6UNXCSs3g_hmrKCQwrCDeQzjUMDLp9GERwhR0_1DclE7qCExQ38tlrUxehVkO_6DGQTLKX8cC6T99ODT3wQptRpHN8Lt9eJ24k3SyW-9XUahsO64bYIy825cyGqf2mNLsmuEMg8Y3GtdWn7QHfYpiZyLtubkGg_8v_oDeJCKi38SBvHhCcZkYceq9KQnhlc_D-rnXknNFhjb8Gj6awdL25blw7JDzNwwKHm2NP6j1_orMAmllM08ISx-GjtN7hmmrwcYiaucHqeaTz6HLIen06gqDog.jpg",
+    "sha256": "8250195da77b246d5404c59f2ad41b54fe28ce3d9913531b3405c27f5e7404e8",
+    "checkedAt": "2026-11-06T21:39:51.445863+00:00"
+  },
+  "notion": {
+    "file": "logos/notion.png",
+    "website": "https://www.notion.com",
+    "sourceUrl": "https://www.notion.com/front-static/logo-ios.png",
+    "resolvedUrl": "https://www.notion.com/front-static/logo-ios.png",
+    "sha256": "4238377b829e2b9f12578f1e8e79cec3beeef20a8232bf5266395618cd736383",
+    "checkedAt": "2026-11-06T21:38:49.621676+00:00"
+  },
+  "figma": {
+    "file": "logos/figma.svg",
+    "website": "https://www.figma.com",
+    "sourceUrl": "https://static.figma.com/app/icon/2/favicon.svg",
+    "resolvedUrl": "https://static.figma.com/app/icon/2/favicon.svg",
+    "sha256": "e6227b7dbc49c86da6f4ccfa02ba439428106b0ca627a0a33ea6ad1e09f335b3",
+    "checkedAt": "2026-11-06T21:38:49.603492+00:00"
+  },
+  "bitget": {
+    "file": "logos/bitget.png",
+    "website": "https://www.bitget.com",
+    "sourceUrl": "https://www.bitget.com/baseasset/favicon4.png",
+    "resolvedUrl": "https://www.bitget.com/baseasset/favicon4.png",
+    "sha256": "ab9c1da1cb6cf38b5e13f69480c2cf8061d1a33bc61cd76ca3ffe26df9f52e25",
+    "checkedAt": "2026-11-06T21:38:49.609716+00:00"
+  },
+  "rapira": {
+    "file": "logos/rapira.png",
+    "website": "https://rapira.io",
+    "sourceUrl": "https://rapira.io/apple-touch-icon.png",
+    "resolvedUrl": "https://rapira.io/apple-touch-icon.png",
+    "sha256": "884b0a05354dc37ab684d4e4d1b66fa467c97365467b984b97733f45e74378b1",
+    "checkedAt": "2026-11-06T21:38:49.954232+00:00"
+  },
+  "emcd": {
+    "file": "logos/emcd.svg",
+    "website": "https://emcd.io",
+    "sourceUrl": "https://emcd.io/favicon.svg",
+    "resolvedUrl": "https://emcd.io/favicon.svg",
+    "sha256": "6aa4d23480cac72f68ca3cd8f70aa0fffbc0f0f1f71fd96f6a4ac0bf5ee45f98",
+    "checkedAt": "2026-11-06T21:38:49.409556+00:00"
+  },
+  "bybit": {
+    "file": "logos/bybit.png",
+    "website": "https://www.bybit.com",
+    "sourceUrl": "https://www.bybit.com/favicon.ico",
+    "resolvedUrl": "https://www.bybit.com/favicon.ico",
+    "sha256": "f517510beb5adcd4d4e72e387c8c987d5b0a556dac7bcf30b1a1a9a9d5a2c3b4",
+    "checkedAt": "2026-11-06T21:38:53.230308+00:00"
+  },
+  "htx": {
+    "file": "logos/htx.png",
+    "website": "https://www.htx.com",
+    "sourceUrl": "https://www.htx.com/pwa/icon-pwa-180.png",
+    "resolvedUrl": "https://www.htx.com/pwa/icon-pwa-180.png",
+    "sha256": "79091fa816d222b826122f43470e40842c59f5168f7f8442be06c04da33d906f",
+    "checkedAt": "2026-11-06T21:38:49.479732+00:00"
+  },
+  "wallet": {
+    "file": "logos/wallet.svg",
+    "website": "https://walt.io",
+    "sourceUrl": "https://walt.io/images/favicon/favicon.svg",
+    "resolvedUrl": "https://walt.io/images/favicon/favicon.svg",
+    "sha256": "8856c2a5bccf48bc75b3517b6530c3bf86e08d0690dd9f17605d8faf59e37e90",
+    "checkedAt": "2026-11-06T21:38:49.606332+00:00"
+  },
+  "kb": {
+    "file": "logos/kb.svg",
+    "website": "https://crypto.bot",
+    "sourceUrl": "https://crypto.bot/icon.svg",
+    "resolvedUrl": "https://crypto.bot/icon.svg",
+    "sha256": "9965a78caf3110cc085da60758d237857caf31fcea0886a20f7cf4b5488f07f3",
+    "checkedAt": "2026-11-06T21:38:49.458698+00:00"
+  },
+  "yapay": {
+    "file": "logos/yapay.png",
+    "website": "https://pay.yandex.ru",
+    "sourceUrl": "https://avatars.mds.yandex.net/get-lpc/17495851/654175cd-c03b-41a9-aec8-a4d7c1a31095/orig",
+    "resolvedUrl": "https://avatars.mds.yandex.net/get-lpc/17495851/654175cd-c03b-41a9-aec8-a4d7c1a31095/orig",
+    "sha256": "deb265f2e43cd09e89a774594d24614b925b843ba251e636dc959c883b40a070",
+    "checkedAt": "2026-11-06T21:38:50.991768+00:00"
+  },
+  "millpay": {
+    "file": "logos/millpay.svg",
+    "website": "https://millpay.io",
+    "sourceUrl": "https://millpay.io/favicon.svg",
+    "resolvedUrl": "https://millpay.io/favicon.svg",
+    "sha256": "161aaeef2dc78b9360ccdc1d0f4e40e11813352c9506ca426dc4b90b34de4fb1",
+    "checkedAt": "2026-11-06T21:38:51.510363+00:00"
+  },
+  "altyn": {
+    "file": "logos/altyn.svg",
+    "website": "https://altyn.in",
+    "sourceUrl": "https://altyn.in/favicon.svg",
+    "resolvedUrl": "https://altyn.in/favicon.svg",
+    "sha256": "cf515047dcdd738af515c0874558f296314f5ff43bb8631bd801d05762e17b10",
+    "checkedAt": "2026-11-06T21:38:51.440607+00:00"
+  },
+  "yandex-id": {
+    "file": "logos/yandex-id.png",
+    "website": "https://id.yandex.ru",
+    "sourceUrl": "https://passport.yandex.ru/favicon.ico",
+    "resolvedUrl": "https://passport.yandex.ru/favicon.ico",
+    "sha256": "3c55ca33ab4eb8b08afd2539553cfa1df8aa22bf3f26137ee72d21df05bf4f24",
+    "checkedAt": "2026-11-06T21:38:51.606989+00:00"
+  },
+  "avito": {
+    "file": "logos/avito.png",
+    "website": "https://www.avito.ru",
+    "sourceUrl": "https://www.avito.ru/apple-touch-icon.png",
+    "resolvedUrl": "https://www.avito.ru/apple-touch-icon.png",
+    "sha256": "0081a4c99214a82ea997f222f6fb83404bdffa1701a8cb6276590e59fc728b27",
+    "checkedAt": "2026-11-06T21:38:52.855520+00:00"
+  },
+  "yandex-drive": {
+    "file": "logos/yandex-drive.png",
+    "website": "https://yandex.ru/drive",
+    "sourceUrl": "https://avatars.mds.yandex.net/get-lpc/9736426/86a0dda4-cc53-4c49-8fb9-eccdaa53013f/orig",
+    "resolvedUrl": "https://avatars.mds.yandex.net/get-lpc/9736426/86a0dda4-cc53-4c49-8fb9-eccdaa53013f/orig",
+    "sha256": "00ebbe4770cc33998572ebb4775719a3c03042e50892f320619a044a30bd76a0",
+    "checkedAt": "2026-11-06T21:38:51.605396+00:00"
+  },
+  "delimobil": {
+    "file": "logos/delimobil.png",
+    "website": "https://delimobil.ru",
+    "sourceUrl": "https://delimobil.ru/favicon.png",
+    "resolvedUrl": "https://delimobil.ru/favicon.png",
+    "sha256": "f9f45eb9573cc3e8e3eb772a6080b0afb99536288ec900e6e6ad2eb089eb7cfb",
+    "checkedAt": "2026-11-06T21:38:51.731194+00:00"
+  },
+  "belkacar": {
+    "file": "logos/belkacar.png",
+    "website": "https://belkacar.ru",
+    "sourceUrl": "https://cdn4.telesco.pe/file/leYagi_y3XT9tIFdR1d8JJ6vy_AZAMj3h3fNkepavoddbO5yipiHxfb-yQMh7mfyxL_AA7VNoiXLDevgVlLExddTsn23VKWtxtrvKJO738gb2jizZCAO-vptRjt7JQzlw_GwfTh2lLicuLLm_GO6t0BeWA2B3Rqh0CCfvP-frEbFcsqOKFpA4BwbRWj8DsbaujQovazQQGCwIRF4Kd8pJZBTZh_U5NAFZi9ekf0NqUD8flbNESgCr-Fn3nhqaOqciyN_BH8IvQR5Zkj2fbe0GDxEj1xz82QLNxNgcnfdluDdrp9JtRNKMzv1gI5h_9eziHa4vZ1CjdQObqISv6C3CA.jpg",
+    "resolvedUrl": "https://cdn4.telesco.pe/file/leYagi_y3XT9tIFdR1d8JJ6vy_AZAMj3h3fNkepavoddbO5yipiHxfb-yQMh7mfyxL_AA7VNoiXLDevgVlLExddTsn23VKWtxtrvKJO738gb2jizZCAO-vptRjt7JQzlw_GwfTh2lLicuLLm_GO6t0BeWA2B3Rqh0CCfvP-frEbFcsqOKFpA4BwbRWj8DsbaujQovazQQGCwIRF4Kd8pJZBTZh_U5NAFZi9ekf0NqUD8flbNESgCr-Fn3nhqaOqciyN_BH8IvQR5Zkj2fbe0GDxEj1xz82QLNxNgcnfdluDdrp9JtRNKMzv1gI5h_9eziHa4vZ1CjdQObqISv6C3CA.jpg",
+    "sha256": "25750c1263e196ea12b31c2981491f69c032fb0df90b8ac6e993737aff3099a0",
+    "checkedAt": "2026-11-06T21:39:52.240467+00:00"
+  },
+  "citydrive": {
+    "file": "logos/citydrive.png",
+    "website": "https://citydrive.ru",
+    "sourceUrl": "https://citydrive.ru/local/templates/project/build/images/favicon/apple-icon-72x72.png",
+    "resolvedUrl": "https://citydrive.ru/local/templates/project/build/images/favicon/apple-icon-72x72.png",
+    "sha256": "3e96f1f0bb6d7f3797b1f1a148e479611a8578667112c993689753e877b93bc9",
+    "checkedAt": "2026-11-06T21:38:51.951919+00:00"
+  },
+  "movly": {
+    "file": "logos/movly.png",
+    "website": "https://www.movly.com",
+    "sourceUrl": "https://www.movly.com/apple-touch-icon.png",
+    "resolvedUrl": "https://www.movly.com/apple-touch-icon.png",
+    "sha256": "443b5466275877e1b6e2f4d880478fc9eb453f91bce198800835296ee66b9f45",
+    "checkedAt": "2026-11-06T21:38:53.672433+00:00"
+  },
+  "outdoorsy": {
+    "file": "logos/outdoorsy.png",
+    "website": "https://apps.apple.com/us/app/outdoorsy-rent-an-rv/id1443835927?uo=4",
+    "sourceUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/0e/6b/f10e6b7b-a80b-19ca-258d-d2c6958b5de7/AppIconNewRenter-0-0-1x_U007epad-0-1-0-sRGB-85-220.png/512x512bb.jpg",
+    "resolvedUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/0e/6b/f10e6b7b-a80b-19ca-258d-d2c6958b5de7/AppIconNewRenter-0-0-1x_U007epad-0-1-0-sRGB-85-220.png/512x512bb.jpg",
+    "publisher": "Outdoorsy, Inc",
+    "sha256": "5f3b3cb224162aab6799712d5cbbe61b7730901cc681e0d993fb8220ba8fb0de",
+    "checkedAt": "2026-11-06T21:49:42.702880+00:00"
+  },
+  "bolt-rent": {
+    "file": "logos/bolt-rent.svg",
+    "website": "https://bolt.eu",
+    "sourceUrl": "https://assets.homepage.bolt.eu/1.24.25/public/common-assets/icon.svg",
+    "resolvedUrl": "https://assets.homepage.bolt.eu/1.24.25/public/common-assets/icon.svg",
+    "sha256": "a49a9845b911c197f60275e073069451e99b5fc26e98dc7a9174c0e63407b9f4",
+    "checkedAt": "2026-11-06T21:38:52.852812+00:00"
+  },
+  "booking": {
+    "file": "logos/booking.png",
+    "website": "https://www.booking.com",
+    "sourceUrl": "https://www.booking.com/apple-touch-icon.png",
+    "resolvedUrl": "https://cf.bstatic.com/apple-touch-icon.png",
+    "sha256": "3951f0bf35c1d66737cda5d33d4d7ea30977071336d9e5d6e68543c2afdf154a",
+    "checkedAt": "2026-11-06T21:38:54.944037+00:00"
+  },
+  "rove-travel": {
+    "file": "logos/rove-travel.png",
+    "website": "https://www.rovetravel.com",
+    "sourceUrl": "https://www.rovetravel.com/favicon.ico",
+    "resolvedUrl": "https://www.rovetravel.com/favicon.ico",
+    "sha256": "0f77d35540a596abae8736afb8a74f41f64911a5c87bc4bfeefa19f2b19c7e37",
+    "checkedAt": "2026-11-06T21:38:55.162081+00:00"
+  },
+  "vrbo": {
+    "file": "logos/vrbo.png",
+    "website": "https://www.vrbo.com",
+    "sourceUrl": "https://www.vrbo.com/favicon.ico",
+    "resolvedUrl": "https://www.vrbo.com/favicon.ico",
+    "sha256": "e1b0d479e67d1f54f00a7030f9f8c359a7c6d4eb98a0a493669a262c82f64611",
+    "checkedAt": "2026-11-06T21:38:53.046685+00:00"
+  },
+  "chatgpt": {
+    "file": "logos/chatgpt.png",
+    "website": "https://chatgpt.com",
+    "sourceUrl": "https://cdn.oaistatic.com/assets/favicon-eex17e9e.ico",
+    "resolvedUrl": "https://cdn.oaistatic.com/assets/favicon-eex17e9e.ico",
+    "sha256": "4ff1718a15cf0bbf3a089ea72a95247a48ba291e59c5fac75f6f4cc3637a7034",
+    "checkedAt": "2026-11-06T21:46:15.274792+00:00"
+  },
+  "capcut": {
+    "file": "logos/capcut.png",
+    "website": "https://www.capcut.com",
+    "sourceUrl": "https://sf16-web-tos-buz.capcutstatic.com/obj/capcut-web-buz-sg/common/images/lv_web-2.ico",
+    "resolvedUrl": "https://sf16-web-tos-buz.capcutstatic.com/obj/capcut-web-buz-sg/common/images/lv_web-2.ico",
+    "sha256": "89324c7a025fb476ac1fff6ab32e29c161cfd0241757362117fa221ccca46173",
+    "checkedAt": "2026-11-06T21:46:15.828208+00:00"
+  },
+  "kling": {
+    "file": "logos/kling.png",
+    "website": "https://klingai.com",
+    "sourceUrl": "https://s16-kling.klingai.com/kos/s101/nlav112918/kling-homepage-aio/logo-180x180.png",
+    "resolvedUrl": "https://s16-kling.klingai.com/kos/s101/nlav112918/kling-homepage-aio/logo-180x180.png",
+    "sha256": "26a7d722ed777768de45a2867f2c2af837172186260eae1ccf4023049dc0076b",
+    "checkedAt": "2026-11-06T21:46:37.118259+00:00"
+  },
+  "openwonder": {
+    "file": "logos/openwonder.png",
+    "website": "https://www.openwonder.com",
+    "sourceUrl": "https://www.openwonder.com/apple-icon.png?9051e4f2cc7bb60a",
+    "resolvedUrl": "https://www.openwonder.com/apple-icon.png?9051e4f2cc7bb60a",
+    "sha256": "71cd50984038a962b5f243a0764b086434c3a24d4f1f06febe17f2e39e518b68",
+    "checkedAt": "2026-11-06T21:46:15.256968+00:00"
+  },
+  "higgsfield": {
+    "file": "logos/higgsfield.png",
+    "website": "https://higgsfield.ai",
+    "sourceUrl": "https://higgsfield.ai/apple-icon.png",
+    "resolvedUrl": "https://higgsfield.ai/apple-icon.png",
+    "sha256": "9fb9e3a5633b13e946c9137f6aab65c8120c0044da2f82d74937a1c4af3d45f3",
+    "checkedAt": "2026-11-06T21:46:15.195571+00:00"
+  },
+  "manus": {
+    "file": "logos/manus.svg",
+    "website": "https://manus.im",
+    "sourceUrl": "https://manus.im/icon.svg?icon.2kbcs13ndm9it.svg",
+    "resolvedUrl": "https://manus.im/icon.svg?icon.2kbcs13ndm9it.svg",
+    "sha256": "ee7825396fb63d32477c6f4728cbdc4e6e31963effc961542e9be326955c77bf",
+    "checkedAt": "2026-11-06T21:46:15.471930+00:00"
+  }
+}

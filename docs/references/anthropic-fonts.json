@@ -1,0 +1,66 @@
+[
+  {
+    "kind": "sans",
+    "url": "https://claude.com/_next/static/media/AnthropicSans_Roman_Web-s.p.050e7498.woff2",
+    "bytes": 118340,
+    "sha256": "1b75c8ee81a05fa77331366e9602b82072bb5223593c928a6488dfe6fd023f1b",
+    "axes": [
+      [
+        "wght",
+        300.0,
+        800.0
+      ],
+      [
+        "opsz",
+        16.0,
+        48.0
+      ]
+    ],
+    "cyrillic": false,
+    "names": [
+      "Anthropic Sans Web Text",
+      "Regular"
+    ]
+  },
+  {
+    "kind": "serif",
+    "url": "https://claude.com/_next/static/media/AnthropicSerif_Roman_Web-s.p.c28786b4.woff2",
+    "bytes": 175356,
+    "sha256": "e96fe97bb7ba2190a9a227d27380e0c79894408bfc6acea5a511774d93a16f69",
+    "axes": [
+      [
+        "wght",
+        300.0,
+        800.0
+      ],
+      [
+        "opsz",
+        16.0,
+        48.0
+      ]
+    ],
+    "cyrillic": false,
+    "names": [
+      "Anthropic Serif Web Text Light",
+      "Regular"
+    ]
+  },
+  {
+    "kind": "mono",
+    "url": "https://claude.com/_next/static/media/AnthropicMono_Roman_Web-s.p.80d4607c.woff2",
+    "bytes": 66056,
+    "sha256": "49b8b95c950b0bee7ecdf68cda9dd6908e980283c50dc570c401de1e683a22e5",
+    "axes": [
+      [
+        "wght",
+        300.0,
+        800.0
+      ]
+    ],
+    "cyrillic": false,
+    "names": [
+      "Anthropic Mono Web",
+      "Regular"
+    ]
+  }
+]

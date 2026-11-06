@@ -1,0 +1,129 @@
+[
+  {
+    "site": "https://claude.com/",
+    "stylesheets": [
+      "https://claude.com/_next/static/chunks/98bcbf1381ffeee3.css",
+      "https://claude.com/_next/static/chunks/044a9095e2dd38bf.css",
+      "https://claude.com/_next/static/chunks/1054e44aca915e2e.css",
+      "https://claude.com/_next/static/chunks/edda8afa221e2d1e.css",
+      "https://claude.com/_next/static/chunks/ef7e82ff4128ccad.css",
+      "https://claude.com/_next/static/chunks/8db1119d2e73c3a8.css",
+      "https://claude.com/_next/static/chunks/195c2e474ca3e6f7.css"
+    ],
+    "fonts": [
+      {
+        "stylesheet": "https://claude.com/_next/static/chunks/98bcbf1381ffeee3.css",
+        "faces": [
+          "@font-face{font-family:anthropicSans;src:url(../media/AnthropicSans_Roman_Web-s.p.050e7498.woff2)format(\"woff2\");font-display:swap;font-style:normal}",
+          "@font-face{font-family:anthropicSans;src:url(../media/AnthropicSans_Italic_Web-s.p.6550bf15.woff2)format(\"woff2\");font-display:swap;font-style:italic}",
+          "@font-face{font-family:anthropicSans Fallback;src:local(Arial);ascent-override:92.99%;descent-override:24.13%;line-gap-override:0.0%;size-adjust:106.73%}",
+          "@font-face{font-family:anthropicSerif;src:url(../media/AnthropicSerif_Roman_Web-s.p.c28786b4.woff2)format(\"woff2\");font-display:swap;font-style:normal}",
+          "@font-face{font-family:anthropicSerif;src:url(../media/AnthropicSerif_Italic_Web-s.p.43888cc6.woff2)format(\"woff2\");font-display:swap;font-style:italic}",
+          "@font-face{font-family:anthropicSerif Fallback;src:local(Arial);ascent-override:96.05%;descent-override:24.92%;line-gap-override:0.0%;size-adjust:103.33%}",
+          "@font-face{font-family:anthropicMono;src:url(../media/AnthropicMono_Roman_Web-s.p.80d4607c.woff2)format(\"woff2\");font-display:swap;font-style:normal}",
+          "@font-face{font-family:anthropicMono;src:url(../media/AnthropicMono_Italic_Web-s.p.39343088.woff2)format(\"woff2\");font-display:swap;font-style:italic}",
+          "@font-face{font-family:anthropicMono Fallback;src:local(Arial);ascent-override:75.48%;descent-override:19.58%;line-gap-override:0.0%;size-adjust:131.49%}"
+        ],
+        "families": [
+          "font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif,Apple Color Emoji,Segoe UI Emoji",
+          "font-family:ui-monospace,SFMono-Regular,Consolas,Liberation Mono,Menlo,monospace",
+          "font-family:inherit",
+          "font-family:var(--font-anthropic-sans),system-ui,sans-serif",
+          "font-family:var(--font-anthropic-serif),Georgia,serif",
+          "font-family:var(--font-anthropic-mono),ui-monospace,monospace",
+          "font-family:anthropicSans",
+          "font-family:anthropicSans Fallback",
+          "font-family:anthropicSans,anthropicSans Fallback",
+          "font-family:anthropicSerif",
+          "font-family:anthropicSerif Fallback",
+          "font-family:anthropicSerif,anthropicSerif Fallback",
+          "font-family:anthropicMono",
+          "font-family:anthropicMono Fallback",
+          "font-family:anthropicMono,anthropicMono Fallback"
+        ]
+      },
+      {
+        "stylesheet": "https://claude.com/_next/static/chunks/ef7e82ff4128ccad.css",
+        "faces": [
+          "@font-face{font-family:Anthropic Serif Seam Name;src:url(../media/AnthropicSerif-SeamName.1791669c.woff2)format(\"woff2\");font-weight:300 800;font-display:swap}"
+        ],
+        "families": [
+          "font-family:Anthropic Serif Seam Name",
+          "font-family:var(--font-anthropic-serif),Georgia,serif",
+          "font-family:\"Anthropic Serif Seam Name\",var(--font-anthropic-serif),Georgia,serif",
+          "font-family:var(--font-anthropic-mono),ui-monospace,monospace"
+        ]
+      }
+    ]
+  },
+  {
+    "site": "https://www.anthropic.com/",
+    "stylesheets": [
+      "https://www.anthropic.com/_next/static/chunks/3lfhvsoi4d4vt.css",
+      "https://www.anthropic.com/_next/static/chunks/088y8fzknxpdh.css",
+      "https://www.anthropic.com/_next/static/chunks/2b7ih74gna25u.css",
+      "https://www.anthropic.com/_next/static/chunks/3ea_gbe9nm9sb.css",
+      "https://www.anthropic.com/_next/static/chunks/2tz0fm64onlb3.css",
+      "https://www.anthropic.com/_next/static/chunks/0ikion8t0seh2.css",
+      "https://www.anthropic.com/_next/static/chunks/0td9ed1fo7ck7.css",
+      "https://www.anthropic.com/_next/static/chunks/2flbxgehpb-7h.css",
+      "https://www.anthropic.com/_next/static/chunks/1sxuvyk5q87-1.css",
+      "https://www.anthropic.com/_next/static/chunks/2psp258fnzv10.css",
+      "https://www.anthropic.com/_next/static/chunks/2lhuax0nzl338.css",
+      "https://www.anthropic.com/_next/static/chunks/0_a13kojiy1vf.css"
+    ],
+    "fonts": [
+      {
+        "stylesheet": "https://www.anthropic.com/_next/static/chunks/3lfhvsoi4d4vt.css",
+        "faces": [
+          "@font-face{font-family:anthropicSans;src:url(../media/AnthropicSans_Roman_Web-s.p.1e3n6bt4oqimz.woff2)format(\"woff2\");font-display:swap;font-style:normal}",
+          "@font-face{font-family:anthropicSans;src:url(../media/AnthropicSans_Italic_Web-s.p.212cqpul8-axk.woff2)format(\"woff2\");font-display:swap;font-style:italic}",
+          "@font-face{font-family:anthropicSans Fallback;src:local(Arial);ascent-override:92.99%;descent-override:24.13%;line-gap-override:0.0%;size-adjust:106.73%}",
+          "@font-face{font-family:anthropicSerif;src:url(../media/AnthropicSerif_Roman_Web-s.p.0twp0vwi-lncj.woff2)format(\"woff2\");font-display:swap;font-style:normal}",
+          "@font-face{font-family:anthropicSerif;src:url(../media/AnthropicSerif_Italic_Web-s.p.1fjksu1uimpf3.woff2)format(\"woff2\");font-display:swap;font-style:italic}",
+          "@font-face{font-family:anthropicSerif Fallback;src:local(Arial);ascent-override:96.05%;descent-override:24.92%;line-gap-override:0.0%;size-adjust:103.33%}",
+          "@font-face{font-family:anthropicMono;src:url(../media/AnthropicMono_Roman_Web-s.p.16xhthj2n-pap.woff2)format(\"woff2\");font-display:swap;font-style:normal}",
+          "@font-face{font-family:anthropicMono;src:url(../media/AnthropicMono_Italic_Web-s.p.0x1wr-4z1xgw3.woff2)format(\"woff2\");font-display:swap;font-style:italic}",
+          "@font-face{font-family:anthropicMono Fallback;src:local(Arial);ascent-override:75.48%;descent-override:19.58%;line-gap-override:0.0%;size-adjust:131.49%}",
+          "@font-face{font-family:jetBrainsMono;src:url(../media/JetBrainsMono_VF-s.p.3-7d89st7id7n.ttf)format(\"truetype\");font-display:swap}",
+          "@font-face{font-family:jetBrainsMono Fallback;src:local(Arial);ascent-override:77.57%;descent-override:22.82%;line-gap-override:0.0%;size-adjust:131.49%}"
+        ],
+        "families": [
+          "font-family:anthropicSans",
+          "font-family:anthropicSans Fallback",
+          "font-family:anthropicSans,anthropicSans Fallback",
+          "font-family:anthropicSerif",
+          "font-family:anthropicSerif Fallback",
+          "font-family:anthropicSerif,anthropicSerif Fallback",
+          "font-family:anthropicMono",
+          "font-family:anthropicMono Fallback",
+          "font-family:anthropicMono,anthropicMono Fallback",
+          "font-family:jetBrainsMono",
+          "font-family:jetBrainsMono Fallback",
+          "font-family:jetBrainsMono,jetBrainsMono Fallback"
+        ]
+      },
+      {
+        "stylesheet": "https://www.anthropic.com/_next/static/chunks/3ea_gbe9nm9sb.css",
+        "faces": [
+          "@font-face{font-display:swap;font-family:Lato;font-style:normal;font-weight:400;src:url(../media/Lato-Regular.3-jmm_z_te0oj.ttf)format(\"truetype\")}",
+          "@font-face{font-display:swap;font-family:Lato;font-style:normal;font-weight:700;src:url(../media/Lato-Bold.2vm10rcxoroto.ttf)format(\"truetype\")}"
+        ],
+        "families": [
+          "font-family:var(--anthropic-sans),sans-serif",
+          "font-family:var(--anthropic-serif),serif",
+          "font-family:var(--anthropic-mono),monospace",
+          "font-family:var(--anthropic-sans),-apple-system,BlinkMacSystemFont,sans-serif",
+          "font-family:var(--anthropic-serif),\"Times New Roman\",serif",
+          "font-family:Lato",
+          "font-family:var(--jetbrains-mono),\"SF Mono\",Menlo,Monaco,monospace",
+          "font-family:Anthropic Mono Variable,monospace",
+          "font-family:inherit",
+          "font-family:var(--anthropic-serif),-apple-system,BlinkMacSystemFont,sans-serif",
+          "font-family:var(--jetbrains-mono),\"SF Mono\",menlo,monaco,monospace",
+          "font-family:var(--anthropic-mono),ui-monospace,monospace"
+        ]
+      }
+    ]
+  }
+]

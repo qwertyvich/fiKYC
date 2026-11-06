@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="en" translate="no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <script nonce="d757a1c516730ce01975050635c1819e">
+      (() => {
+        const pathWithoutLocale =
+          window.location.pathname.replace(/^\/[a-z]{2}(?=\/|$)/, '') || '/';
+        const fixedThemePathPattern =
+          /^\/(?:$|aml(?:\/|$)|referral(?:\/|$)|partners(?:\/|$)|merchant(?:\/|$)|crypto-processing(?:\/|$)|loans-landing(?:\/|$))/;
+        const requestedColorScheme = new URLSearchParams(window.location.search).get('theme');
+        const hasRequestedColorScheme =
+          requestedColorScheme === 'light' ||
+          requestedColorScheme === 'dark' ||
+          requestedColorScheme === 'auto';
+
+        let colorScheme = hasRequestedColorScheme ? requestedColorScheme : 'dark';
+        try {
+          if (hasRequestedColorScheme) {
+            window.localStorage.setItem('rapira:color-scheme', requestedColorScheme);
+          } else {
+            colorScheme = window.localStorage.getItem('rapira:color-scheme') || 'dark';
+          }
+        } catch {}
+
+        if (fixedThemePathPattern.test(pathWithoutLocale) && !hasRequestedColorScheme) return;
+
+        const isDark =
+          colorScheme === 'auto'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+            : colorScheme !== 'light';
+        document.documentElement.classList.toggle('dark', isDark);
+      })();
+    </script>
+    <title>Rapira</title>
+    <script nonce="d757a1c516730ce01975050635c1819e">
+      const mqStandAlone = '(display-mode: standalone)';
+      if (navigator.standalone || window.matchMedia(mqStandAlone).matches) {
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/pwa-sw-v2.js', { scope: '/' }).catch((error) => {
+              console.warn('[pwa] service worker registration failed', error);
+            });
+          });
+        }
+      }
+    </script>
+    <link nonce="d757a1c516730ce01975050635c1819e" rel="icon" href="/favicon.ico" />
+    <link nonce="d757a1c516730ce01975050635c1819e" rel="manifest" href="/manifest.webmanifest" />
+    <link nonce="d757a1c516730ce01975050635c1819e" rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link nonce="d757a1c516730ce01975050635c1819e" rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link nonce="d757a1c516730ce01975050635c1819e" rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <meta
+      name="description"
+      content="Trade with low fees: the higher the turnover or balance, the lower the commission."
+    />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="google" content="notranslate" />
+    <style nonce="d757a1c516730ce01975050635c1819e">body.page-loading{height:100%;margin:0;overflow:hidden}.splash-screen{display:none}.page-loading .splash-screen{z-index:1000;color:#5e6278;background-color:#f9f9f9;flex-direction:column;justify-content:center;align-items:center;width:100%;height:100%;font-family:Inter,Helvetica,"sans-serif";font-size:14px;font-weight:400;line-height:1;display:flex;position:absolute}html.dark .page-loading .splash-screen{color:#fafafa;background-color:#09090b}.page-loading .splash-screen img{z-index:11;margin-bottom:24px;margin-left:calc(100vw - 100%);position:relative;height:45px!important}.splash-screen .dark-logo{display:none}.splash-screen .light-logo{display:block}html.dark .splash-screen .light-logo{display:none}html.dark .splash-screen .dark-logo{display:block}.progress-loader-txt{color:#a1a5b7;font-size:13px;font-style:normal;font-weight:300;line-height:14px;position:absolute;bottom:20px}.progress-bar-outer{-webkit-user-select:none;user-select:none;justify-content:center;width:100%;margin-top:0;display:flex;position:relative}.progress-bar-center{z-index:10;-webkit-user-select:none;user-select:none;flex-direction:column;align-items:center;width:180px;animation:1s both progress-bar-fade-in;display:flex;position:relative}@keyframes progress-bar-fade-in{0%{opacity:0}to{opacity:1}}.progress-bar-track{--color-loading-progress-wrapper:#444;-webkit-mask-image:-webkit-radial-gradient(#fff,#000);background-color:#e0e0e0;border-radius:2.5px;width:100%;height:5px;overflow:hidden;mask-image:radial-gradient(#fff,#000)}html.dark .progress-bar-track{background-color:#27272a}html.dark .progress-loader-txt{color:#a1a1aa}.progress-bar-fill{--color-loading-progress-bar:#fff;transform-origin:0 0;background:linear-gradient(100.96deg,#1aafff 7.26%,#1fbef0 28.47%,#268fda 60.29%,#2d5fc4 82.23%,#2c6cc9 92.12%);height:5px;transition:transform .12s ease-out;animation:10s cubic-bezier(.01,1.06,.71,1) forwards progress-bar-fill-scale;position:relative;overflow:hidden;transform:scaleX(.001)}@keyframes progress-bar-fill-scale{0%{transform:scaleX(.001)}1%{transform:scaleX(.001)}to{transform:scaleX(.97)}}.progress-bar-fill .progress-bar-shimmer{--color-loading-progress-bar:#fff;--color-loading-progress-accent:#fff9;background:linear-gradient(to right, transparent 0%, var(--color-loading-progress-accent,#fff9) 50%, transparent 100%);width:400%;height:100%;animation:2s linear infinite progress-bar-shimmer-animation;transform:translate(-100%)}@keyframes progress-bar-shimmer-animation{0%{transform:translate(-100%)}to{transform:translate(400%)}}</style>
+  <link rel="manifest" href="/manifest.webmanifest"></head>
+
+  <body class="page-loading">
+    <div id="splash-screen" class="splash-screen">
+      <img src="/media/logos/rapira-logo-alt-dark.svg" class="dark-logo" alt="Rapira dark logo" />
+      <img src="/media/logos/rapira-logo-alt.svg" class="light-logo" alt="Rapira light logo" />
+      <div class="progress-bar-outer">
+        <div class="progress-bar-center">
+          <div class="progress-bar-track">
+            <div id="progressBar" class="progress-bar-fill">
+              <div class="progress-bar-shimmer"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <span id="progressText" class="progress-loader-txt"></span>
+    </div>
+
+    <div id="app" class="notranslate" translate="no"></div>
+    <div
+      id="teleports"
+      class="notranslate"
+      translate="no"
+      style="position: relative; z-index: 2000"
+    ></div>
+    <div
+      id="notify-host"
+      class="notranslate"
+      translate="no"
+      style="position: relative; z-index: 20000"
+    ></div>
+
+    <!-- Yandex.Metrika counter -->
+    <script nonce="d757a1c516730ce01975050635c1819e" type="text/javascript">
+      function rapiraInitMetrika() {
+        (function (m, e, t, r, i, k, a) {
+          m[i] =
+            m[i] ||
+            function () {
+              (m[i].a = m[i].a || []).push(arguments);
+            };
+          m[i].l = 1 * new Date();
+          for (var j = 0; j < document.scripts.length; j++) {
+            if (document.scripts[j].src === r) {
+              return;
+            }
+          }
+          ((k = e.createElement(t)),
+            (a = e.getElementsByTagName(t)[0]),
+            (k.async = 1),
+            (k.src = r),
+            a.parentNode.insertBefore(k, a));
+        })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js', 'ym');
+        ym(91276969, 'init', {
+          clickmap: true,
+          trackLinks: true,
+          accurateTrackBounce: true,
+          webvisor: true,
+          trackHash: true
+        });
+      }
+      function rapiraScheduleMetrika() {
+        ('requestIdleCallback' in window ? requestIdleCallback : setTimeout)(rapiraInitMetrika);
+      }
+      if (document.readyState === 'complete') {
+        rapiraScheduleMetrika();
+      } else {
+        window.addEventListener('load', rapiraScheduleMetrika);
+      }
+    </script>
+    <!-- /Yandex.Metrika counter -->
+  <script nonce="d757a1c516730ce01975050635c1819e">
+function bootLoader(manifest, importModule, hostname) {
+  const CONFIG_KEY = 'rapira:app-config';
+  const CDN_KEY = 'rapira:cdn';
+  const CONFIG_URL = '/app-config.json';
+  const CONFIG_WAIT_MS = 1000;
+  const HEDGE_MS = 1500;
+  const ROUND_TIMEOUT_MS = 4000;
+  const CDN_TTL_MS = 86400000;
+  const ROUND_DELAYS_MS = [2000, 5000];
+  const ANON_ID_KEY = 'rapira:anon-id';
+  const ORIGIN_WAIT_MS = 3000;
+  const startedAt = Date.now();
+  const host = hostname || window.location.hostname;
+  const diagnostics = {
+    reason: null,
+    round: 0,
+    config_source: 'none',
+    remembered_age_min: null,
+    total_ms: null,
+    probes: [],
+    origin: { result: 'pending', ms: null },
+    network: readNetwork()
+  };
+  const load =
+    importModule ||
+    function (url) {
+      return import(url);
+    };
+
+  function readStore(key) {
+    try {
+      return JSON.parse(window.localStorage.getItem(key));
+    } catch {
+      return null;
+    }
+  }
+
+  function writeStore(key, value) {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function removeStore(key) {
+    try {
+      window.localStorage.removeItem(key);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function isObject(value) {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  function within(domain) {
+    return host === domain || host.endsWith(`.${domain}`);
+  }
+
+  function mirrorDomains() {
+    const site = manifest.site;
+    if (!site) return [];
+    return site.zones.map(function (zone) {
+      return `${site.brand}.${zone}`;
+    });
+  }
+
+  function ownMirrorDomain() {
+    return mirrorDomains().find(within) || null;
+  }
+
+  function isKnownHost() {
+    return within(manifest.buildDomain) || ownMirrorDomain() !== null;
+  }
+
+  function pickEntry(config) {
+    if (!isObject(config)) return null;
+    const key = Object.keys(config)
+      .filter(within)
+      .sort(function (a, b) {
+        return b.length - a.length;
+      })[0];
+    return key !== undefined && isObject(config[key]) ? config[key] : null;
+  }
+
+  function readBuiltIn() {
+    if (!manifest.config) return null;
+    try {
+      const parsed = JSON.parse(window.atob(manifest.config));
+      return isObject(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  const builtIn = readBuiltIn();
+
+  function withBuiltIn(config) {
+    if (!builtIn) return config;
+    return { ...builtIn, ...(isObject(config) ? config : {})};
+  }
+
+  function candidates(config) {
+    const entry = pickEntry(config);
+    let list = [];
+    if (entry && Array.isArray(entry.cdn)) {
+      list = entry.cdn
+        .filter(function (url) {
+          return typeof url === 'string' && /^https:\/\/[^\s/]+\/?$/.test(url);
+        })
+        .map(function (url) {
+          return url.replace(/\/*$/, '/');
+        });
+    }
+    if (!list.length) {
+      if (manifest.site && manifest.zoneCdn) {
+        list = [manifest.zoneCdn.replace('{domain}', ownMirrorDomain() || manifest.buildDomain)];
+      }
+      list.push(manifest.cdn);
+    }
+    return list.filter(function (base, index) {
+      return list.indexOf(base) === index;
+    });
+  }
+
+  function readNetwork() {
+    const connection = window.navigator && window.navigator.connection;
+    if (!connection) return null;
+    return {
+      type: connection.effectiveType || null,
+      rtt: typeof connection.rtt === 'number' ? connection.rtt : null,
+      downlink: typeof connection.downlink === 'number' ? connection.downlink : null,
+      save_data: connection.saveData === true
+    };
+  }
+
+  function noteOrigin(result, sentAt) {
+    diagnostics.origin = { result, ms: Date.now() - sentAt };
+    if (window.__rapiraCdn) window.__rapiraCdn.origin = diagnostics.origin;
+  }
+
+  function fetchConfig() {
+    const session = anonymousId();
+    const sentAt = Date.now();
+    return fetch(CONFIG_URL, {
+      cache: 'no-cache',
+      ...(session ? { headers: { 'x-loader-session': session } } : {})
+    })
+      .then(
+        function (response) {
+          noteOrigin(response.ok ? 'ok' : `http_${response.status}`, sentAt);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json();
+        },
+        function (error) {
+          noteOrigin('network', sentAt);
+          throw error;
+        }
+      )
+      .then(function (config) {
+        if (!isObject(config)) throw new Error('app-config.json is not an object');
+        writeStore(CONFIG_KEY, config);
+        return config;
+      });
+  }
+
+  function hostOf(base) {
+    try {
+      return new URL(base).host;
+    } catch {
+      return base;
+    }
+  }
+
+  function probeFailure(result, message) {
+    const error = new Error(message);
+    error.probeResult = result;
+    return error;
+  }
+
+  function probe(base) {
+    return fetch(base + manifest.entry, {
+      mode: 'cors',
+      credentials: 'same-origin'
+    }).then(
+      function (response) {
+        if (!response.ok) {
+          throw probeFailure(`http_${response.status}`, `HTTP ${response.status}`);
+        }
+        const type = response.headers.get('content-type') || '';
+        if (!type.includes('javascript')) {
+          throw probeFailure('content_type', `unexpected content-type "${type}"`);
+        }
+        return base;
+      },
+      function (error) {
+        throw probeFailure('network', error && error.message ? error.message : String(error));
+      }
+    );
+  }
+
+  function choose(pool, primary, round) {
+    const records = pool.map(function (base) {
+      const record = { host: hostOf(base), result: 'not_started', ms: null, round };
+      diagnostics.probes.push(record);
+      return record;
+    });
+    return new Promise(function (resolve) {
+      let index = 0;
+      let pending = 0;
+      let settled = false;
+      let timer;
+
+      function finish(base) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (base === null) {
+          resolve(null);
+          return;
+        }
+        const primaryRecord = records[pool.indexOf(primary)];
+        const primaryResult = primaryRecord ? primaryRecord.result : 'not_started';
+        const reason =
+          base === primary ? 'primary' : primaryResult === 'pending' ? 'hedge' : 'primary_failed';
+        resolve({ base, failover: base !== primary, reason });
+      }
+
+      const probeStarts = [];
+
+      function timeoutRound() {
+        if (settled) return;
+        records.forEach(function (record, recordIndex) {
+          if (record.result !== 'pending') return;
+          record.result = 'timeout';
+          record.ms = Date.now() - probeStarts[recordIndex];
+        });
+        finish(null);
+      }
+
+      function next() {
+        clearTimeout(timer);
+        if (settled || index >= pool.length) return;
+        const base = pool[index];
+        const record = records[index];
+        const probeStartedAt = Date.now();
+        probeStarts[index] = probeStartedAt;
+        index += 1;
+        pending += 1;
+        record.result = 'pending';
+        timer =
+          index < pool.length ? setTimeout(next, HEDGE_MS) : setTimeout(timeoutRound, ROUND_TIMEOUT_MS);
+        probe(base).then(
+          function () {
+            if (record.result !== 'pending') return;
+            record.result = 'ok';
+            record.ms = Date.now() - probeStartedAt;
+            finish(base);
+          },
+          function (error) {
+            if (record.result !== 'pending') return;
+            record.result = error.probeResult || 'network';
+            record.ms = Date.now() - probeStartedAt;
+            pending -= 1;
+            if (settled) return;
+            if (index < pool.length) next();
+            else if (pending === 0) finish(null);
+          }
+        );
+      }
+
+      next();
+    });
+  }
+
+  function addLink(rel, href) {
+    const link = document.createElement('link');
+    link.rel = rel;
+    link.crossOrigin = '';
+    link.href = href;
+    document.head.appendChild(link);
+    return link;
+  }
+
+  function start(choice) {
+    const base = choice.base;
+    diagnostics.reason = choice.reason;
+    diagnostics.total_ms = Date.now() - startedAt;
+    window.__rapiraCdnBase = base;
+    window.__rapiraCdn = { ...diagnostics, base, failover: choice.failover };
+    manifest.preload.forEach(function (file) {
+      addLink('modulepreload', base + file);
+    });
+    const styles = manifest.css.map(function (file) {
+      return new Promise(function (resolve) {
+        const link = addLink('stylesheet', base + file);
+        link.onload = resolve;
+        link.onerror = resolve;
+      });
+    });
+    return Promise.all(styles).then(function () {
+      return load(base + manifest.entry);
+    });
+  }
+
+  function wait(ms) {
+    return new Promise(function (resolve) {
+      setTimeout(resolve, ms);
+    });
+  }
+
+  function nextRound(fullPool, primary, round, error) {
+    if (round > ROUND_DELAYS_MS.length) {
+      throw error || new Error('no CDN responded');
+    }
+    console.warn(`[cdn-loader] round ${round} failed, retrying`, error);
+    return wait(ROUND_DELAYS_MS[round - 1]).then(function () {
+      return run(fullPool, fullPool, primary, null, round + 1, false);
+    });
+  }
+
+  function run(fullPool, pool, primary, remembered, round, afterImportFailure) {
+    diagnostics.round = round;
+    const pick = remembered
+      ? Promise.resolve({ base: remembered, failover: remembered !== primary, reason: 'remembered' })
+      : choose(pool, primary, round);
+    return pick.then(function (choice) {
+      if (!choice) return nextRound(fullPool, primary, round, null);
+      if (afterImportFailure) choice.reason = 'import_retry';
+      return start(choice).then(
+        function () {
+          writeStore(CDN_KEY, { base: choice.base, ts: Date.now() });
+          return window.__rapiraCdn;
+        },
+        function (error) {
+          removeStore(CDN_KEY);
+          diagnostics.probes.push({
+            host: hostOf(choice.base),
+            result: 'import_failed',
+            ms: null,
+            round
+          });
+          const rest = pool.filter(function (base) {
+            return base !== choice.base;
+          });
+          if (!rest.length) return nextRound(fullPool, primary, round, error);
+          console.warn(`[cdn-loader] failed to load from ${choice.base}`, error);
+          return run(fullPool, rest, primary, null, round, true);
+        }
+      );
+    });
+  }
+
+  function anonymousId() {
+    try {
+      const existing = window.sessionStorage.getItem(ANON_ID_KEY);
+      if (existing) return existing;
+      const created = Array.from({ length: 6 }, function () {
+        return Math.random().toString(36).slice(2, 6).padEnd(4, '0');
+      }).join('-');
+      window.sessionStorage.setItem(ANON_ID_KEY, created);
+      return created;
+    } catch {
+      return null;
+    }
+  }
+
+  function parseDsn(dsn) {
+    const match = typeof dsn === 'string' ? /^https:\/\/([^@/]+)@([^/]+)\/(\d+)$/.exec(dsn) : null;
+    return match ? { key: match[1], host: match[2], project: match[3] } : null;
+  }
+
+  function attribute(value) {
+    if (typeof value === 'boolean') return { value, type: 'boolean' };
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return { value, type: Number.isInteger(value) ? 'integer' : 'double' };
+    }
+    return { value: typeof value === 'string' ? value : JSON.stringify(value), type: 'string' };
+  }
+
+  function failedProbes() {
+    const failed = diagnostics.probes
+      .filter(function (record) {
+        return !['ok', 'pending', 'not_started'].includes(record.result);
+      })
+      .map(function (record) {
+        return `${record.host}:${record.result}`;
+      });
+    return failed.filter(function (value, index) {
+      return failed.indexOf(value) === index;
+    });
+  }
+
+  function reportFailure(config, error) {
+    const entry = pickEntry(config);
+    const dsn = parseDsn(entry && entry.sentryDsn);
+    if (!dsn) return;
+    diagnostics.total_ms = Date.now() - startedAt;
+    const attributes = {
+      'sentry.release': manifest.release,
+      'sentry.environment': manifest.environment,
+      'user.id': anonymousId(),
+      cdn_reason: 'all_failed',
+      cdn_round: String(diagnostics.round),
+      cdn_config: diagnostics.config_source,
+      cdn_probe_fail: failedProbes().join(','),
+      cdn_probes: diagnostics.probes,
+      total_ms: diagnostics.total_ms,
+      online: navigator.onLine,
+      page_host: host,
+      origin_result: diagnostics.origin.result,
+      origin_ms: diagnostics.origin.ms,
+      net_type: diagnostics.network && diagnostics.network.type,
+      net_rtt: diagnostics.network && diagnostics.network.rtt,
+      net_downlink: diagnostics.network && diagnostics.network.downlink,
+      error: error && error.message ? error.message : String(error)
+    };
+    const serialized = {};
+    Object.keys(attributes).forEach(function (key) {
+      if (attributes[key] !== null && attributes[key] !== undefined) {
+        serialized[key] = attribute(attributes[key]);
+      }
+    });
+    const traceId = Array.from({ length: 32 }, function () {
+      return Math.floor(Math.random() * 16).toString(16);
+    }).join('');
+    const item = {
+      timestamp: Date.now() / 1000,
+      trace_id: traceId,
+      level: 'error',
+      body: 'cdn-loader failed',
+      severity_number: 17,
+      attributes: serialized
+    };
+    const body = [
+      JSON.stringify({ sent_at: new Date().toISOString() }),
+      JSON.stringify({
+        type: 'log',
+        item_count: 1,
+        content_type: 'application/vnd.sentry.items.log+json'
+      }),
+      JSON.stringify({ version: 2, items: [item] })
+    ].join('\n');
+    try {
+      fetch(`https://${dsn.host}/api/${dsn.project}/envelope/?sentry_key=${dsn.key}&sentry_version=7`, {
+        method: 'POST',
+        body,
+        keepalive: true,
+        mode: 'no-cors',
+        credentials: 'omit'
+      }).catch(function (sendError) {
+        console.warn('[cdn-loader] failure report was not sent', sendError);
+      });
+    } catch (sendError) {
+      console.warn('[cdn-loader] failure report was not sent', sendError);
+    }
+  }
+
+  const cached = readStore(CONFIG_KEY);
+  const refresh = fetchConfig().catch(function (error) {
+    console.warn('[cdn-loader] app-config.json unavailable', error);
+    return null;
+  });
+  const ready =
+    isObject(cached) || isKnownHost() || pickEntry(builtIn)
+      ? Promise.resolve(cached)
+      : Promise.race([
+          refresh,
+          new Promise(function (resolve) {
+            setTimeout(function () {
+              resolve(null);
+            }, CONFIG_WAIT_MS);
+          })
+        ]);
+
+  let resolvedConfig = null;
+
+  return ready
+    .then(function (fetched) {
+      diagnostics.config_source = isObject(fetched)
+        ? fetched === cached
+          ? 'cache'
+          : 'network'
+        : pickEntry(builtIn)
+          ? 'builtin'
+          : 'none';
+      const config = withBuiltIn(fetched);
+      resolvedConfig = config;
+      if (isObject(config)) window.__rapiraAppConfig = config;
+      const pool = candidates(config);
+      const stored = readStore(CDN_KEY);
+      const remembered =
+        isObject(stored) &&
+        typeof stored.base === 'string' &&
+        Date.now() - stored.ts < CDN_TTL_MS &&
+        pool.includes(stored.base)
+          ? stored.base
+          : null;
+      if (remembered) diagnostics.remembered_age_min = Math.round((Date.now() - stored.ts) / 60000);
+      return run(pool, pool, pool[0], remembered, 1, false);
+    })
+    .catch(function (error) {
+      console.error('[cdn-loader] application failed to load', error);
+      Promise.race([
+        refresh,
+        wait(ORIGIN_WAIT_MS).then(function () {
+          return null;
+        })
+      ]).then(function (fetched) {
+        reportFailure(pickEntry(resolvedConfig) ? resolvedConfig : withBuiltIn(fetched), error);
+      });
+      throw error;
+    });
+}
+
+bootLoader({"entry":"assets/main-lVtbve7Y.js","preload":["assets/protocol-D4_TSrfs.js","assets/vendor-vue-Dt2GW3Fs.js","assets/ui-DrxKA_jL.js","assets/vendor-DXPcq2-h.js","assets/vendor-utils-TAuW4Pqt.js","assets/NumberFormattingService-GP_9mn0G.js","assets/session-DTtRQirj.js","assets/execute-CAXq2S57.js","assets/observability-AOsWEVpX.js","assets/vendor-helpers-CoPuNlNn.js","assets/reportError-B6OZb-Jf.js","assets/region-BuTeRnDV.js","assets/useColorMode-B09g5b9j.js","assets/basicRequests-B2d9kDKV.js","assets/vendor-socket-D8hoHARo.js","assets/elementPlusBridge-CwNpJd9H.js","assets/exchange-DVWjQB7y.js","assets/historyFilters-QeniAIaS.js","assets/modalAlert-jz8JQ_zW.js","assets/useLanguageOptions-C01K_ltK.js"],"css":["assets/ui-QetmfetK.css","assets/main-BNPYNzvA.css"],"config":"eyJyYXBpcmEubmV0Ijp7ImRvbWFpbiI6InJhcGlyYS5uZXQiLCJhcGkiOiJodHRwczovL2FwaS5yYXBpcmEubmV0IiwicGF5IjoiaHR0cHM6Ly9wYXkucmFwaXJhLm5ldCIsImNoYXR3b290IjoiaHR0cHM6Ly9jdy5yYXBpcmEubmV0Iiwic2VudHJ5RHNuIjoiaHR0cHM6Ly9hOTRlZThlYTZiMTRlNWFiOTViMzY1MjcyMmM1OGEwY0BmcmllbmRzaGlwLnJhcGlyYS5uZXQvMyIsImNkbiI6WyJodHRwczovL2Nkbi5yYXBpcmEubmV0LyIsImh0dHBzOi8vY2RucmFwaXJhLm5ldC8iXX0sInJhcGlyYS5pbyI6eyJkb21haW4iOiJyYXBpcmEuaW8iLCJhcGkiOiJodHRwczovL2FwaS5yYXBpcmEuaW8iLCJwYXkiOiJodHRwczovL3BheS5yYXBpcmEubmV0IiwiY2hhdHdvb3QiOiJodHRwczovL2N3LnJhcGlyYS5uZXQiLCJzZW50cnlEc24iOiJodHRwczovL2E5NGVlOGVhNmIxNGU1YWI5NWIzNjUyNzIyYzU4YTBjQGZyaWVuZHNoaXAucmFwaXJhLm5ldC8zIiwiY2RuIjpbImh0dHBzOi8vY2RuLnJhcGlyYS5pby8iLCJodHRwczovL2NkbnJhcGlyYS5uZXQvIl19LCJyYXBpcmEub3JnIjp7ImRvbWFpbiI6InJhcGlyYS5vcmciLCJhcGkiOiJodHRwczovL2FwaS5yYXBpcmEub3JnIiwicGF5IjoiaHR0cHM6Ly9wYXkucmFwaXJhLm5ldCIsImNoYXR3b290IjoiaHR0cHM6Ly9jdy5yYXBpcmEubmV0Iiwic2VudHJ5RHNuIjoiaHR0cHM6Ly9hOTRlZThlYTZiMTRlNWFiOTViMzY1MjcyMmM1OGEwY0BmcmllbmRzaGlwLnJhcGlyYS5uZXQvMyIsImNkbiI6WyJodHRwczovL2Nkbi5yYXBpcmEub3JnLyIsImh0dHBzOi8vY2RucmFwaXJhLm5ldC8iXX19","cdn":"https://cdnrapira.io/","zoneCdn":"https://cdn.{domain}/","buildDomain":"rapira.io","site":{"brand":"rapira","zones":["net","io","org"]},"release":"rapira-front@5db91ef7","environment":"production"});
+</script>
+  </body>
+</html>
