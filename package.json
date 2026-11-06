@@ -13,6 +13,7 @@
     "test:services": "node scripts/qa-services.mjs",
     "test:commerce": "node scripts/qa-commerce.mjs",
     "test:clawd": "node scripts/qa-clawd.mjs",
+    "test:covers": "node scripts/qa-covers.mjs",
     "test:reviews": "node scripts/qa-reviews.mjs",
     "test:seller": "node scripts/qa-seller.mjs"
   },

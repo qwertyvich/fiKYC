@@ -1,0 +1,32 @@
+/* Covers own their entire surface. Category icons keep their compact layout. */
+.product-cover{position:absolute;inset:0;isolation:isolate;overflow:hidden;background:var(--cover-bg);color:var(--cover-ink);container-type:inline-size}
+.cover-image{display:block;width:100%;height:100%;object-fit:cover;object-position:var(--cover-position)}
+.cover-photo::after{content:'';position:absolute;inset:45% 0 0;background:linear-gradient(transparent,#0009);pointer-events:none}
+.cover-label{position:absolute;inset-inline:10%;bottom:9%;z-index:1;display:flex;flex-direction:column;gap:4px;text-align:left;line-height:1.05}
+.cover-label b{font-size:clamp(12px,10cqw,34px);font-weight:650;letter-spacing:-.04em;overflow-wrap:anywhere}
+.cover-label small{font-size:clamp(8px,5cqw,16px);font-weight:500;letter-spacing:.02em;color:inherit}
+.cover-mark{position:absolute;width:75%;height:65%;left:12.5%;top:7%;object-fit:contain;filter:none}
+.cover-invert .cover-mark{filter:brightness(0) invert(1)}
+.cover-scene{position:absolute;width:115%;height:100%;left:-7.5%;top:-6%;overflow:visible}
+.cover-graphic .cover-label{bottom:8%}
+.cover-graphic::before{content:'';position:absolute;width:125%;aspect-ratio:1;border:1px solid currentColor;border-radius:50%;left:22%;top:-55%;opacity:.08}
+.cover-graphic::after{content:'';position:absolute;inset:65% 0 0;background:linear-gradient(transparent,var(--cover-bg));pointer-events:none}
+.cover-bitget .cover-image{transform:scale(1.55);transform-origin:100% 75%}
+.cover-kb .cover-image{transform:scale(1.5);transform-origin:100% 60%}
+.cover-figma-setup .cover-mark{width:110%;height:100%;left:8%;top:-17%;transform:rotate(-16deg)}
+.cover-higgs-plus-1200 .cover-mark,.cover-higgs-ultra-6000 .cover-mark,.cover-higgs-ultra-9000 .cover-mark,.cover-higgs-creator-12000 .cover-mark{width:100%;height:94%;top:-16%;left:13%;mix-blend-mode:multiply;transform:rotate(-14deg)}
+.cover-bybit .cover-mark{top:18%;height:43%;width:82%;left:9%}
+.cover-rapira .cover-mark{filter:brightness(0) invert(1);width:86%;left:7%;height:58%;top:14%}
+.cover-kling-ultra .cover-mark{mix-blend-mode:screen;width:85%;height:78%;left:7.5%;top:-3%}
+.cover-millpay .cover-mark{mix-blend-mode:multiply}
+.cover-manus .cover-mark{width:80%;height:72%;left:18%;top:0;mix-blend-mode:multiply}
+.cover-htx .cover-label,.cover-capcut-pro-7d .cover-label{display:none}
+.cover-htx::after,.cover-capcut-pro-7d::after{display:none}
+.product-art:has(.product-cover) .art-watermark,.product-art:has(.product-cover) .art-orbit,.product-art:has(.product-cover) .art-caption,.detail-art:has(.product-cover)>.art-watermark{display:none}
+.product-art:has(.product-cover) .favorite-button{background:#ffffffdf;color:#262830;backdrop-filter:blur(8px)}
+.product-art:has(.product-cover) .favorite-button.saved{color:#b85138}
+.detail-art:has(.product-cover){height:280px;position:relative;overflow:hidden}
+.detail-art .cover-label b{font-size:32px}.detail-art .cover-label small{font-size:14px}
+.products-list .cover-label{inset-inline:9%;bottom:9%}.products-list .cover-label b{font-size:12px}.products-list .cover-label small{font-size:8px}
+.products-list .cover-mark{width:82%;left:9%;top:10%;height:60%}
+@media(max-width:370px){.cover-label b{font-size:clamp(11px,10cqw,30px)}}

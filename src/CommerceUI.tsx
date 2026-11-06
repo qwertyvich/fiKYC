@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Check, ChevronRight, Clock3, Copy, FileText, Hea
 import { currencyTotals, isAvailable, isRequest, money, priceLabel, requestFields, validateRequest, type Catalog, type Group, type OfferDetails, type Order, type OrderStatus, type Product, type ServiceRequest, type ShopSettings } from './domain';
 import { dateTime, defaultShop, offerFor, parseShop, safeWebUrl, statusOf, statuses, supportText } from './commerce';
 import { readLocal, writeLocal } from './store';
+import { ProductCover } from './ProductCover';
 import { BrandArt } from './visuals';
 import { ClawdProductArt } from './ClaudeSection';
 import { ProductStats, Reviews } from './ProductReviews';
@@ -32,7 +33,7 @@ export function ProductPage({ product: p, group, shop, favorite, onFavorite, onA
   }, [p.id]);
   return <section className="product-detail offer-page">
     <div className="detail-top"><button className="back-link" onClick={onBack}><ArrowLeft size={17}/>{t("Назад к выбору")}</button><button className="icon-button" aria-label={t("В избранное")} aria-pressed={favorite} onClick={onFavorite}><Heart size={21} fill={favorite ? 'currentColor' : 'none'}/></button></div>
-    <div className={`detail-art art-${p.brand}`}><span className="art-watermark">{t(p.brand)}</span>{p.brand === 'claude' ? <ClawdProductArt product={p}/> : <BrandArt brand={p.brand} productId={p.id}/>} {t(p.badge && <span className="product-badge">{t(p.badge)}</span>)}</div>
+    <div className={`detail-art art-${p.brand}`}><span className="art-watermark">{t(p.brand)}</span>{p.brand === 'claude' ? <ClawdProductArt product={p}/> : <ProductCover product={p}/>} {t(p.badge && <span className="product-badge">{t(p.badge)}</span>)}</div>
     <div className="detail-title"><h1>{t(p.title)}</h1><span className="stock"><i/>{t(request ? (isAvailable(p) ? 'Можно оставить заявку' : 'Приём закрыт') : p.stock ? 'Доступно к оформлению' : 'Нет в наличии')}</span></div>
     <p className="detail-subtitle">{t(p.subtitle)}</p>
     <ProductStats product={p} onReviews={() => document.getElementById('product-reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}/>

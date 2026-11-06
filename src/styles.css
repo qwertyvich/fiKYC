@@ -23,7 +23,10 @@ html,body,#root{height:100%;overflow:hidden}
 .app-scroll{height:100%;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:none}
 .app-scroll::-webkit-scrollbar{display:none}
 main{min-height:calc(100% - 80px - var(--tg-safe-top))}
-.sheet{max-height:min(88dvh,calc(100% - 16px))}
+.sheet{max-height:min(88dvh,calc(100% - 16px));scrollbar-width:none}
+.sheet::-webkit-scrollbar{display:none}
+.sheet-scroll-hint{position:absolute;bottom:0;inset-inline:0;margin-inline:auto;width:100%;max-width:var(--app-width);height:72px;pointer-events:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);background:linear-gradient(to bottom,transparent,var(--bg));mask-image:linear-gradient(to bottom,transparent,#000 75%);-webkit-mask-image:linear-gradient(to bottom,transparent,#000 75%);opacity:0;transition:opacity .18s ease}
+.sheet-scroll-hint.visible{opacity:1}
 @media(min-width:600px){body{padding:28px 0;background:#e8e9e4}#root{display:grid;place-items:center}.app-frame{height:min(900px,calc(100dvh - 56px));border-radius:34px;box-shadow:0 0 0 1px #1617130d,0 25px 90px #16171316}.bottom-nav{bottom:16px}.sheet{border-radius:28px 28px 0 0;margin:0}.topbar{padding-top:20px}main{padding-bottom:130px}}
 @media(max-width:370px){main{padding-left:15px;padding-right:15px}.topbar{padding-left:17px;padding-right:17px}.hero{padding:21px 16px;min-height:191px}.hero h1{font-size:26px}.hero-visual{right:-15px;width:145px;top:10px}.hero-visual>.mascot{width:155px;top:8px}.hero p{max-width:145px;font-size:9px}.hero .eyebrow{font-size:7px}.hero-note{font-size:7px}.product-art{height:143px}.product-info{padding:11px 10px}.product-title{font-size:12px}.product-price strong{font-size:14px}.spotlight .new-label{display:none}.category-scroll{margin-left:-15px;margin-right:-15px;padding-left:15px;padding-right:15px}.products{gap:9px}.detail-title{align-items:flex-start;flex-direction:column}.detail-purchase .primary-button{font-size:10px;padding-left:9px;padding-right:9px}.brand-caption{font-size:8px}.wordmark{font-size:21px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}

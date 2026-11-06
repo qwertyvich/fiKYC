@@ -11,6 +11,7 @@ import { RequestCheckoutPage } from './TelegramCheckout';
 import { ProductPage, CheckoutPage, OrdersPage, OrderPage, OrderPreview, SupportPage, ShopEditor, OfferEditor } from './CommerceUI';
 import { haptic, telegram } from './telegram';
 import { BrandArt, Mascot } from './visuals';
+import { ProductCover } from './ProductCover';
 import { ClaudeHero, ClawdProductArt, useClawdMotion } from './ClaudeSection';
 import { isAppearance, resolveMode, type Appearance, type ColorMode } from './appearance';
 
@@ -203,7 +204,7 @@ export function App() {
       { path: '/orders', label: 'Заказы', icon: Package, active: ['orders', 'order', 'order-preview'].includes(kind) },
       { path: '/profile', label: 'Профиль', icon: UserRound, active: ['profile', 'help', 'admin', 'support'].includes(kind) },
     ].map(({ path, label, icon: Icon, active }) => <button key={path} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined} onClick={() => go(path)}><Icon size={21} strokeWidth={active ? 2.3 : 1.7}/><span>{t(label)}</span>{active && <i/>}</button>)}</div><button className="nav-cart" aria-label={t(`Корзина, ${cartCount} товаров`)} aria-current={kind === 'cart' ? 'page' : undefined} onClick={() => go('/cart')}><ShoppingBag size={24}/>{cartCount > 0 && <b>{cartCount}</b>}</button></nav>
-    {categoriesOpen && catalog && <Sheet title={t("Все категории")} onClose={() => setCategoriesOpen(false)}><div className="category-directory-grid">{catalog.groups.filter(g => g.visible).map(g => <button key={g.id} onClick={() => { setQuery(''); setCategoriesOpen(false); go(`/group/${g.id}`); }}><BrandArt brand={g.icon} small/><span>{t(g.title)}<small>{catalog.products.filter(p => p.visible && p.groupId === g.id).length}{t(" предложений")}</small></span><ChevronRight size={16}/></button>)}</div></Sheet>}
+    {categoriesOpen && catalog && <Sheet title={t("Все категории")} scrollHint onClose={() => setCategoriesOpen(false)}><div className="category-directory-grid">{catalog.groups.filter(g => g.visible).map(g => <button key={g.id} onClick={() => { setQuery(''); setCategoriesOpen(false); go(`/group/${g.id}`); }}><BrandArt brand={g.icon} small/><span>{t(g.title)}<small>{catalog.products.filter(p => p.visible && p.groupId === g.id).length}{t(" предложений")}</small></span><ChevronRight size={16}/></button>)}</div></Sheet>}
     {filters && <Sheet title={t("Настроим каталог")} onClose={() => setFilters(false)}><h3>{t("Сортировка")}</h3><div className="radio-list">{([['manual', 'Рекомендуем'], ['price-asc', 'Сначала дешевле'], ['price-desc', 'Сначала дороже'], ['name', 'По названию']] as const).map(([value, label]) => <label key={value}><input type="radio" name="sort" value={value} checked={sort === value} onChange={() => setSort(value)}/><span>{t(label)}</span>{sort === value && <Check size={18}/>}</label>)}</div><label className="switch-row"><span><b>{t("Только в наличии")}</b><small>{t("Товары в наличии и открытые заявки")}</small></span><input type="checkbox" checked={available} onChange={e => setAvailable(e.target.checked)}/><i/></label><button className="primary-button" onClick={() => setFilters(false)}>{t("Показать товары")}<ArrowRight size={18}/></button><button className="plain-button" onClick={() => { setSort('manual'); setAvailable(false); }}>{t("Сбросить фильтры")}</button></Sheet>}
     {shopEditor && <Sheet title={t("Информация магазина")} onClose={() => setShopEditor(false)}><ShopEditor shop={shop} onSave={async value => { await store.saveShop(value); setShop(value); notify('Информация магазина сохранена'); }}/></Sheet>}
     {t(toast && <div className="toast" role="status"><Check size={17}/>{t(toast)}</div>)}
@@ -212,7 +213,7 @@ export function App() {
 
 function ProductCard({ product: p, favorite, onFavorite, onAdd, inCart }: { product: Product; favorite: boolean; onFavorite(): void; onAdd(): void; inCart: boolean }) {
   const { paused } = useClawdMotion();
-  return <article className={`product-card ${p.badge === 'Хит' ? 'product-hit' : ''} ${paused ? 'motion-paused' : ''} ${!isAvailable(p) ? 'sold-out' : ''}`}><div className={`product-art art-${p.brand}`}><button className="art-link" aria-label={t(`Подробнее: ${p.title}`)} onClick={() => go(`/product/${p.id}`)}><span className="art-watermark">{t(p.brand === 'claude' ? 'claude' : p.brand === 'mail' ? 'письма' : p.brand === 'cdek' ? 'identity' : 'workspace')}</span><span className="art-orbit"/>{p.brand === 'claude' ? <ClawdProductArt product={p}/> : <BrandArt brand={p.brand} productId={p.id}/>}<span className="art-caption">{t(p.brand === 'claude' ? 'a little more possible' : 'сервисы для жизни')}</span></button>{t(p.badge && <span className={`product-badge ${p.badge === 'Хит' ? 'hit' : ''}`}>{p.badge === 'Хит' && <Sparkles size={10}/>} {t(p.badge)}</span>)}<button className={`favorite-button ${favorite ? 'saved' : ''}`} aria-label={t(`${favorite ? 'Убрать из избранного' : 'В избранное'}: ${p.title}`)} aria-pressed={favorite} onClick={onFavorite}><Heart size={17} fill={favorite ? 'currentColor' : 'none'}/></button></div><div className="product-info"><button className="product-title" onClick={() => go(`/product/${p.id}`)}>{t(p.title)}</button><p>{t(p.subtitle)}</p><ProductStats product={p}/><span className={`stock ${isAvailable(p) ? '' : 'empty-stock'}`}><i/>{t(isRequest(p) ? (isAvailable(p) ? 'Приём заявок' : 'Приём закрыт') : p.stock ? `${p.stock} в наличии` : 'Скоро появится')}</span><div className="product-price"><strong>{t(priceLabel(p))}</strong><button disabled={!isAvailable(p)} aria-label={t(`${isRequest(p) ? 'Оформить заявку' : 'Добавить в корзину'}: ${p.title}`)} className={inCart ? 'in-cart' : ''} onClick={onAdd}>{isRequest(p) ? <ArrowRight size={19}/> : inCart ? <Check size={19}/> : <Plus size={19}/>}</button></div></div></article>;
+  return <article className={`product-card ${p.badge === 'Хит' ? 'product-hit' : ''} ${paused ? 'motion-paused' : ''} ${!isAvailable(p) ? 'sold-out' : ''}`}><div className={`product-art art-${p.brand}`}><button className="art-link" aria-label={t(`Подробнее: ${p.title}`)} onClick={() => go(`/product/${p.id}`)}><span className="art-watermark">{t(p.brand === 'claude' ? 'claude' : p.brand === 'mail' ? 'письма' : p.brand === 'cdek' ? 'identity' : 'workspace')}</span><span className="art-orbit"/>{p.brand === 'claude' ? <ClawdProductArt product={p}/> : <ProductCover product={p}/>}<span className="art-caption">{t(p.brand === 'claude' ? 'a little more possible' : 'сервисы для жизни')}</span></button>{t(p.badge && <span className={`product-badge ${p.badge === 'Хит' ? 'hit' : ''}`}>{p.badge === 'Хит' && <Sparkles size={10}/>} {t(p.badge)}</span>)}<button className={`favorite-button ${favorite ? 'saved' : ''}`} aria-label={t(`${favorite ? 'Убрать из избранного' : 'В избранное'}: ${p.title}`)} aria-pressed={favorite} onClick={onFavorite}><Heart size={17} fill={favorite ? 'currentColor' : 'none'}/></button></div><div className="product-info"><button className="product-title" onClick={() => go(`/product/${p.id}`)}>{t(p.title)}</button><p>{t(p.subtitle)}</p><ProductStats product={p}/><span className={`stock ${isAvailable(p) ? '' : 'empty-stock'}`}><i/>{t(isRequest(p) ? (isAvailable(p) ? 'Приём заявок' : 'Приём закрыт') : p.stock ? `${p.stock} в наличии` : 'Скоро появится')}</span><div className="product-price"><strong>{t(priceLabel(p))}</strong><button disabled={!isAvailable(p)} aria-label={t(`${isRequest(p) ? 'Оформить заявку' : 'Добавить в корзину'}: ${p.title}`)} className={inCart ? 'in-cart' : ''} onClick={onAdd}>{isRequest(p) ? <ArrowRight size={19}/> : inCart ? <Check size={19}/> : <Plus size={19}/>}</button></div></div></article>;
 }
 
 function PageTitle({ title, subtitle }: { title: string; subtitle?: string }) { return <div className="page-title"><button className="back-link" onClick={() => go('/catalog')}><ArrowLeft size={16}/>{t(" В маркет")}</button><h1>{t(title)}</h1>{t(subtitle && <p>{t(subtitle)}</p>)}</div>; }
@@ -221,9 +222,21 @@ function MenuRow({ icon, title, extra, onClick }: { icon: ReactNode; title: stri
 
 const requestKindLabels: Record<NonNullable<Product['requestKind']>, string> = { topup: 'Пополнение', gift: 'Подарочная карта', verification: 'Верификация', finance: 'Финансовый сервис', profile: 'Профиль', rental: 'Аренда', travel: 'Бронирование', general: 'Общая заявка' };
 
-function Sheet({ title, onClose, children }: { title: string; onClose(): void; children: ReactNode }) {
+function Sheet({ title, onClose, children, scrollHint = false }: { title: string; onClose(): void; children: ReactNode; scrollHint?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [hasMoreBelow, setHasMoreBelow] = useState(false);
   const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
+  useEffect(() => {
+    const sheet = ref.current;
+    if (!scrollHint || !sheet) return;
+    const update = () => setHasMoreBelow(sheet.scrollHeight - sheet.clientHeight - sheet.scrollTop > 2);
+    update();
+    sheet.addEventListener('scroll', update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(sheet);
+    if (sheet.lastElementChild) observer.observe(sheet.lastElementChild);
+    return () => { sheet.removeEventListener('scroll', update); observer.disconnect(); };
+  }, [scrollHint]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const focusable = () => [...(ref.current?.querySelectorAll<HTMLElement>('button,input,select,textarea,[tabindex="0"]') ?? [])].filter(e => !e.hasAttribute('disabled'));
@@ -237,7 +250,7 @@ function Sheet({ title, onClose, children }: { title: string; onClose(): void; c
     window.addEventListener('keydown', key);
     return () => { if (scroller) scroller.style.overflow = old; window.removeEventListener('keydown', key); previous?.focus(); };
   }, []);
-  return <div className="sheet-scrim" onClick={onClose}><div ref={ref} className="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" onClick={e => e.stopPropagation()}><div className="sheet-handle"/><div className="sheet-title"><h2 id="sheet-title">{t(title)}</h2><button className="icon-button" aria-label={t("Закрыть")} onClick={onClose}><X size={21}/></button></div>{t(children)}</div></div>;
+  return <div className="sheet-scrim" onClick={onClose}><div ref={ref} className="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" onClick={e => e.stopPropagation()}><div className="sheet-handle"/><div className="sheet-title"><h2 id="sheet-title">{t(title)}</h2><button className="icon-button" aria-label={t("Закрыть")} onClick={onClose}><X size={21}/></button></div>{t(children)}</div>{scrollHint && <div className={`sheet-scroll-hint${hasMoreBelow ? ' visible' : ''}`} aria-hidden="true"/>}</div>;
 }
 
 function Admin({ catalog, notify, onSave }: { catalog: Catalog; notify(message: string): void; onSave(c: Catalog): Promise<void> }) {

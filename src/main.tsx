@@ -11,6 +11,7 @@ import './claude-section.css';
 import './commerce.css';
 import './claude-fonts.css';
 import './product-highlights.css';
+import './product-covers.css';
 initLanguage(telegram?.initDataUnsafe?.user);
 initTelegram();
 createRoot(document.getElementById('root')!).render(<React.StrictMode><ClawdMotionProvider><App /></ClawdMotionProvider></React.StrictMode>);

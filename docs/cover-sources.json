@@ -1,0 +1,217 @@
+{
+  "bitget": {
+    "file": "covers/bitget.png",
+    "website": "https://www.bitget.com",
+    "sourceUrl": "https://img.bgstatic.com/video/open_graph_new.png",
+    "resolvedUrl": "https://img.bgstatic.com/video/open_graph_new.png",
+    "width": 1200,
+    "height": 630,
+    "bytes": 1228026,
+    "sha256": "3c34e62f5884e4a7e128163cf2dc6aea188ddb55564b39562ac02236489d576b",
+    "checkedAt": "2026-11-06T23:02:59.109509+00:00"
+  },
+  "emcd": {
+    "file": "covers/emcd.png",
+    "website": "https://emcd.io",
+    "sourceUrl": "https://emcd.io/og-en.png",
+    "resolvedUrl": "https://emcd.io/og-en.png",
+    "width": 1024,
+    "height": 512,
+    "bytes": 111540,
+    "sha256": "7c680d8724556620192e257197329aac4976c13d4054478b636d281f4e200cdf",
+    "checkedAt": "2026-11-06T23:02:57.001164+00:00"
+  },
+  "htx": {
+    "file": "covers/htx.png",
+    "website": "https://www.htx.com",
+    "sourceUrl": "https://www.htx.com/v4/tradingbot/shareIcon/en-us.png",
+    "resolvedUrl": "https://www.htx.com/v4/tradingbot/shareIcon/en-us.png",
+    "width": 1600,
+    "height": 836,
+    "bytes": 1025564,
+    "sha256": "fc0d1a834e51ac6575c628c93413454c393d327cabd42980ca3367e479ebd93d",
+    "checkedAt": "2026-11-06T23:02:56.374713+00:00"
+  },
+  "kb": {
+    "file": "covers/kb.png",
+    "website": "https://crypto.bot",
+    "sourceUrl": "https://crypto.bot/opengraph-image?ce00e5466a9fdfdc",
+    "resolvedUrl": "https://crypto.bot/opengraph-image?ce00e5466a9fdfdc",
+    "width": 1200,
+    "height": 630,
+    "bytes": 176848,
+    "sha256": "2a853abb427ac8e226e80a948dacade08b7d178f2eea9bd9519c450766adb0e7",
+    "checkedAt": "2026-11-06T23:02:57.842536+00:00"
+  },
+  "altyn": {
+    "file": "covers/altyn.jpg",
+    "website": "https://altyn.one",
+    "sourceUrl": "https://altyn.one/og/og-default-1200x630.jpg",
+    "resolvedUrl": "https://altyn.one/og/og-default-1200x630.jpg",
+    "width": 1200,
+    "height": 630,
+    "bytes": 336339,
+    "sha256": "96d0db2af942a2cbac5acc6f53697505a42dc86d152cbb8f4774317758b983cb",
+    "checkedAt": "2026-11-06T23:03:01.079859+00:00"
+  },
+  "yapay": {
+    "file": "covers/yapay.jpg",
+    "website": "https://pay.yandex.ru",
+    "sourceUrl": "https://avatars.mds.yandex.net/get-lpc/17495851/e3305b4c-0ab3-4dc6-953b-fb75c4f4ee99/width_1280_q80",
+    "resolvedUrl": "https://avatars.mds.yandex.net/get-lpc/17495851/e3305b4c-0ab3-4dc6-953b-fb75c4f4ee99/width_1280_q80",
+    "width": 1240,
+    "height": 1120,
+    "bytes": 44996,
+    "sha256": "a1fc7a17dda5fcaa48d61908611daf685e0b0e0333c370e9566baa75bf3527d2",
+    "checkedAt": "2026-11-06T23:03:01.100396+00:00"
+  },
+  "wallet": {
+    "file": "covers/wallet.webp",
+    "website": "https://walt.io",
+    "sourceUrl": "https://walt.io/images/hero/hero_device_still.webp",
+    "resolvedUrl": "https://walt.io/images/hero/hero_device_still.webp",
+    "width": 1132,
+    "height": 1766,
+    "bytes": 64762,
+    "sha256": "7dcf3e98e0856cb610888288d1fed712fe91f3fbbe0048d54c7bc0d7a02c0e22",
+    "checkedAt": "2026-11-06T23:03:03.881234+00:00"
+  },
+  "openwonder": {
+    "file": "covers/openwonder.png",
+    "website": "https://www.openwonder.com",
+    "sourceUrl": "https://cdn.sanity.io/images/0xv2k4xu/production/40b28ada5652e61fbcfe65223b0b0daf666041b7-2752x1536.png?w=900&q=85&fit=max&auto=format",
+    "resolvedUrl": "https://cdn.sanity.io/images/0xv2k4xu/production/40b28ada5652e61fbcfe65223b0b0daf666041b7-2752x1536.png?w=900&q=85&fit=max&auto=format",
+    "width": 900,
+    "height": 502,
+    "bytes": 1047830,
+    "sha256": "7c73b317779a05ef0fe524984859444820234e0908abfd2ba0bf48969d613106",
+    "checkedAt": "2026-11-06T23:03:03.985141+00:00"
+  },
+  "rove-travel": {
+    "file": "covers/rove-travel.jpg",
+    "website": "https://www.rovetravel.com",
+    "sourceUrl": "https://www.rovetravel.com/images/hero-fallback.jpg",
+    "resolvedUrl": "https://www.rovetravel.com/images/hero-fallback.jpg",
+    "width": 2560,
+    "height": 1993,
+    "bytes": 482061,
+    "sha256": "16030efdf5f949b6f08fbc94c8b65e802e081b9e7fe686db38f084221e250a24",
+    "checkedAt": "2026-11-06T23:03:10.310140+00:00"
+  },
+  "citydrive": {
+    "file": "covers/citydrive.png",
+    "website": "https://citydrive.ru",
+    "sourceUrl": "https://citydrive.ru/local/templates/project/build/images/pages/spread/main-detail.png",
+    "resolvedUrl": "https://citydrive.ru/local/templates/project/build/images/pages/spread/main-detail.png",
+    "width": 2312,
+    "height": 1519,
+    "bytes": 903481,
+    "sha256": "e2d85df1b78c5c8e10748004998f145ff78e367afff5f126fcd92e833b794165",
+    "checkedAt": "2026-11-06T23:03:10.312786+00:00"
+  },
+  "movly": {
+    "file": "covers/movly.webp",
+    "website": "https://movly.com",
+    "sourceUrl": "https://www.assets.movly.com/movly-website/f59c1987c7c96c26c9d0644e2135b79706143ad2/_nuxt/movlybanner.Da89LDlv.webp",
+    "resolvedUrl": "https://www.assets.movly.com/movly-website/f59c1987c7c96c26c9d0644e2135b79706143ad2/_nuxt/movlybanner.Da89LDlv.webp",
+    "width": 1920,
+    "height": 654,
+    "bytes": 102844,
+    "sha256": "4844f76dad54d45f5abb65963ddda288c4d156a722c5d80608b89fccb4dcc3e7",
+    "checkedAt": "2026-11-06T23:03:06.323910+00:00"
+  },
+  "bolt-rent": {
+    "file": "covers/bolt-rent.webp",
+    "website": "https://bolt.eu",
+    "sourceUrl": "https://assets.cms.bolt.eu/lg_Index_DT_Media_01_1_681eb62877.webp",
+    "resolvedUrl": "https://assets.cms.bolt.eu/lg_Index_DT_Media_01_1_681eb62877.webp",
+    "width": 1280,
+    "height": 818,
+    "bytes": 99950,
+    "sha256": "cdee569b318fb880a501a1651fa76c44dfe83e505c1dc3d75c7d893e0572b2aa",
+    "checkedAt": "2026-11-06T23:03:10.479309+00:00"
+  },
+  "capcut": {
+    "file": "covers/capcut.jpg",
+    "website": "https://www.capcut.com",
+    "sourceUrl": "https://p16-seeyou-sg.ibyteimg.com/tos-alisg-i-2zwwjm3azk-sg/af60401275b14f6684c2af1f7564d717~tplv-2zwwjm3azk-image.image",
+    "resolvedUrl": "https://p16-seeyou-sg.ibyteimg.com/tos-alisg-i-2zwwjm3azk-sg/af60401275b14f6684c2af1f7564d717~tplv-2zwwjm3azk-image.image",
+    "width": 1200,
+    "height": 627,
+    "bytes": 23616,
+    "sha256": "8cf48398e8031a42f1d2de6d03383ef69ee47a3f54837781bbee7f0e41d18fe5",
+    "checkedAt": "2026-11-06T23:05:35.780908+00:00"
+  },
+  "drive-car": {
+    "file": "covers/drive-car.png",
+    "website": "https://yandex.ru/drive/",
+    "sourceUrl": "https://avatars.mds.yandex.net/get-lpc/16904900/7edf6e0b-f192-4301-b28e-abe7bfbd3255/orig",
+    "resolvedUrl": "https://avatars.mds.yandex.net/get-lpc/16904900/7edf6e0b-f192-4301-b28e-abe7bfbd3255/orig",
+    "width": 720,
+    "height": 720,
+    "bytes": 309605,
+    "sha256": "94a929a4c1c6bceeab60cc84740badbdfc21cfaec6c9f080d4c6c66f12f6e142",
+    "checkedAt": "2026-11-06T23:05:38.478879+00:00"
+  },
+  "booking": {
+    "file": "covers/booking.webp",
+    "website": "https://www.booking.com/villas/city/id/silungbelanak.id.html",
+    "sourceUrl": "https://cf.bstatic.com/xdata/images/hotel/max1024x768/603797208.webp?k=4a921b03a18cf3b5bfa88539c170f5e9549a0642dde92108d734e0ebc3b05cb5&o=",
+    "resolvedUrl": "https://cf.bstatic.com/xdata/images/hotel/max1024x768/603797208.webp?k=4a921b03a18cf3b5bfa88539c170f5e9549a0642dde92108d734e0ebc3b05cb5&o=",
+    "width": 1024,
+    "height": 683,
+    "bytes": 88444,
+    "sha256": "c6c23f36ea88ccdc576b7d768601d7da1ec7f251c399a4e943537fcfa503e345",
+    "checkedAt": "2026-11-06T23:05:44.260342+00:00"
+  },
+  "villa": {
+    "file": "covers/villa.jpg",
+    "website": "https://www.pexels.com/photo/luxurious-modern-villa-with-infinity-pool-at-sunset-31817157/",
+    "sourceUrl": "https://images.pexels.com/photos/31817157/pexels-photo-31817157.jpeg?auto=compress&cs=tinysrgb&w=900",
+    "resolvedUrl": "https://images.pexels.com/photos/31817157/pexels-photo-31817157.jpeg?auto=compress&cs=tinysrgb&w=900",
+    "width": 900,
+    "height": 600,
+    "bytes": 111798,
+    "sha256": "acc315f8a7b2df15f7c659c74a3a04d698022aeb2ebc6eb5e664748f571ea9f2",
+    "checkedAt": "2026-11-06T23:05:44.347098+00:00"
+  },
+  "outdoorsy": {
+    "file": "covers/outdoorsy.jpg",
+    "website": "https://www.businessinsider.com/things-i-wish-i-knew-about-van-life-2021-1",
+    "sourceUrl": "https://i.insider.com/6009e07e21f52a0018cb9eac?auto=webp&format=jpeg&width=900",
+    "resolvedUrl": "https://i.insider.com/6009e07e21f52a0018cb9eac?auto=webp&format=jpeg&width=900",
+    "width": 900,
+    "height": 675,
+    "bytes": 154400,
+    "sha256": "b1bc42bbebec2dbd5b8ed44bcb69a0286c9529a01cadbeefd56ed9f06f3cd439",
+    "checkedAt": "2026-11-06T23:05:47.106033+00:00"
+  },
+  "notion-mark": {
+    "file": "covers/notion-mark.svg",
+    "website": "https://simpleicons.org",
+    "sourceUrl": "https://cdn.simpleicons.org/notion",
+    "sha256": "fdddc8f06178df169036d3f5fc336eb98b15cad375afa04d0a5cd7aa61b65739",
+    "checkedAt": "2026-11-06T23:13:05.583398+00:00"
+  },
+  "chatgpt-mark": {
+    "file": "covers/chatgpt-mark.svg",
+    "website": "https://svgl.app",
+    "sourceUrl": "https://svgl.app/library/openai.svg",
+    "sha256": "71eba8e11d265af0e3375ad610db95b4a5fedf9f07c40e5252e73942b8c5982e",
+    "checkedAt": "2026-11-06T23:13:05.583398+00:00"
+  },
+  "rapira-mark": {
+    "file": "covers/rapira-mark.svg",
+    "website": "https://rapira.io",
+    "sourceUrl": "https://rapira.io/media/logos/rapira-logo-alt-dark.svg",
+    "sha256": "235dfc50526d277381007eef20d9910c88deec90a4552ede821b2d67fa749fd8",
+    "checkedAt": "2026-11-06T23:13:05.583398+00:00"
+  },
+  "bybit-mark": {
+    "file": "covers/bybit-mark.svg",
+    "website": "https://www.bybit.com/press",
+    "sourceUrl": "data SVG from official page header",
+    "sha256": "05197bc478bf477d3fb7f4b7f2e87a8c81501fe5be9fcc1700eeebf0ba0a0847",
+    "checkedAt": "2026-11-06T23:13:05.583398+00:00"
+  }
+}
