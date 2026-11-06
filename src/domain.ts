@@ -1,3 +1,4 @@
+import { getLocale, t } from './i18n.ts';
 export type Theme = 'fikus' | 'claude';
 export const brands = ['claude', 'mail', 'cdek', 'ai', 'figma', 'notion', 'payment', 'gift', 'verification', 'crypto', 'wallet', 'car', 'travel', 'gaming'] as const;
 export type Brand = typeof brands[number];
@@ -65,11 +66,11 @@ export function entryProduct(search: string, startParam?: string): string | null
 }
 export function selectProducts(catalog: Catalog, groupId: string, query: string, sort: Sort, availableOnly: boolean): Product[] {
   const visibleGroups = new Set(catalog.groups.filter(g => g.visible).map(g => g.id));
-  const q = query.trim().toLocaleLowerCase('ru');
+  const q = query.trim().toLocaleLowerCase(getLocale());
   const order = new Map(catalog.groups.map((g, i) => [g.id, i]));
-  const result = catalog.products.filter(p => p.visible && visibleGroups.has(p.groupId) && (groupId === 'all' || p.groupId === groupId) && (!availableOnly || isAvailable(p)) && `${p.title} ${p.subtitle} ${p.description} ${p.aliases ?? ''}`.toLocaleLowerCase('ru').includes(q));
+  const result = catalog.products.filter(p => p.visible && visibleGroups.has(p.groupId) && (groupId === 'all' || p.groupId === groupId) && (!availableOnly || isAvailable(p)) && `${p.title} ${p.subtitle} ${p.description} ${t(p.title)} ${t(p.subtitle)} ${t(p.description)} ${p.aliases ?? ''}`.toLocaleLowerCase(getLocale()).includes(q));
   if (sort === 'price-asc' || sort === 'price-desc') result.sort((a, b) => Number(isRequest(a)) - Number(isRequest(b)) || (isRequest(a) ? 0 : (a.currency ?? 'RUB').localeCompare(b.currency ?? 'RUB') || (sort === 'price-asc' ? a.price - b.price : b.price - a.price)));
-  if (sort === 'name') result.sort((a, b) => a.title.localeCompare(b.title, 'ru'));
+  if (sort === 'name') result.sort((a, b) => t(a.title).localeCompare(t(b.title), getLocale()));
   if (sort === 'manual') result.sort((a, b) => (order.get(a.groupId) ?? 0) - (order.get(b.groupId) ?? 0));
   return result;
 }
@@ -98,4 +99,4 @@ export function cartLines(catalog: Catalog, cart: CartItem[]) {
     return product && !isRequest(product) ? [{ product, quantity: item.quantity }] : [];
   });
 }
-export const money = (value: number, currency: Currency = 'RUB') => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(value) + (currency === 'USD' ? ' $' : ' ₽');
+export const money = (value: number, currency: Currency = 'RUB') => new Intl.NumberFormat(getLocale(), { maximumFractionDigits: 2 }).format(value) + (currency === 'USD' ? ' $' : ' ₽');

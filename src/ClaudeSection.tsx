@@ -1,6 +1,8 @@
+import { t } from './i18n';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { CreditCard, Pause, Play, ShieldCheck } from 'lucide-react';
 import type { Product } from './domain';
+import { ClaudeMark } from './visuals';
 
 type Scene = 'hello' | 'writing' | 'thinking' | 'tools' | 'agents' | 'idle-coffee';
 const Motion = createContext({ paused: false, toggle: () => {} });
@@ -25,12 +27,12 @@ export function Clawd({ scene = 'hello', className = '' }: { scene?: Scene; clas
 
 export function ClaudeHero({ onExplore, onVerify, className = '' }: { onExplore(): void; onVerify(): void; className?: string }) {
   const { paused, toggle } = useContext(Motion);
-  return <section className={`claude-welcome ${className}`} aria-label="Подписки Claude и верификация KYC">
-    <div className="claude-welcome-top"><span className="claude-kicker"><i/> УСЛУГИ МАГАЗИНА фиКУС</span><button className="clawd-motion" aria-label={paused ? 'Включить анимации Clawd' : 'Приостановить анимации Clawd'} aria-pressed={!paused} onClick={toggle}>{paused ? <Play size={13}/> : <Pause size={13}/>}</button></div>
-    <h1>Подписки Claude<br/><em>и помощь с KYC</em></h1>
-    <p>Верификация вашего аккаунта, прогретые аккаунты с KYC, подписки Pro и Max. Условия и стоимость — в карточке каждой услуги.</p>
-    <div className="claude-welcome-stage"><span className="clawd-greeting">Подключение и верификация</span><Clawd scene="hello"/></div>
-    <div className="claude-offer-actions"><button onClick={onExplore}><CreditCard size={16} strokeWidth={1.8} aria-hidden="true"/><span>Подписки Claude</span></button><button onClick={onVerify}><ShieldCheck size={16} strokeWidth={1.8} aria-hidden="true"/><span>Верификация KYC</span></button></div>
+  return <section className={`claude-welcome ${className}`} aria-label={t("Подписки Claude и верификация KYC")}>
+    <div className="claude-welcome-top"><span className="claude-brand"><ClaudeMark/><span>Claude</span></span><button className="clawd-motion" aria-label={t(paused ? 'Включить анимации Clawd' : 'Приостановить анимации Clawd')} aria-pressed={!paused} onClick={toggle}>{paused ? <Play size={13}/> : <Pause size={13}/>}</button></div>
+    <h1>{t("Подписки Claude")}<br/><em>{t("и помощь с KYC")}</em></h1>
+    <p>{t("Верификация вашего аккаунта, прогретые аккаунты с KYC, подписки Pro и Max. Условия и стоимость — в карточке каждой услуги.")}</p>
+    <div className="claude-welcome-stage"><span className="clawd-greeting">{t("Подключение и верификация")}</span><Clawd scene="hello"/></div>
+    <div className="claude-offer-actions"><button onClick={onExplore}><CreditCard size={16} strokeWidth={1.8} aria-hidden="true"/><span>{t("Подписки Claude")}</span></button><button onClick={onVerify}><ShieldCheck size={16} strokeWidth={1.8} aria-hidden="true"/><span>{t("Верификация KYC")}</span></button></div>
   </section>;
 }
 
@@ -47,5 +49,5 @@ export function clawdFor(product: Pick<Product, 'id' | 'title'>): { scene: Scene
 
 export function ClawdProductArt({ product }: { product: Product }) {
   const { scene, label, tier } = clawdFor(product);
-  return <span className={`clawd-product clawd-product-${scene}`} aria-hidden="true"><span className="clawd-tier">{tier}</span><Clawd scene={scene}/><span className="clawd-product-label">{label}</span></span>;
+  return <span className={`clawd-product clawd-product-${scene}`} aria-hidden="true"><span className="clawd-tier"><ClaudeMark/>{t(tier)}</span><Clawd scene={scene}/><span className="clawd-product-label">{t(label)}</span></span>;
 }

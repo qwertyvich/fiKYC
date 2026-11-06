@@ -1,0 +1,10 @@
+.language-settings select { width:100%; min-height:44px; padding:11px 12px; border:1px solid var(--border); border-radius:12px; background:var(--surface); color:var(--text); font:inherit; font-size:13px; }
+.language-settings p { color:var(--muted); font-size:11px; line-height:1.7; margin-top:10px; }
+html[lang="fa"] body, html[lang="fa"] button, html[lang="fa"] input, html[lang="fa"] select, html[lang="fa"] textarea { font-family:Tahoma, Arial, sans-serif; }
+html[lang="zh"] body, html[lang="zh"] button, html[lang="zh"] input, html[lang="zh"] select, html[lang="zh"] textarea { font-family:"Microsoft YaHei", "PingFang SC", sans-serif; }
+[dir="rtl"] .page-title, [dir="rtl"] .product-info, [dir="rtl"] .content-card, [dir="rtl"] .menu-list button, [dir="rtl"] .category-directory, [dir="rtl"] .category-directory-grid>button, [dir="rtl"] .edit-form label { text-align:start; }
+[dir="rtl"] .back-link svg, [dir="rtl"] .primary-button>svg:last-child, [dir="rtl"] .menu-list button>svg:last-child, [dir="rtl"] .category-directory-grid>button>svg:last-child { transform:scaleX(-1); }
+[dir="rtl"] .hero, [dir="rtl"] .claude-hero { direction:ltr; }
+[dir="rtl"] .hero h1, [dir="rtl"] .hero p, [dir="rtl"] .hero-note, [dir="rtl"] .claude-hero-copy { direction:rtl; text-align:start; }
+[dir="rtl"] input[type="email"], [dir="rtl"] input[type="url"], [dir="rtl"] input[type="number"], [dir="rtl"] .wallet-amount, [dir="rtl"] .seller-message textarea { direction:ltr; }
+.bottom-nav button, .appearance-options button { overflow-wrap:anywhere; }

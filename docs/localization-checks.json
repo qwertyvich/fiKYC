@@ -1,0 +1,15 @@
+{
+  "checks": [
+    "Telegram en-GB defaults to English",
+    "ru: switching, direction, persistence",
+    "en: switching, direction, persistence",
+    "zh: switching, direction, persistence",
+    "fa: switching, direction, persistence",
+    "two Telegram IDs retain independent choices",
+    "automatic selection restores Telegram language",
+    "catalog, product, service, cart, orders and support render in all new languages without errors or viewport overflow",
+    "cart and entered checkout comment survive language switching; Persian settings fit 320 and 1280 pixels"
+  ],
+  "errors": [],
+  "untranslated": {}
+}

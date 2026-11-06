@@ -1,7 +1,7 @@
 interface TelegramApp {
   colorScheme?: 'light' | 'dark';
   initData: string;
-  initDataUnsafe: { start_param?: string; user?: { first_name: string; username?: string } };
+  initDataUnsafe: { start_param?: string; user?: { id?: number; first_name: string; username?: string; language_code?: string } };
   ready(): void; expand(): void;
   setHeaderColor(color: string): void; setBackgroundColor(color: string): void;
   BackButton: { show(): void; hide(): void; onClick(cb: () => void): void; offClick(cb: () => void): void };

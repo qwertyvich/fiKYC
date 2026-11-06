@@ -32,6 +32,9 @@ export const store: StoreAdapter = {
       catalog = parseCatalog(addClaudeOffers(catalog));
       try { writeLocal('catalog', catalog); writeLocal('claude-offers-v1', true); } catch { /* Keep the new offers in memory when storage is unavailable. */ }
     }
+    for (const product of catalog.products) {
+      if (product.id === 'claude-warmed-kyc' && product.badge === 'KYC пройдена') product.badge = '';
+    }
     return enrichOffers(catalog);
   },
   async saveCatalog(catalog) { writeLocal('catalog', parseCatalog(catalog)); },

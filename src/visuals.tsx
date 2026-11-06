@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { BadgeCheck, CarFront, Coins, CreditCard, Gift, Globe2, Mail, Sparkles, Wallet, Dices } from 'lucide-react';
 import type { Brand, Theme } from './domain';
 import logos from './logo-assets.json';
@@ -13,5 +14,5 @@ export function BrandArt({ brand, small = false, productId }: { brand: Brand; sm
   return <span className={`brand-art brand-${brand} ${small ? 'small' : ''} ${source ? 'has-official-logo' : ''}`} aria-hidden="true">{source ? <img className="official-logo" src={assetUrl(source)} alt=""/> : <Icon strokeWidth={1.5}/>}</span>;
 }
 export function Mascot({ theme, mini = false }: { theme: Theme; mini?: boolean }) {
-  return <img className={`mascot ${mini ? 'mini' : ''}`} src={assetUrl(theme === 'claude' ? 'ficus-mascot-claude.png' : 'ficus-mascot.png')} width={220} height={220} alt="Персонаж фиКУС"/>;
+  return <img className={`mascot ${mini ? 'mini' : ''}`} src={assetUrl(theme === 'claude' ? 'ficus-mascot-claude.png' : 'ficus-mascot.png')} width={220} height={220} alt={t("Персонаж фиКУС")}/>;
 }

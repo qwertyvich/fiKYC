@@ -48,7 +48,7 @@ export const subscriptionProducts: Product[] = [
 const item = (id: string, groupId: string, title: string, subtitle: string, price: number, stock: number, brand: Product['brand'], badge = ''): Product => ({ id, groupId, title, subtitle, price, stock, brand, badge, visible: true, description: `${title}. ${subtitle}. Перед оформлением ознакомьтесь с условиями услуги. После подключения магазина здесь будут инструкция, срок выполнения и условия поддержки для выбранного продукта.` });
 export const claudeServiceProducts: Product[] = [
   { ...service('claude-kyc', 'claude', 'Верификация KYC на ваш аккаунт', 'Claude · ваш аккаунт', 'claude', 'verification', 'claude клод верификация подтверждение личности KYC', 'Верификация KYC для вашего аккаунта Claude. Укажите текущий этап проверки: стоимость, срок и условия согласуются перед оформлением.'), badge: 'Хит' },
-  { ...service('claude-warmed-kyc', 'claude', 'Прогретый аккаунт Claude с KYC', 'Готовый аккаунт · KYC пройдена', 'claude', 'general', 'клод прогретые аккаунты готовый аккаунт пройденная проведенная KYC верификация', 'Продажа прогретого аккаунта Claude с пройденной KYC. Возраст аккаунта, наличие подписки, комплектация, стоимость и условия передачи уточняются до оплаты.'), badge: 'KYC пройдена' },
+  service('claude-warmed-kyc', 'claude', 'Прогретый аккаунт Claude с KYC', 'Готовый аккаунт · KYC пройдена', 'claude', 'general', 'клод прогретые аккаунты готовый аккаунт пройденная проведенная KYC верификация', 'Продажа прогретого аккаунта Claude с пройденной KYC. Возраст аккаунта, наличие подписки, комплектация, стоимость и условия передачи уточняются до оплаты.'),
 ];
 export const initialCatalog: Catalog = {
   version: 1,

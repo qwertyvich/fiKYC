@@ -1,3 +1,4 @@
+import { getLocale } from './i18n.ts';
 import type { Catalog, OfferDetails, Order, OrderStatus, Product, ServiceRequest, ShopSettings } from './domain';
 
 export const statuses: Record<OrderStatus, { title: string; next: string; step: number }> = {
@@ -62,6 +63,6 @@ export function offerFor(p: Product): OfferDetails {
 export function enrichOffers(c: Catalog): Catalog {
   return { ...c, products: c.products.map(p => ({ ...p, offer: offerFor(p), description: p.description.includes('После подключения магазина здесь будут') ? offerFor(p).result : p.description })) };
 }
-export const dateTime = (date: string) => new Date(date).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+export const dateTime = (date: string) => new Date(date).toLocaleString(getLocale(), { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 export function safeWebUrl(url?: string): string | null { try { const u = new URL(url ?? ''); return u.protocol === 'https:' ? u.href : null; } catch { return null; } }
 export function supportText(id: string, title: string, topic: string, message: string): string { return `Обращение в фиКУС\n${id ? `Заказ / заявка: ${id}\n` : ''}${title ? `Предложение: ${title}\n` : ''}Тема: ${topic}\n\n${message.trim()}`; }

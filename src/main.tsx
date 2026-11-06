@@ -1,13 +1,16 @@
+import { initLanguage } from './i18n';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { ClawdMotionProvider } from './ClaudeSection';
-import { initTelegram } from './telegram';
+import { initTelegram, telegram } from './telegram';
 import './styles.css';
+import './localization.css';
 import './themes.css';
 import './claude-section.css';
 import './commerce.css';
 import './claude-fonts.css';
 import './product-highlights.css';
+initLanguage(telegram?.initDataUnsafe?.user);
 initTelegram();
 createRoot(document.getElementById('root')!).render(<React.StrictMode><ClawdMotionProvider><App /></ClawdMotionProvider></React.StrictMode>);
