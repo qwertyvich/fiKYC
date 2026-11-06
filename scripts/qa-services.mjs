@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 const baseURL = process.env.QA_URL ?? 'http://127.0.0.1:5174';
 await mkdir('qa', { recursive: true });
-const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {}) });
+const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : { channel: 'chrome' }) });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
 const page = await context.newPage();
 const errors = []; const checks = [];
@@ -12,15 +12,17 @@ async function check(label, run) { await run(); checks.push(label); console.log(
 try {
   await check('new and saved catalogs receive all services and USD products; custom data survives', async () => {
     await page.goto(baseURL); await page.getByRole('heading', { name: 'Каталог', exact: true }).waitFor();
-    await expect(page.locator('.product-card')).toHaveCount(51);
+    const totalProducts = await page.locator('.product-card').count(); assert.ok(totalProducts >= 51);
     const catalog = await page.evaluate(() => JSON.parse(localStorage.getItem('fikus:catalog')));
-    catalog.products = catalog.products.slice(0, 12); catalog.groups = catalog.groups.slice(0, 4);
+    const hiddenCount = catalog.products.filter(p => p.groupId === catalog.groups[1].id).length;
+    catalog.products = catalog.products.filter(p => !['claude-kyc', 'claude-warmed-kyc'].includes(p.id)).slice(0, 12); catalog.groups = catalog.groups.slice(0, 4);
+    const editedId = catalog.products[0].id;
     catalog.products[0].price = 1234; catalog.groups[1].visible = false;
-    await page.evaluate(c => { localStorage.setItem('fikus:catalog', JSON.stringify(c)); localStorage.removeItem('fikus:services-expanded-v2'); }, catalog);
-    await page.reload(); await expect(page.locator('.product-card')).toHaveCount(49);
+    await page.evaluate(c => { localStorage.setItem('fikus:catalog', JSON.stringify(c)); localStorage.removeItem('fikus:services-expanded-v2'); localStorage.removeItem('fikus:claude-offers-v1'); }, catalog);
+    await page.reload(); await expect(page.locator('.product-card')).toHaveCount(totalProducts - hiddenCount);
     const migrated = await page.evaluate(() => JSON.parse(localStorage.getItem('fikus:catalog')));
-    assert.equal(migrated.products.length, 51); assert.equal(migrated.products[0].price, 1234); assert.equal(migrated.groups[1].visible, false);
-    await page.reload(); await expect(page.locator('.product-card')).toHaveCount(49);
+    assert.equal(migrated.products.length, totalProducts); assert.equal(migrated.products.find(p => p.id === editedId).price, 1234); assert.equal(migrated.groups[1].visible, false);
+    await page.reload(); await expect(page.locator('.product-card')).toHaveCount(totalProducts - hiddenCount);
     await page.evaluate(() => localStorage.clear()); await page.reload();
   });
   await check('all categories are reachable without horizontal scrolling', async () => {
@@ -37,16 +39,16 @@ try {
     await page.getByLabel(/^Дата заезда/).fill('2026-12-10');
     await page.getByLabel(/^Дата выезда/).fill('2026-12-09');
     await page.getByLabel(/^Количество гостей/).fill('2');
-    await page.getByRole('button', { name: /^(Создать демо-заявку|Отправить заявку)$/ }).click();
+    await page.getByRole('button', { name: /^(Подготовить заявку)$/ }).click();
     await expect(page.locator('.request-form .field-error, .request-form [role=alert]')).toContainText('Дата окончания');
     await page.getByLabel(/^Дата выезда/).fill('2026-12-12');
     await page.getByLabel(/^Комментарий/).fill('Поздний заезд');
     await page.screenshot({ path: 'qa/services-request.png' });
-    await page.getByRole('button', { name: /^(Создать демо-заявку|Отправить заявку)$/ }).click();
-    await expect(page.locator('.request-card, .request-parameters')).toHaveCount(1);
-    await expect(page.locator('.request-card, .request-parameters')).toContainText('Париж');
-    await expect(page.locator('.request-card, .request-parameters')).toContainText('Поздний заезд');
-    await page.reload(); await expect(page.locator('.request-card, .request-parameters')).toHaveCount(1);
+    await page.getByRole('button', { name: /^(Подготовить заявку)$/ }).click();
+    await expect(page.getByLabel('Сообщение продавцу')).toHaveCount(1);
+    await expect(page.getByLabel('Сообщение продавцу')).toHaveValue(/Париж/);
+    await expect(page.getByLabel('Сообщение продавцу')).toHaveValue(/Поздний заезд/);
+    await page.reload(); await expect(page.getByLabel('Сообщение продавцу')).toHaveCount(1);
     await page.getByRole('button', { name: 'Корзина, 0 товаров', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Тут пока просторно' })).toBeVisible();
   });
@@ -58,7 +60,7 @@ try {
       assert.equal(await page.getByRole('button', { name: /В корзину/ }).count(), 0);
     }
   });
-  await check('mixed currency basket and persistent order show separate RUB and USD totals', async () => {
+  await check('mixed currency basket and seller draft show separate RUB and USD totals', async () => {
     for (const id of ['claude-pro', 'chatgpt-plus-cdk', 'capcut-pro-7d']) {
       await page.goto(baseURL + '/#/product/' + id);
       await page.getByRole('button', { name: /^В корзину/ }).click();
@@ -66,20 +68,12 @@ try {
     await page.getByRole('button', { name: 'Корзина, 3 товаров', exact: true }).click();
     assert.equal((await page.locator('.summary-total').innerText()).replace(/\s/g, ' '), 'Итого 1 990 ₽ 16,5 $');
     await page.screenshot({ path: 'qa/services-mixed-cart.png' });
-    if (await page.getByRole('button', { name: 'Перейти к оформлению', exact: true }).count()) {
-      await page.getByRole('button', { name: 'Перейти к оформлению', exact: true }).click();
-      await page.getByRole('checkbox', { name: /Проверил состав/ }).check();
-      await page.getByRole('button', { name: 'Создать заказ', exact: true }).click();
-      await expect(page.getByRole('heading', { name: 'Ваш заказ', exact: true })).toBeVisible();
-      await expect(page.locator('.checkout-total')).toContainText('16,5 $');
-      await page.reload(); await expect(page.getByRole('heading', { name: 'Ваш заказ', exact: true })).toBeVisible();
-      await expect(page.locator('.checkout-total')).toContainText('1 990 ₽');
-    } else {
-      await page.getByRole('button', { name: 'Создать демо-заказ' }).click();
-      await expect(page.locator('.order-card:not(.request-card)')).toHaveCount(1);
-      await expect(page.locator('.order-card:not(.request-card) .order-total')).toContainText('16,5 $');
-      await page.reload(); await expect(page.locator('.order-card:not(.request-card)')).toHaveCount(1);
-    }
+    await page.getByRole('button', { name: 'Перейти к оформлению', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Заказ в Telegram', exact: true })).toBeVisible();
+    await expect(page.locator('.checkout-total')).toContainText('16,5 $');
+    await expect(page.getByLabel('Сообщение продавцу')).toHaveValue(/16,5 \$/);
+    await page.reload();
+    await expect(page.getByLabel('Сообщение продавцу')).toHaveValue(/1 990 ₽/);
   });
   await check('admin edits request availability, form type, aliases and USD currency', async () => {
     await page.goto(baseURL + '/#/admin');

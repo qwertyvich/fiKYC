@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-11-06T22:34:37.382Z",
+  "checks": [
+    "empty state and required fields; stars support keyboard selection",
+    "reload, catalog rating and product isolation",
+    "average uses this product only; edits replace own review; cross-tab updates",
+    "storage failure keeps entered text and does not change rating",
+    "single-store buyer count editable in admin, persists and appears on catalog and detail",
+    "light/dark, both brands, mobile and desktop fit without overflow"
+  ],
+  "pageErrors": []
+}

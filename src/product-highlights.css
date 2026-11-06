@@ -1,0 +1,64 @@
+/* The market uses lime; the Claude section uses its own terracotta palette. */
+:root {
+  --hit-line: #9ebc43;
+  --hit-halo: #a4c44020;
+  --hit-glint: #f0ffbf;
+  --hit-glint-edge: #a4c440;
+}
+:root[data-mode=dark] {
+  --hit-line: #8da633;
+  --hit-halo: #d1fe171c;
+  --hit-glint: #f3ffcc;
+  --hit-glint-edge: #d1fe17;
+}
+:root[data-theme=claude] {
+  --hit-line: #d99a80;
+  --hit-halo: #d977571c;
+  --hit-glint: #fff0d8;
+  --hit-glint-edge: #d97757;
+}
+:root[data-theme=claude][data-mode=dark] {
+  --hit-line: #ac6a50;
+  --hit-halo: #d9775726;
+  --hit-glint: #ffdec2;
+  --hit-glint-edge: #e6a17f;
+}
+.product-card.product-hit {
+  position: relative;
+  isolation: isolate;
+  border-color: var(--hit-line);
+  box-shadow: 0 0 0 1px var(--hit-halo), 0 4px 20px var(--hit-halo);
+}
+/* A masked highlight travels across the rim for 1.6 s, then rests.
+   It never covers content or intercepts a tap, in either grid or list view. */
+.product-hit::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  padding: 2px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 40%, var(--hit-glint-edge) 46%, var(--hit-glint) 50%, var(--hit-glint-edge) 54%, transparent 60%) 100% 0 / 300% 100% no-repeat;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  animation: hit-rim-glint 9s ease-in-out 1s infinite;
+}
+@keyframes hit-rim-glint {
+  0% { background-position: 100% 0; opacity: 0; }
+  3% { opacity: 1; }
+  18% { background-position: 0% 0; opacity: 0; }
+  100% { background-position: 0% 0; opacity: 0; }
+}
+.product-hit.motion-paused::after { animation: none; }
+.product-card.product-hit.sold-out {
+  border-color: var(--border);
+  box-shadow: var(--shadow);
+}
+.product-hit.sold-out::after { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .product-hit::after { animation: none; }
+}

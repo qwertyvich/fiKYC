@@ -1,4 +1,4 @@
-import { expandSavedCatalog, initialCatalog } from './catalog';
+import { addClaudeOffers, expandSavedCatalog, initialCatalog } from './catalog';
 import { isRequest, parseCatalog, requestFields, validateRequest, type Catalog, type Order, type ServiceRequest, type ShopSettings } from './domain';
 import { defaultShop, enrichOffers, offerFor, parseShop, validStatus } from './commerce';
 
@@ -11,6 +11,7 @@ export interface StoreAdapter {
   loadRequests(): Promise<ServiceRequest[]>;
   loadShop(): Promise<ShopSettings>;
   saveShop(settings: ShopSettings): Promise<void>;
+  acceptQuote(id: string): Promise<ServiceRequest>;
 }
 export function readLocal<T>(key: string, fallback: T): T {
   try { const value = localStorage.getItem(`fikus:${key}`); return value ? JSON.parse(value) : fallback; } catch { return fallback; }
@@ -26,6 +27,10 @@ export const store: StoreAdapter = {
     if (!readLocal('services-expanded-v2', false)) {
       catalog = parseCatalog(expandSavedCatalog(catalog));
       try { writeLocal('catalog', catalog); writeLocal('services-expanded-v2', true); } catch { /* Keep the expanded catalog in memory. */ }
+    }
+    if (!readLocal('claude-offers-v1', false)) {
+      catalog = parseCatalog(addClaudeOffers(catalog));
+      try { writeLocal('catalog', catalog); writeLocal('claude-offers-v1', true); } catch { /* Keep the new offers in memory when storage is unavailable. */ }
     }
     return enrichOffers(catalog);
   },
@@ -65,4 +70,5 @@ export const store: StoreAdapter = {
   },
   async loadShop() { try { return parseShop(readLocal('shop', defaultShop)); } catch { return { ...defaultShop }; } },
   async saveShop(settings) { writeLocal('shop', parseShop(settings)); },
+  async acceptQuote() { throw new Error('Подтверждение предложения станет доступно после подключения магазина.'); },
 };

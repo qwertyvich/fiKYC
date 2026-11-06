@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-11-06T22:11:34.448Z",
+  "checks": [
+    "assortment preserved; catalog readability and no horizontal overflow",
+    "catalog back restores scroll position and search context",
+    "product has conditions, guarantee, sticky action and contextual support",
+    "mixed RUB/USD cart and checkout keep currencies separate",
+    "stock change gives a retry path and preserves checkout draft",
+    "support contains order ID and copies a draft without sending it",
+    "request validates inline and persists a draft across reload",
+    "history keeps purchase and request after reload",
+    "all eight order states have a clear next step and remain preview-only",
+    "shop contacts and listing terms can be edited without code",
+    "campaign links open exact offer in Claude theme; two color modes and small frames fit"
+  ],
+  "pageErrors": []
+}

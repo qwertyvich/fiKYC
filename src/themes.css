@@ -46,13 +46,19 @@
   --favorite-bg:#1a1918;--favorite-ink:#b0aea5;--stock:#b0aea5;--stock-dot:#629987;
 }
 body{color:var(--ink);background:var(--backdrop)}
-.app-frame{box-shadow:0 0 0 1px var(--border),0 25px 90px #00000024}
+.app-frame{box-shadow:0 25px 90px #00000024}
 .topbar-actions{gap:8px}.avatar{background:var(--soft);color:var(--ink)}
+.logo.ficus-logo{position:relative;display:block;background:transparent;transform:none;flex-shrink:0}
+.ficus-logo img{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:block;width:54px;height:54px;max-width:none;object-fit:contain}
 .hero p,.hero-note,.eyebrow,:root[data-theme=claude] .hero p,:root[data-theme=claude] .hero-note,:root[data-theme=claude] .eyebrow{color:var(--hero-muted)}
 .hero-spark,:root[data-theme=claude] .hero-spark{color:var(--theme-graphic)}
 .orbit,:root[data-theme=claude] .orbit{border-color:color-mix(in srgb,var(--theme-graphic) 15%,transparent)}
 .spotlight{background:var(--spotlight-bg);color:var(--spotlight-ink)}
 .spotlight-icon{background:var(--spotlight-icon);color:var(--logo-claude)}.spotlight small{color:var(--spotlight-muted)}.new-label{background:var(--spotlight-label)}
+.market-spotlight{margin-top:0;background:var(--hero);color:var(--ink)}
+.market-spotlight small{color:var(--hero-muted);line-height:1.5}
+.market-spotlight-icon{position:relative;width:35px;height:40px;flex-shrink:0}
+.market-spotlight-icon img{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:50px;height:50px;max-width:none;object-fit:contain}
 .search-field,.search-field input::placeholder,.layout-toggle button{color:var(--muted)}
 .filter-button{background:var(--primary);color:var(--on-primary)}.filter-button i{background:var(--on-primary)}
 .product-card{border-color:var(--border);box-shadow:var(--shadow)}

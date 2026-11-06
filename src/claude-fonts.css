@@ -1,0 +1,37 @@
+/* Official claude.com web families. The published fonts have no Cyrillic glyphs. */
+@font-face{font-family:'Anthropic Sans';src:url('/fonts/anthropic/anthropic-sans.woff2') format('woff2');font-style:normal;font-weight:300 800;font-display:swap}
+@font-face{font-family:'Anthropic Serif';src:url('/fonts/anthropic/anthropic-serif.woff2') format('woff2');font-style:normal;font-weight:300 800;font-display:swap}
+@font-face{font-family:'Anthropic Mono';src:url('/fonts/anthropic/anthropic-mono.woff2') format('woff2');font-style:normal;font-weight:300 800;font-display:swap}
+/* OFL Cyrillic companions; intentionally separate family names, never passed off as Anthropic. */
+@font-face{font-family:'Claude Cyrillic Sans';src:url('/fonts/anthropic/source-sans-3-cyrillic.woff2') format('woff2');font-style:normal;font-weight:200 900;font-display:swap;unicode-range:U+0400-052F,U+2DE0-2DFF,U+A640-A69F}
+@font-face{font-family:'Claude Cyrillic Serif';src:url('/fonts/anthropic/source-serif-4-cyrillic.woff2') format('woff2');font-style:normal;font-weight:200 900;font-display:swap;unicode-range:U+0400-052F,U+2DE0-2DFF,U+A640-A69F}
+
+:root[data-theme=claude]{
+  --claude-sans:'Anthropic Sans','Claude Cyrillic Sans',Arial,sans-serif;
+  --claude-serif:'Anthropic Serif','Claude Cyrillic Serif',Georgia,serif;
+  --claude-mono:'Anthropic Mono','Claude Cyrillic Sans',monospace;
+  font-family:var(--claude-sans);font-optical-sizing:auto;
+}
+:root[data-theme=claude] .wordmark{font-family:Geologica,system-ui,sans-serif}
+:root[data-theme=claude] .claude-welcome h1{font-family:var(--claude-serif);font-weight:400;font-size:37px;line-height:1.08;letter-spacing:-.85px}
+:root[data-theme=claude] .catalog-heading h2,:root[data-theme=claude] .detail-title h1,:root[data-theme=claude] .page-title h1{font-family:var(--claude-serif);font-weight:500;letter-spacing:-.45px}
+:root[data-theme=claude] .catalog-heading h2{font-size:25px}
+:root[data-theme=claude] .clawd-tier{font-family:var(--claude-mono);font-weight:400}
+:root[data-theme=claude] .clawd-product-tools .clawd-tier{font-size:9px;letter-spacing:1px}
+:root[data-theme=claude] .detail-art .clawd-product-tools .clawd-tier{font-size:22px;letter-spacing:3px}
+:root[data-theme=claude] .claude-welcome>p{font-size:12px;line-height:1.55;font-weight:400}
+:root[data-theme=claude] .product-title{font-size:15px;font-weight:600;letter-spacing:-.15px}
+:root[data-theme=claude] .product-info>p{font-size:11px;line-height:1.4;font-weight:400}
+:root[data-theme=claude] .product-price strong{font-size:18px;font-weight:600;letter-spacing:-.4px;font-variant-numeric:lining-nums tabular-nums}
+:root[data-theme=claude] .search-field input{font-size:12px;font-weight:400}
+:root[data-theme=claude] .category-scroll>button{font-size:11px}
+:root[data-theme=claude] .clawd-product-label{font-size:8px}
+:root[data-theme=claude] .detail-art .clawd-product-label{font-size:11px}
+:root[data-theme=claude] .products-list .clawd-product-label{font-size:7px}
+:root[data-theme=claude] .stock{font-size:9px}
+@media(max-width:350px){:root[data-theme=claude] .claude-welcome h1{font-size:33px}:root[data-theme=claude] .product-price strong{font-size:16px}}
+.claude-featured{font-family:'Anthropic Sans','Claude Cyrillic Sans',Arial,sans-serif;--hero:var(--art-claude);--theme-graphic:var(--logo-claude);--ink:var(--spotlight-ink);--muted:var(--spotlight-muted);--surface:var(--spotlight-label);--border:#e8e6dc;margin-bottom:13px}
+:root[data-mode=dark] .claude-featured{--border:#30302e}
+.claude-featured h1{font-family:'Anthropic Serif','Claude Cyrillic Serif',Georgia,serif;font-weight:400;font-size:37px;line-height:1.08;letter-spacing:-.85px}
+.claude-featured>p{font-size:12px;line-height:1.55;font-weight:400}
+@media(max-width:350px){.claude-featured h1{font-size:33px}}

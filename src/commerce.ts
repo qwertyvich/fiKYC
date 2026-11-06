@@ -3,6 +3,7 @@ import type { Catalog, OfferDetails, Order, OrderStatus, Product, ServiceRequest
 export const statuses: Record<OrderStatus, { title: string; next: string; step: number }> = {
   awaiting_details: { title: 'Нужны уточнения', next: 'Дополните заявку: магазин сможет подтвердить условия после уточнения деталей.', step: 1 },
   awaiting_quote: { title: 'Ожидает согласования', next: 'Здесь появятся подтверждённая стоимость и срок. До согласования ничего оплачивать не нужно.', step: 1 },
+  awaiting_confirmation: { title: 'Предложение готово', next: 'Магазин уточнил условия. Проверьте стоимость и срок и подтвердите предложение перед оплатой.', step: 1 },
   awaiting_payment: { title: 'Ожидает оплаты', next: 'Проверьте состав и итоговую стоимость перед переходом к оплате.', step: 2 },
   processing: { title: 'В работе', next: 'Следите за обновлениями здесь. Если нужны уточнения, магазин добавит их в заказ.', step: 3 },
   completed: { title: 'Готово', next: 'Проверьте результат по инструкции. Если что-то не получается, обратитесь в поддержку с номером заказа.', step: 4 },
@@ -11,15 +12,29 @@ export const statuses: Record<OrderStatus, { title: string; next: string; step: 
 };
 export const statusOf = (o: Order | ServiceRequest): OrderStatus => o.status === 'demo' ? 'awaiting_payment' : o.status === 'demo-request' ? 'awaiting_quote' : o.status;
 export const validStatus = (value: unknown) => typeof value === 'string' && (Object.hasOwn(statuses, value) || ['demo', 'demo-request'].includes(value));
-export const defaultShop: ShopSettings = { supportTelegram: 'duriv', workingHours: 'Пн 13:00–23:00\nВт 11:00–23:00\nСр–Пт 12:00–23:00\nВс 12:00–23:00\nСуббота и часовой пояс — уточните', responseTime: '', about: '100% гарантия. Доводим до согласованного результата: фиксируем задачу до оплаты и сопровождаем её выполнение.', refundPolicy: '' };
+export const defaultShop: ShopSettings = { supportTelegram: '', workingHours: 'Пн 13:00–23:00\nВт 11:00–23:00\nСр–Пт 12:00–23:00\nВс 12:00–23:00\nСуббота и часовой пояс — уточните', responseTime: '', about: '100% гарантия. Доводим до согласованного результата: фиксируем задачу до оплаты и сопровождаем её выполнение.', refundPolicy: '' };
 export function parseShop(value: unknown): ShopSettings {
   const s = value as ShopSettings;
   if (!s || !Object.keys(defaultShop).every(k => typeof s[k as keyof ShopSettings] === 'string' && s[k as keyof ShopSettings].length <= 5000)) throw new Error('Проверьте информацию магазина');
   const username = s.supportTelegram.replace(/^@/, '').trim();
   if (username && !/^[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(username)) throw new Error('Укажите Telegram username без ссылки, например @shop_support');
-  return { ...s, supportTelegram: username };
+  return { ...s, supportTelegram: username.toLowerCase() === 'duriv' ? '' : username };
 }
 const copy: Record<string, Partial<OfferDetails>> = {
+  'claude-kyc': {
+    result: 'Верификация KYC на вашем аккаунте Claude.',
+    includes: 'Состав услуги, текущий этап проверки и необходимые действия согласуются перед оформлением.',
+    requirements: 'Укажите регион и на каком этапе находится проверка вашего аккаунта. Документы, пароли и коды входа в заявку не вводите.',
+    fulfillment: 'Стоимость и срок согласуются по вашей заявке до оплаты.',
+    refund: 'Условия выполнения, отмены и возврата согласуются до оплаты. Решение о прохождении проверки принимает Anthropic.',
+  },
+  'claude-warmed-kyc': {
+    result: 'Прогретый аккаунт Claude с пройденной KYC.',
+    includes: 'Конкретный аккаунт и его характеристики подтверждаются перед покупкой: возраст, регион, статус KYC и наличие подписки.',
+    requirements: 'Опишите нужный вариант и тариф. Стоимость, наличие и условия передачи согласуются до оплаты.',
+    fulfillment: 'Способ и срок передачи подтверждаются для выбранного аккаунта до оплаты.',
+    refund: 'Условия гарантии, замены и возврата согласуются до покупки выбранного аккаунта.',
+  },
   'claude-pro': { result: 'Подписка Claude Pro на один месяц.', includes: 'Выбранный тариф Claude Pro. Способ подключения и условия продления уточняются до оплаты.', requirements: 'Уточните, есть ли у вас профиль Claude и активная подписка. Пароли и коды входа в заявке не нужны.', term: '1 месяц' },
   'claude-max': { result: 'Подписка Claude Max на один месяц.', includes: 'Условия выбранного варианта Max согласуются до оплаты. Конкретные лимиты зависят от тарифа сервиса.', requirements: 'Сообщите, какой вариант Max нужен и есть ли действующая подписка.', term: '1 месяц' },
   'claude-setup': { result: 'Помощь с подключением и первоначальной настройкой Claude.', includes: 'Разбор задачи и инструкции для вашего собственного профиля. Подписка не считается включённой, если это отдельно не указано.', requirements: 'Опишите, на каком шаге нужна помощь и какое устройство используете.' },

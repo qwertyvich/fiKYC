@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cartLines, entryTheme, parseCatalog, selectProducts, themeFor, type Catalog } from './domain.ts';
 import { currencyTotals, isAvailable, priceLabel, validateRequest } from './domain.ts';
-import { expandSavedCatalog, initialCatalog, serviceProducts, subscriptionProducts } from './catalog.ts';
+import { addClaudeOffers, expandSavedCatalog, initialCatalog, serviceProducts, subscriptionProducts } from './catalog.ts';
 const catalog: Catalog = { version: 1, groups: [
   { id: 'main', title: 'Main', theme: 'fikus', icon: 'ai', visible: true },
   { id: 'claude', title: 'Claude', theme: 'claude', icon: 'claude', visible: true },
@@ -31,7 +31,7 @@ test('import rejects broken IDs, unknown groups and invalid numbers', () => {
 
 test('expanded assortment covers services and requested USD tariffs, without jailbreak listings', () => {
   parseCatalog(initialCatalog);
-  assert.equal(initialCatalog.products.length, 51);
+  assert.equal(initialCatalog.products.length, 53);
   assert.equal(subscriptionProducts.length, 11);
   assert.equal(serviceProducts.length, 28);
   assert.ok(!initialCatalog.products.some(p => /jailbreak/i.test(p.title)));
@@ -45,6 +45,22 @@ test('migration appends missing offerings once and preserves custom prices and h
   assert.equal(expanded.products[0].price, 123);
   assert.equal(expanded.groups[1].visible, false);
   assert.deepEqual(expandSavedCatalog(expanded), expanded);
+});
+
+test('Claude KYC offers reach existing catalogs without resetting saved edits', () => {
+  const saved = structuredClone(initialCatalog);
+  saved.products = saved.products.filter(p => !['claude-kyc', 'claude-warmed-kyc'].includes(p.id));
+  saved.products[0].price = 4321;
+  saved.groups.find(g => g.id === 'mail')!.visible = false;
+  const migrated = addClaudeOffers(saved);
+  parseCatalog(migrated);
+  assert.deepEqual(selectProducts(migrated, 'claude', '', 'manual', true).slice(0, 2).map(p => p.id), ['claude-kyc', 'claude-warmed-kyc']);
+  assert.equal(migrated.products.find(p => p.id === 'claude-kyc')!.badge, 'Хит');
+  assert.equal(migrated.products.find(p => p.id === saved.products[0].id)!.price, 4321);
+  assert.equal(migrated.groups.find(g => g.id === 'mail')!.visible, false);
+  const edited = migrated.products.find(p => p.id === 'claude-kyc')!;
+  edited.visible = false; edited.description = 'Custom';
+  assert.deepEqual(addClaudeOffers(migrated), migrated);
 });
 test('quote services use request availability, stay outside cart and sort after priced products', () => {
   const service = serviceProducts[0];

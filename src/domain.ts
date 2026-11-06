@@ -4,13 +4,13 @@ export type Brand = typeof brands[number];
 export interface Group { id: string; title: string; icon: Brand; theme: Theme; visible: boolean }
 export type Currency = 'RUB' | 'USD';
 export interface OfferDetails { result: string; includes: string; requirements: string; region: string; term: string; fulfillment: string; refund: string }
-export interface Product { id: string; groupId: string; title: string; subtitle: string; description: string; price: number; currency?: Currency; stock: number; brand: Brand; badge: string; visible: boolean; saleMode?: 'fixed' | 'request'; requestKind?: RequestKind; acceptingRequests?: boolean; aliases?: string; offer?: OfferDetails }
+export interface Product { id: string; groupId: string; title: string; subtitle: string; description: string; price: number; currency?: Currency; stock: number; brand: Brand; badge: string; visible: boolean; saleMode?: 'fixed' | 'request'; requestKind?: RequestKind; acceptingRequests?: boolean; aliases?: string; buyerCount?: number; offer?: OfferDetails }
 export interface Catalog { version: 1; groups: Group[]; products: Product[] }
 export type Sort = 'manual' | 'price-asc' | 'price-desc' | 'name';
 export interface CartItem { productId: string; quantity: number }
-export type OrderStatus = 'awaiting_details' | 'awaiting_quote' | 'awaiting_payment' | 'processing' | 'completed' | 'failed' | 'cancelled';
+export type OrderStatus = 'awaiting_details' | 'awaiting_quote' | 'awaiting_confirmation' | 'awaiting_payment' | 'processing' | 'completed' | 'failed' | 'cancelled';
 export interface OrderEvent { at: string; text: string }
-export interface OrderProgress { updatedAt?: string; demo?: boolean; note?: string; events?: OrderEvent[]; estimatedCompletion?: string; paymentUrl?: string; result?: string; issue?: string; quoteTotal?: number }
+export interface OrderProgress { updatedAt?: string; demo?: boolean; note?: string; events?: OrderEvent[]; estimatedCompletion?: string; paymentUrl?: string; result?: string; issue?: string; quoteTotal?: number; quoteCurrency?: Currency }
 export interface Order extends OrderProgress { id: string; createdAt: string; items: { productId?: string; title: string; subtitle?: string; price: number; quantity: number; currency?: Currency; offer?: OfferDetails }[]; total: number | null; status: OrderStatus | 'demo' }
 export function currencyTotals(items: { price: number; quantity: number; currency?: Currency }[]): string[] {
   const totals = new Map<Currency, number>();
@@ -85,6 +85,7 @@ export function parseCatalog(input: unknown): Catalog {
   for (const p of c.products) {
     if (!p || typeof p.id !== 'string' || !p.id || productIds.has(p.id) || !ids.has(p.groupId) || typeof p.title !== 'string' || !p.title.trim() || !['subtitle', 'description', 'badge'].every(k => typeof p[k as keyof Product] === 'string') || !brands.includes(p.brand) || !Number.isFinite(p.price) || p.price < 0 || !Number.isSafeInteger(p.stock) || p.stock < 0 || typeof p.visible !== 'boolean') throw new Error('Проверьте товары, цены и остатки');
     if ((p.saleMode !== undefined && !['fixed', 'request'].includes(p.saleMode)) || (p.requestKind !== undefined && !requestKinds.includes(p.requestKind)) || (p.acceptingRequests !== undefined && typeof p.acceptingRequests !== 'boolean') || (p.aliases !== undefined && typeof p.aliases !== 'string')) throw new Error('Проверьте параметры услуги');
+    if (p.buyerCount !== undefined && (!Number.isSafeInteger(p.buyerCount) || p.buyerCount < 0)) throw new Error('Проверьте число покупателей');
     if (p.currency !== undefined && !['RUB', 'USD'].includes(p.currency)) throw new Error('Проверьте валюту цены');
     if (p.offer !== undefined && (!p.offer || !['result','includes','requirements','region','term','fulfillment','refund'].every(k => typeof p.offer?.[k as keyof OfferDetails] === 'string' && p.offer[k as keyof OfferDetails].length <= 10000))) throw new Error('Проверьте условия предложения');
     productIds.add(p.id);

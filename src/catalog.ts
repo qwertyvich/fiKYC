@@ -46,6 +46,10 @@ export const subscriptionProducts: Product[] = [
   ['manus', 'ai', 'Manus', 'Подключение сервиса', 20, 'манус'],
 ].map(([id, groupId, title, subtitle, price, aliases]) => ({ id: String(id), groupId: String(groupId), title: String(title), subtitle: String(subtitle), price: Number(price), aliases: String(aliases), currency: 'USD', stock: 1, brand: groupId === 'claude' ? 'claude' : 'ai', badge: '', visible: true, description: `${title}. ${subtitle}. Стоимость указана в долларах США. Условия активации и срок действия уточняются перед оформлением.` }));
 const item = (id: string, groupId: string, title: string, subtitle: string, price: number, stock: number, brand: Product['brand'], badge = ''): Product => ({ id, groupId, title, subtitle, price, stock, brand, badge, visible: true, description: `${title}. ${subtitle}. Перед оформлением ознакомьтесь с условиями услуги. После подключения магазина здесь будут инструкция, срок выполнения и условия поддержки для выбранного продукта.` });
+export const claudeServiceProducts: Product[] = [
+  { ...service('claude-kyc', 'claude', 'Верификация KYC на ваш аккаунт', 'Claude · ваш аккаунт', 'claude', 'verification', 'claude клод верификация подтверждение личности KYC', 'Верификация KYC для вашего аккаунта Claude. Укажите текущий этап проверки: стоимость, срок и условия согласуются перед оформлением.'), badge: 'Хит' },
+  { ...service('claude-warmed-kyc', 'claude', 'Прогретый аккаунт Claude с KYC', 'Готовый аккаунт · KYC пройдена', 'claude', 'general', 'клод прогретые аккаунты готовый аккаунт пройденная проведенная KYC верификация', 'Продажа прогретого аккаунта Claude с пройденной KYC. Возраст аккаунта, наличие подписки, комплектация, стоимость и условия передачи уточняются до оплаты.'), badge: 'KYC пройдена' },
+];
 export const initialCatalog: Catalog = {
   version: 1,
   groups: [
@@ -56,6 +60,7 @@ export const initialCatalog: Catalog = {
     ...serviceGroups,
   ],
   products: [
+    ...claudeServiceProducts,
     item('claude-pro', 'claude', 'Claude Pro', 'Подписка · 1 месяц', 1990, 24, 'claude', 'Хит'),
     item('claude-max', 'claude', 'Claude Max', 'Подписка · 1 месяц', 7990, 8, 'claude'),
     item('claude-setup', 'claude', 'Настройка Claude', 'Помощь с подключением', 690, 16, 'claude', 'Новое'),
@@ -79,4 +84,13 @@ export function expandSavedCatalog(catalog: Catalog): Catalog {
     groups: [...catalog.groups, ...initialCatalog.groups.filter(g => !catalog.groups.some(old => old.id === g.id))],
     products: [...catalog.products, ...[...serviceProducts, ...subscriptionProducts].filter(p => !catalog.products.some(old => old.id === p.id))],
   };
+}
+
+// Add the Claude offers ahead of existing Claude products without resetting
+// saved prices, hidden items, other sections, or the operator's custom copy.
+export function addClaudeOffers(catalog: Catalog): Catalog {
+  const missing = claudeServiceProducts.filter(p => !catalog.products.some(old => old.id === p.id));
+  const firstClaude = catalog.products.findIndex(p => p.groupId === 'claude');
+  const index = firstClaude < 0 ? catalog.products.length : firstClaude;
+  return { ...catalog, products: [...catalog.products.slice(0, index), ...missing.map(p => ({ ...p })), ...catalog.products.slice(index)] };
 }

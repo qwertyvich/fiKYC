@@ -1,0 +1,11 @@
+{
+  "checkedAt": "2026-11-06T22:31:10.008Z",
+  "checks": [
+    "cart builds mixed-currency draft, preserves basket and comment on reload; placeholder has no outgoing link",
+    "configured contact gets complete URL-encoded message without sending anything",
+    "service parameters become a seller draft and survive reload",
+    "customer balance validates topup; preparing/copying request never credits money",
+    "checkout and customer wallet fit light/dark at 320, 390 and 1280 pixels"
+  ],
+  "pageErrors": []
+}

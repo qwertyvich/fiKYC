@@ -7,5 +7,7 @@ import './styles.css';
 import './themes.css';
 import './claude-section.css';
 import './commerce.css';
+import './claude-fonts.css';
+import './product-highlights.css';
 initTelegram();
 createRoot(document.getElementById('root')!).render(<React.StrictMode><ClawdMotionProvider><App /></ClawdMotionProvider></React.StrictMode>);

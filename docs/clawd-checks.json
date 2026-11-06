@@ -1,0 +1,11 @@
+{
+  "results": [
+    "All 5 Claude cards and hero use decoded local GIFs",
+    "One pause control switches every scene to a static frame",
+    "Dark/light layouts fit 320, 390, 440 and 1280 px",
+    "Catalog scroll, list, product scene and add-to-cart work",
+    "Reduced-motion preference starts with static scenes",
+    "Other sections retain their existing hero and artwork"
+  ],
+  "errors": []
+}

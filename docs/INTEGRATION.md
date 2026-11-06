@@ -1,5 +1,7 @@
 # Подключение к панели ботов
 
+Актуальный сценарий — корзина и заявки переходят в личный чат одного продавца. Контакт пока заглушка; баланс покупателя показан как предпросмотр. Детали, границы серверной интеграции и проверки: [SHOP-FLOW.md](SHOP-FLOW.md). Контракт ниже также сохраняет совместимость со старыми демо-заказами.
+
 ## 1. Разместить frontend
 
 Собрать `npm ci && npm run build`, загрузить содержимое `dist/` на HTTPS-домен. `vite.config.ts` использует относительный `base: './'`; сборка также преобразует ссылки на локальные шрифты и favicon в относительные. Можно размещать в корне или подпапке, сохранив структуру `dist/`.
@@ -14,8 +16,13 @@
 interface StoreAdapter {
   loadCatalog(): Promise<Catalog>;
   saveCatalog(catalog: Catalog): Promise<void>;
-  createOrder(lines: { productId: string; quantity: number }[]): Promise<Order>;
+  createOrder(lines: { productId: string; quantity: number }[], note?: string): Promise<Order>;
   loadOrders(): Promise<Order[]>;
+  createRequest(productId: string, details: Record<string,string>): Promise<ServiceRequest>;
+  loadRequests(): Promise<ServiceRequest[]>;
+  loadShop(): Promise<ShopSettings>;
+  saveShop(settings: ShopSettings): Promise<void>;
+  acceptQuote(id: string): Promise<ServiceRequest>;
 }
 ```
 
@@ -86,7 +93,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 ## 4. Оплата и выдача
 
-Сейчас заказ имеет `status: 'demo'`; в интерфейсе явно написано, что оплаты и выдачи нет. Для боевой версии расширьте `Order` и добавьте реальные статусы (`pending_payment`, `paid`, `processing`, `delivered`, `cancelled`), платежный адаптер и обработку webhook. Итоговую цену, выдачу и подтверждение платежа контролирует сервер. Состояние корзины из браузера — только список ID и количеств.
+Локальные записи имеют `demo:true` и начальные статусы `awaiting_payment` для покупки / `awaiting_quote` для заявки. Они не отправляются оператору и не оплачиваются. В UI готовы восемь состояний, в том числе подтверждение стоимости, выполнение, результат и ошибка. Карта полей и сценариев — [UX-HANDOFF.md](UX-HANDOFF.md). Сервер контролирует цену, выдачу и подтверждение оплаты. Корзина передаёт только ID, количества и комментарий, а сервер формирует снимок условий.
 
 После серверного создания заказа добавьте переход к оплате (например, через Telegram `openInvoice` при выбранном способе оплаты) и обновление статуса с сервера; клиентский callback сам по себе не подтверждает оплату. Способ оплаты и условия цифровых товаров определяет владелец с учётом актуальных требований платформы.
 
