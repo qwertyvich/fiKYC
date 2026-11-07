@@ -19,6 +19,7 @@ import { brands, isRequest, parseCatalog, type Catalog, type Product, type Group
 import { offerFor } from '../commerce';
 import { BrandArt } from '../visuals';
 import type { AdminState } from '../api';
+import { StatisticsPreview } from './StatisticsPreview';
 import { Drawer, SearchBox, Toggle, Badge, EmptyState, number } from './shared';
 export type SaveState = (
   patch: Partial<Pick<AdminState, 'catalog' | 'shop' | 'settings'>>,
@@ -377,6 +378,7 @@ export function CatalogManager({
   onLinks(id: string): void;
 }) {
   const { catalog } = state;
+  const [previewStats, setPreviewStats] = useState(false);
   const [query, setQuery] = useState(''),
     [group, setGroup] = useState('all'),
     [visibility, setVisibility] = useState('all');
@@ -448,6 +450,9 @@ export function CatalogManager({
         </span>
         <small>Порядок строк = порядок товаров в ленте</small>
       </div>
+      {previewStats && (
+        <StatisticsPreview catalog={catalog} onClose={() => setPreviewStats(false)} />
+      )}
       <div className="a-toolbar">
         <SearchBox value={query} onChange={setQuery} />
         <select
@@ -476,6 +481,9 @@ export function CatalogManager({
         <button className="a-btn" disabled={busy || !catalog.groups.length} onClick={create}>
           <Plus size={17} />
           Добавить товар
+        </button>
+        <button className="a-btn secondary" onClick={() => setPreviewStats(true)}>
+          Демопоказатели
         </button>
       </div>
       <div className="a-hint">

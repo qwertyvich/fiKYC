@@ -3029,3 +3029,49 @@ body:has(.admin-app) {
   font-size: 10px;
   color: var(--muted);
 }
+
+.a-blacklist-note {
+  white-space: normal;
+  max-width: 300px;
+  display: block;
+  overflow-wrap: anywhere;
+}
+.a-demo-statistics {
+  padding: 24px !important;
+}
+.a-demo-histogram {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  height: 170px;
+  padding: 10px 0 25px;
+}
+.a-demo-histogram > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  position: relative;
+}
+.a-demo-histogram i {
+  display: block;
+  width: 100%;
+  background: #a8be70;
+  border-radius: 5px 5px 0 0;
+}
+.a-demo-histogram small {
+  font-size: 7px;
+  white-space: nowrap;
+  position: absolute;
+  bottom: -19px;
+}
+.a-demo-histogram b {
+  font-size: 10px;
+  font-weight: 500;
+}
+.a-demo-statistics .a-table td {
+  white-space: normal;
+  font-size: 10px;
+  padding: 12px;
+}

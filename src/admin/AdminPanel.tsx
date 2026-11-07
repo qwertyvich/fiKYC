@@ -22,6 +22,7 @@ import {
   LoaderCircle,
   X,
   Search,
+  Ban,
 } from 'lucide-react';
 import { api, mutation, invalidatePublic, type AdminState, type SiteSettings } from '../api';
 import { telegram } from '../telegram';
@@ -32,6 +33,7 @@ import { CatalogManager, CategoriesManager, ProductEditor, type SaveState } from
 import { ReviewsManager, LinksManager, type ProductLink } from './ModerationLinks';
 import { SettingsPage } from './SettingsPage';
 import { Overview, AnalyticsPage, ActivityPage } from './AnalyticsPages';
+import { BlacklistManager } from './BlacklistManager';
 import './admin.css';
 const pages = [
   { id: 'overview', label: 'Обзор', icon: LayoutDashboard, caption: 'Ваш магазин сегодня' },
@@ -61,6 +63,7 @@ const pages = [
     icon: Activity,
     caption: 'Каждое действие — в понятной ленте',
   },
+  { id: 'blacklist', label: 'Чёрный список', icon: Ban, caption: 'Кому доступен ваш магазин' },
   { id: 'settings', label: 'Настройки', icon: Settings2, caption: 'Общие настройки в одном месте' },
 ];
 export function AdminPanel({
@@ -75,6 +78,7 @@ export function AdminPanel({
   onToggleTheme(): void;
 }) {
   const current = pages.find((p) => p.id === page) ?? pages[0];
+  const [localLoginAllowed, setLocalLoginAllowed] = useState(false);
   const [auth, setAuth] = useState<boolean | null>(null),
     [state, setState] = useState<AdminState | null>(null),
     [password, setPassword] = useState(''),
@@ -126,11 +130,15 @@ export function AdminPanel({
   }
   useEffect(() => {
     let live = true;
-    api<{ authenticated: boolean }>('/admin/session')
+    api<{ authenticated: boolean; seller: boolean; localAdminLogin: boolean }>('/admin/session')
       .then(async (s) => {
         if (!live) return;
+        setLocalLoginAllowed(s.localAdminLogin);
         if (s.authenticated) await bootstrap();
-        else setAuth(false);
+        else if (s.seller) {
+          await mutation('/admin/login', 'POST', { initData: telegram?.initData });
+          await bootstrap();
+        } else setAuth(false);
       })
       .catch((e) => {
         if (live) {
@@ -258,20 +266,22 @@ export function AdminPanel({
             className="a-form"
             onSubmit={(e) => {
               e.preventDefault();
-              void login();
+              void login(!localLoginAllowed);
             }}
           >
-            <label>
-              Пароль администратора
-              <input
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Введите пароль"
-              />
-            </label>
+            {localLoginAllowed && (
+              <label>
+                Пароль администратора
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Введите пароль"
+                />
+              </label>
+            )}
             {error && (
               <div className="a-error" role="alert">
                 {error}
@@ -282,11 +292,12 @@ export function AdminPanel({
                 <LoaderCircle size={17} className="spin" />
               ) : (
                 <>
-                  Войти в панель <ArrowRight size={17} />
+                  {localLoginAllowed ? 'Войти в панель' : 'Войти через Telegram'}{' '}
+                  <ArrowRight size={17} />
                 </>
               )}
             </button>
-            {telegram?.initData && (
+            {localLoginAllowed && telegram?.initData && (
               <button
                 className="a-btn secondary"
                 type="button"
@@ -587,6 +598,7 @@ export function AdminPanel({
               notify={notify}
             />
           )}
+          {current.id === 'blacklist' && <BlacklistManager notify={notify} />}
           {current.id === 'settings' && <SettingsPage state={state} busy={busy} save={save} />}
           <footer className="a-page-footer">
             <span>

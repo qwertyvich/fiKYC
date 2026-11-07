@@ -2,6 +2,7 @@ export const defaultSettings = {
   botUsername: '',
   appShortName: '',
   adminTelegramIds: '',
+  sellerUsername: '',
   defaultAppearance: 'light',
   heroTitle: 'Всё нужное. В одном месте.',
   heroSubtitle: 'Пополнения, карты, сервисы и поездки — выбирай под свою задачу.',
@@ -16,6 +17,7 @@ export function parseSettings(value) {
     'botUsername',
     'appShortName',
     'adminTelegramIds',
+    'sellerUsername',
     'heroTitle',
     'heroSubtitle',
     'announcement',
@@ -24,6 +26,9 @@ export function parseSettings(value) {
       throw new Error('Проверьте настройки магазина');
     s[key] = s[key].trim();
   }
+  s.sellerUsername = s.sellerUsername.replace(/^@/, '').toLowerCase();
+  if (s.sellerUsername && !/^[a-z][a-z0-9_]{4,31}$/.test(s.sellerUsername))
+    throw new Error('Укажите username продавца');
   s.botUsername = s.botUsername.replace(/^@/, '');
   if (s.botUsername && !/^[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(s.botUsername))
     throw new Error('Укажите корректный username бота');

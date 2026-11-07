@@ -139,6 +139,19 @@ export function SettingsPage({
             </code>
           </div>
           <label>
+            Username продавца · доступ к панели
+            <input
+              maxLength={32}
+              value={settings.sellerUsername}
+              placeholder="@seller_username"
+              onChange={(e) => set('sellerUsername', e.target.value)}
+            />
+            <small>
+              Сервер проверяет username в подписанных данных Telegram и привязывает доступ к ID
+              первого подтверждённого владельца.
+            </small>
+          </label>
+          <label>
             Telegram ID администраторов
             <input
               maxLength={300}
@@ -152,8 +165,8 @@ export function SettingsPage({
           <div className="a-hint">
             <ShieldCheck size={18} />
             <p>
-              Токен бота задаётся в BOT_TOKEN на сервере. Пароль владельца — в ADMIN_PASSWORD. Эти
-              секреты не передаются в интерфейс.
+              Токен бота задаётся в BOT_TOKEN на сервере. Пароль ADMIN_PASSWORD работает только для
+              локальной разработки. На рабочем сервере вход — через Telegram продавца.
             </p>
           </div>
         </section>

@@ -3,7 +3,7 @@ import { writeFile } from 'node:fs/promises';
 try {
   await writeFile(
     new URL('../.env', import.meta.url),
-    `# Local credentials. Keep this file private.\nADMIN_PASSWORD=${randomBytes(18).toString('base64url')}\nPORT=8787\nHOST=127.0.0.1\nBOT_TOKEN=\nADMIN_TELEGRAM_IDS=\n`,
+    `# Local credentials. Keep this file private.\nADMIN_PASSWORD=${randomBytes(18).toString('base64url')}\nPORT=8787\nHOST=127.0.0.1\nBOT_TOKEN=\nADMIN_TELEGRAM_IDS=\nSELLER_TELEGRAM_USERNAME=\n`,
     { flag: 'wx', mode: 0o600 },
   );
   console.log(

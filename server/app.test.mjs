@@ -28,7 +28,7 @@ function signed(user = { id: 123456, first_name: 'Owner' }, at = Math.floor(Date
   );
   return p.toString();
 }
-async function fixture(t, dbPath = ':memory:') {
+async function fixture(t, dbPath = ':memory:', extraEnv = {}) {
   const app = await createApp({
     dbPath,
     env: {
@@ -36,6 +36,8 @@ async function fixture(t, dbPath = ':memory:') {
       BOT_TOKEN: botToken,
       ADMIN_TELEGRAM_IDS: '123456',
       NODE_ENV: 'test',
+      SELLER_TELEGRAM_USERNAME: '',
+      ...extraEnv,
     },
   });
   await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
@@ -71,7 +73,16 @@ async function fixture(t, dbPath = ':memory:') {
     };
   }
   const admin = client();
-  assert.equal((await admin('/admin/login', 'POST', { password })).status, 200);
+  assert.equal(
+    (
+      await admin(
+        '/admin/login',
+        'POST',
+        extraEnv.NODE_ENV === 'production' ? { initData: signed() } : { password },
+      )
+    ).status,
+    200,
+  );
   return { ...app, admin, client };
 }
 test('protected catalog, server validation, cross-browser data and optimistic conflicts', async (t) => {
@@ -304,4 +315,91 @@ test('long activity histories expose older events and sessions through paginatio
     second.events.some((e) => first.events.some((f) => f.id === e.id)),
     false,
   );
+});
+
+test('production accepts only verified seller identity; password and anonymous public access fail closed', async (t) => {
+  const { admin, client } = await fixture(t, ':memory:', { NODE_ENV: 'production' }),
+    guest = client();
+  assert.equal((await guest('/admin/login', 'POST', { password })).status, 401);
+  assert.equal((await guest('/public')).status, 401);
+  assert.equal((await guest('/public?username=owner&user_id=123456')).status, 401);
+  assert.equal((await guest('/admin/state')).status, 401);
+  const access = (await guest('/access')).data;
+  assert.equal(access.isSeller, false);
+  assert.equal(access.localAdminLogin, false);
+  assert.equal(access.telegramRequired, true);
+  const forged = signed({ id: 999999, username: 'CustomerOne' }).replace('999999', '123456');
+  assert.equal((await guest('/admin/login', 'POST', { initData: forged })).status, 401);
+  assert.equal((await admin('/admin/state')).status, 200);
+});
+test('seller username is verified and bound to stable Telegram ID, not handed to a new username holder', async (t) => {
+  const { admin, client } = await fixture(t, ':memory:', { ADMIN_TELEGRAM_IDS: '' });
+  let state = (await admin('/admin/state')).data;
+  state = (
+    await admin('/admin/state', 'PUT', {
+      revision: state.revision,
+      settings: { ...state.settings, sellerUsername: '@Fixture_Seller' },
+    })
+  ).data;
+  const seller = client(),
+    proof = signed({ id: 700001, first_name: 'Seller', username: 'Fixture_Seller' }),
+    headers = { 'X-Telegram-Init-Data': proof };
+  assert.equal((await seller('/access', 'GET', undefined, headers)).data.isSeller, true);
+  assert.equal((await seller('/admin/login', 'POST', { initData: proof })).status, 200);
+  assert.equal((await seller('/admin/state')).status, 200);
+  const transferred = client(),
+    newProof = signed({ id: 700002, first_name: 'Other', username: 'fixture_seller' });
+  assert.equal(
+    (await transferred('/access', 'GET', undefined, { 'X-Telegram-Init-Data': newProof })).data
+      .isSeller,
+    false,
+  );
+  assert.equal((await transferred('/admin/login', 'POST', { initData: newProof })).status, 401);
+  const renamed = signed({ id: 700001, first_name: 'Seller', username: 'another_name' });
+  assert.equal(
+    (await seller('/access', 'GET', undefined, { 'X-Telegram-Init-Data': renamed })).data.isSeller,
+    true,
+  );
+});
+test('blacklist enforces ID and case-insensitive username across APIs and cached identities; clearing cookies cannot bypass it', async (t) => {
+  const { admin, client } = await fixture(t, ':memory:', { NODE_ENV: 'production' }),
+    buyer = client();
+  const proof = signed({ id: 800001, first_name: 'Buyer', username: 'CustomerOne' }),
+    headers = { 'X-Telegram-Init-Data': proof };
+  assert.equal((await buyer('/access', 'GET', undefined, headers)).data.telegramRequired, false);
+  assert.equal((await buyer('/public')).status, 200);
+  const entry = await admin('/admin/blacklist', 'POST', {
+    value: '@CUSTOMERONE',
+    note: 'Internal note',
+  });
+  assert.equal(entry.status, 201);
+  assert.equal((await buyer('/access')).data.blocked, true);
+  for (const path of ['/public', '/reviews', '/links/unknown']) {
+    const response = await buyer(path);
+    assert.equal(response.status, 503);
+    assert.equal(response.data.code, 'maintenance');
+    assert.equal(JSON.stringify(response.data).includes('Internal note'), false);
+  }
+  assert.equal((await buyer('/events', 'POST', { events: [] })).status, 503);
+  assert.equal((await client()('/public')).status, 401);
+  assert.equal(
+    (await admin('/admin/blacklist', 'POST', { value: '@customerone', note: '' })).status,
+    400,
+  );
+  assert.equal(
+    (await admin('/admin/blacklist', 'POST', { value: '123456', note: '' })).status,
+    400,
+  );
+  await admin('/admin/blacklist/' + entry.data.id, 'PATCH', { active: false });
+  assert.equal((await buyer('/public')).status, 200);
+  await admin('/admin/blacklist/' + entry.data.id, 'DELETE', {});
+  assert.equal((await admin('/admin/blacklist')).data.length, 0);
+  const idEntry = await admin('/admin/blacklist', 'POST', { value: '800001', note: '' });
+  assert.equal(idEntry.status, 201);
+  const renamed = signed({ id: 800001, first_name: 'Buyer', username: 'changed_name' });
+  assert.equal(
+    (await buyer('/public', 'GET', undefined, { 'X-Telegram-Init-Data': renamed })).status,
+    503,
+  );
+  assert.equal((await client()('/admin/blacklist')).status, 401);
 });

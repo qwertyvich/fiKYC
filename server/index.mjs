@@ -9,6 +9,7 @@ import { parseCatalog } from '../src/domain.ts';
 import { defaultShop, parseShop, enrichOffers } from '../src/commerce.ts';
 import { token, digest, equal, telegramUser } from './security.mjs';
 import { defaultSettings, parseSettings, directLink, eventTypes } from './settings.mjs';
+import { createAccess, blacklistValue } from './access.mjs';
 import { analytics } from './analytics.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -100,27 +101,9 @@ export async function createApp(options = {}) {
     const old = res.getHeader('set-cookie') ?? [];
     res.setHeader('set-cookie', [...(Array.isArray(old) ? old : [old]), cookie]);
   }
-  function isAdmin(req) {
-    const t = cookies(req).fikus_admin;
-    return (
-      !!t &&
-      !!db
-        .prepare('SELECT token FROM admins WHERE token=? AND expires>?')
-        .get(digest(t), Date.now())
-    );
-  }
-  function visitor(req, res) {
-    const t = cookies(req).fikus_visitor;
-    let v = t ? db.prepare('SELECT id FROM visitors WHERE token=?').get(digest(t)) : null;
-    if (!v) {
-      const id = token().slice(0, 16),
-        secret = token();
-      db.prepare('INSERT INTO visitors VALUES(?,?,?)').run(id, digest(secret), Date.now());
-      setCookie(res, 'fikus_visitor', secret, 15552000);
-      v = { id };
-    }
-    return v.id;
-  }
+  const access = createAccess({ db, env, state, cookies, setCookie });
+  const isAdmin = access.admin;
+  const visitor = access.visitor;
   async function body(req) {
     if (!(req.headers['content-type'] ?? '').startsWith('application/json'))
       fail('Ожидается JSON', 415);
@@ -196,10 +179,18 @@ export async function createApp(options = {}) {
           fail('Недопустимый источник запроса', 403);
       }
       if (path === '/api/health') return send(res, { ok: true });
+      if (path === '/api/access' && method === 'GET') {
+        const result = access.status(req);
+        if (!result.blocked) visitor(req, res);
+        return send(res, result);
+      }
+      if (path.startsWith('/api/') && !path.startsWith('/api/admin/') && path !== '/api/access')
+        access.guard(req);
       if (path === '/api/public' && method === 'GET') {
         visitor(req, res);
         const s = state();
-        const { botUsername, appShortName, adminTelegramIds, ...publicSettings } = s.settings;
+        const { botUsername, appShortName, adminTelegramIds, sellerUsername, ...publicSettings } =
+          s.settings;
         return send(res, {
           revision: s.revision,
           catalog: publicCatalog(s.catalog),
@@ -208,28 +199,35 @@ export async function createApp(options = {}) {
         });
       }
       if (path === '/api/admin/session' && method === 'GET')
-        return send(res, { authenticated: isAdmin(req), telegramAvailable: !!env.BOT_TOKEN });
+        return send(res, {
+          authenticated: isAdmin(req),
+          seller: access.seller(access.proof(req)),
+          localAdminLogin: access.localAdminAllowed(req),
+          telegramAvailable: !!env.BOT_TOKEN,
+        });
       if (path === '/api/admin/login' && method === 'POST') {
         limit('login:' + (req.socket.remoteAddress ?? ''), 10, 15 * 60000);
         const b = await body(req);
-        const s = state();
-        const user = telegramUser(b.initData, env.BOT_TOKEN);
-        const allowedIds = [
-          ...(env.ADMIN_TELEGRAM_IDS ?? '').split(','),
-          ...(s.settings.adminTelegramIds ?? '').split(','),
-        ]
-          .map((s) => s.trim())
-          .filter(Boolean);
+        const user = telegramUser(b.initData ?? req.headers['x-telegram-init-data'], env.BOT_TOKEN);
         const passwordOk =
+          access.localAdminAllowed(req) &&
           !!env.ADMIN_PASSWORD &&
           typeof b.password === 'string' &&
           b.password.length <= 1024 &&
           equal(b.password, env.ADMIN_PASSWORD);
-        if (!passwordOk && !(user && allowedIds.includes(String(user.id))))
-          fail('Неверный пароль или нет доступа к панели', 401);
+        const sellerOk = access.seller(user);
+        if (!passwordOk && !sellerOk) fail('Доступ разрешён только продавцу', 401);
         const secret = token();
         db.prepare('DELETE FROM admins WHERE expires<?').run(Date.now());
-        db.prepare('INSERT INTO admins VALUES(?,?)').run(digest(secret), Date.now() + 12 * 3600000);
+        db.prepare(
+          'INSERT INTO admins(token,expires,telegram_id,telegram_username,method) VALUES(?,?,?,?,?)',
+        ).run(
+          digest(secret),
+          Date.now() + 12 * 3600000,
+          sellerOk ? String(user.id) : '',
+          sellerOk ? (user.username ?? '').toLowerCase() : '',
+          sellerOk ? 'telegram' : 'password',
+        );
         setCookie(res, 'fikus_admin', secret, 12 * 3600);
         audit('admin.login');
         return send(res, { ok: true });
@@ -242,6 +240,57 @@ export async function createApp(options = {}) {
       }
       if (path.startsWith('/api/admin/')) {
         if (!isAdmin(req)) fail('Войдите в панель администратора', 401);
+        if (path === '/api/admin/blacklist' && method === 'GET')
+          return send(
+            res,
+            db
+              .prepare(
+                'SELECT id,type,value,note,active,created_at AS createdAt FROM blacklist ORDER BY created_at DESC',
+              )
+              .all()
+              .map((r) => ({ ...r, active: !!r.active })),
+          );
+        if (path === '/api/admin/blacklist' && method === 'POST') {
+          const b = await body(req),
+            entry = blacklistValue(b.value);
+          if (typeof b.note !== 'string' || b.note.length > 300) fail('Заметка — до 300 символов');
+          if (access.protectedOwner(entry)) fail('Продавца нельзя добавить в чёрный список');
+          const id = token().slice(0, 20);
+          try {
+            db.prepare('INSERT INTO blacklist VALUES(?,?,?,?,1,?)').run(
+              id,
+              entry.type,
+              entry.value,
+              b.note.trim(),
+              Date.now(),
+            );
+          } catch (e) {
+            if (String(e.message).includes('UNIQUE')) fail('Этот пользователь уже есть в списке');
+            throw e;
+          }
+          audit('blacklist.add');
+          return send(res, { id }, 201);
+        }
+        if (/^\/api\/admin\/blacklist\/[\w-]+$/.test(path) && method === 'PATCH') {
+          const b = await body(req);
+          if (typeof b.active !== 'boolean') fail('Проверьте состояние записи');
+          const entry = db
+            .prepare('SELECT * FROM blacklist WHERE id=?')
+            .get(path.split('/').at(-1));
+          if (!entry) fail('Запись не найдена', 404);
+          if (b.active && access.protectedOwner(entry))
+            fail('Продавца нельзя добавить в чёрный список');
+          db.prepare('UPDATE blacklist SET active=? WHERE id=?').run(Number(b.active), entry.id);
+          audit('blacklist.toggle');
+          return send(res, { ok: true });
+        }
+        if (/^\/api\/admin\/blacklist\/[\w-]+$/.test(path) && method === 'DELETE') {
+          await body(req);
+          const r = db.prepare('DELETE FROM blacklist WHERE id=?').run(path.split('/').at(-1));
+          if (!r.changes) fail('Запись не найдена', 404);
+          audit('blacklist.remove');
+          return send(res, { ok: true });
+        }
         if (path === '/api/admin/state' && method === 'GET') return send(res, state());
         if (path === '/api/admin/state' && method === 'PUT')
           return saveState(req, res, await body(req));
@@ -397,7 +446,8 @@ export async function createApp(options = {}) {
       if (path === '/api/events' && method === 'POST') {
         const b = await body(req);
         const s = state();
-        if (!s.settings.analyticsEnabled || isAdmin(req)) return send(res, { ok: true });
+        if (!s.settings.analyticsEnabled || isAdmin(req) || access.seller(access.proof(req)))
+          return send(res, { ok: true });
         const v = visitor(req, res);
         limit('events:' + v, 120);
         if (!Array.isArray(b.events) || b.events.length > 50) fail('Пакет — до 50 событий');
@@ -513,8 +563,12 @@ export async function createApp(options = {}) {
     } catch (error) {
       if (res.headersSent) return res.end();
       const status = error.status ?? 400;
-      if (status >= 500) console.error(error);
-      send(res, { error: error.message ?? 'Ошибка сервера' }, status);
+      if (status >= 500 && !error.code) console.error(error);
+      send(
+        res,
+        { error: error.message ?? 'Ошибка сервера', ...(error.code ? { code: error.code } : {}) },
+        status,
+      );
     }
   });
   server.requestTimeout = 15000;
@@ -530,10 +584,13 @@ export async function createApp(options = {}) {
   });
   return { server, db };
 }
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+export async function startServer() {
   const { server } = await createApp();
   const host = process.env.HOST ?? '127.0.0.1',
     port = Number(process.env.PORT ?? 8787);
   server.listen(port, host, () => console.log(`фиКУС API: http://${host}:${port}`));
   for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => server.close());
 }
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url))
+  await startServer();

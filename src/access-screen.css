@@ -1,0 +1,121 @@
+.access-screen {
+  display: flex;
+  flex-direction: column;
+  padding: 28px 25px 20px;
+  text-align: center;
+  background: var(--bg);
+}
+.access-screen > header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+}
+.access-screen > header img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+.access-screen > header b {
+  font-size: 24px;
+  letter-spacing: -1px;
+}
+.access-screen > main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 20px 0 30px;
+  min-height: 0;
+}
+.access-art {
+  width: 215px;
+  height: 230px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  margin: 5px 0 24px;
+}
+.access-art > span {
+  position: absolute;
+  width: 195px;
+  height: 195px;
+  background: var(--hero);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+.access-art > img {
+  width: 190px;
+  height: 190px;
+  object-fit: contain;
+  position: relative;
+  transform: rotate(-8deg);
+}
+.access-art > i {
+  position: absolute;
+  bottom: 15px;
+  right: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--theme-graphic);
+  width: 53px;
+  height: 53px;
+  border-radius: 17px;
+  display: grid;
+  place-items: center;
+  transform: rotate(9deg);
+  box-shadow: 0 5px 20px #1f2d1510;
+}
+.access-screen main > small {
+  font-size: 8px;
+  letter-spacing: 1.6px;
+  color: var(--muted);
+}
+.access-screen h1 {
+  white-space: pre-line;
+  font-size: 32px;
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -1.3px;
+  margin: 15px 0;
+}
+.access-screen main > p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.8;
+  max-width: 305px;
+  margin: 0 0 27px;
+}
+.access-screen .primary-button {
+  width: auto;
+  min-width: 220px;
+  font-size: 12px;
+  padding: 15px 20px;
+  gap: 9px;
+}
+.access-screen > footer {
+  font-size: 9px;
+  color: var(--muted);
+  padding: 18px 0 8px;
+}
+@media (max-width: 370px) {
+  .access-screen {
+    padding: 20px;
+  }
+  .access-art {
+    height: 190px;
+    margin-bottom: 15px;
+  }
+  .access-art > img {
+    width: 160px;
+    height: 160px;
+  }
+  .access-art > span {
+    width: 165px;
+    height: 165px;
+  }
+  .access-screen h1 {
+    font-size: 29px;
+  }
+}

@@ -3,6 +3,7 @@ export interface SiteSettings {
   botUsername: string;
   appShortName: string;
   adminTelegramIds: string;
+  sellerUsername: string;
   defaultAppearance: 'light' | 'dark' | 'auto';
   heroTitle: string;
   heroSubtitle: string;
@@ -21,12 +22,16 @@ export interface PublicState {
   revision: number;
   catalog: Catalog;
   shop: ShopSettings;
-  settings: Omit<SiteSettings, 'botUsername' | 'appShortName' | 'adminTelegramIds'>;
+  settings: Omit<
+    SiteSettings,
+    'botUsername' | 'appShortName' | 'adminTelegramIds' | 'sellerUsername'
+  >;
 }
 export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
+    public code?: string,
   ) {
     super(message);
   }
@@ -36,12 +41,19 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     ...options,
     credentials: 'same-origin',
     headers: {
+      ...(window.Telegram?.WebApp?.initData
+        ? { 'X-Telegram-Init-Data': window.Telegram.WebApp.initData }
+        : {}),
       ...(options.body ? { 'Content-Type': 'application/json' } : {}),
       ...options.headers,
     },
   });
   const data = await res.json().catch(() => ({ error: 'Сервер недоступен' }));
-  if (!res.ok) throw new ApiError(data.error ?? 'Не удалось выполнить запрос', res.status);
+  if (!res.ok) {
+    if (!path.startsWith('/admin/') && ['maintenance', 'telegram_required'].includes(data.code))
+      window.dispatchEvent(new CustomEvent('fikus:access-denied', { detail: data.code }));
+    throw new ApiError(data.error ?? 'Не удалось выполнить запрос', res.status, data.code);
+  }
   return data as T;
 }
 export const mutation = <T>(path: string, method: string, data: unknown) =>
@@ -58,3 +70,12 @@ export function loadPublic(fresh = false) {
 export function invalidatePublic() {
   publicRequest = null;
 }
+
+export interface AccessState {
+  isSeller: boolean;
+  localAdminLogin: boolean;
+  blocked: boolean;
+  telegramRequired: boolean;
+  botUrl: string | null;
+}
+export const loadAccess = () => api<AccessState>('/access');

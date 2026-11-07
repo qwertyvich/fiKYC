@@ -1,5 +1,6 @@
+import { AccessScreen } from './AccessScreen';
 import { lazy, Suspense } from 'react';
-import { api, loadPublic, type PublicState } from './api';
+import { api, loadPublic, loadAccess, type AccessState, type PublicState } from './api';
 import { configureAnalytics, productVisit, track } from './analytics';
 import { refreshReviews } from './review-store';
 const AdminPanel = lazy(() => import('./admin/AdminPanel').then(m => ({ default: m.AdminPanel })));
@@ -44,6 +45,8 @@ const validCart = (x: CartItem[]) => Array.isArray(x) && x.every(i => i && typeo
 export function App() {
   useSyncExternalStore(subscribeLanguage, getLanguage);
   const [route, setRoute] = useState(routeNow);
+  const [access, setAccess] = useState<AccessState | null>(null);
+  const [accessError, setAccessError] = useState(false);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
@@ -83,6 +86,13 @@ export function App() {
   const notify = (message: string) => { setToast(message); haptic(); };
 
   useEffect(() => {
+    let live = true; let accessEpoch = 0;
+    const refresh = () => { const epoch = ++accessEpoch; if(document.visibilityState !== 'visible') return; loadAccess().then(data => { if(!live || epoch!==accessEpoch)return; setAccess(data);setAccessError(false);if(data.blocked||data.telegramRequired)configureAnalytics(false); }).catch(()=>{if(live)setAccessError(true);}); };
+    const denied = (event:Event) => { ++accessEpoch; const code=(event as CustomEvent).detail; configureAnalytics(false);setAccess(prev=>({...prev,isSeller:false,localAdminLogin:prev?.localAdminLogin??false,botUrl:prev?.botUrl??null,blocked:code==='maintenance',telegramRequired:code==='telegram_required'})); };
+    refresh(); const timer=setInterval(refresh,30000);window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);window.addEventListener('fikus:access-denied',denied);
+    return()=>{live=false;clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);window.removeEventListener('fikus:access-denied',denied);};
+  }, []);
+  useEffect(() => {
     let live = true;
     Promise.all([store.loadCatalog(), store.loadOrders(), store.loadRequests(), store.loadShop(), loadPublic()]).then(([c, o, r, info, data]) => { if (live) {
       setCatalog(c); setOrders(o); setRequests(r); setShop(info); setSiteSettings(data.settings); setLoadError(false);
@@ -94,7 +104,7 @@ export function App() {
     return () => { live = false; };
   }, []);
   useEffect(() => {
-    if (kind === 'admin') return;
+  if (kind === 'admin') return;
     let live = true;
     const refresh = () => { if (document.visibilityState !== 'visible') return; loadPublic(true).then(data => {
       if (!live) return;
@@ -197,7 +207,12 @@ export function App() {
   }
 
 
-  if (kind === 'admin') return <Suspense fallback={<div className="loading"><LoaderCircle className="spin"/></div>}><AdminPanel page={id ?? 'overview'} mode={mode} onToggleTheme={() => setAppearance(mode === 'dark' ? 'light' : 'dark')} onExit={() => { loadPublic(true).then(data => { setCatalog(data.catalog); setShop(data.shop); setSiteSettings(data.settings); configureAnalytics(data.settings.analyticsEnabled); void refreshReviews().catch(() => {}); }).catch(() => setLoadError(true)); go('/catalog'); }}/></Suspense>;
+  if (!access) return <AccessScreen kind={accessError ? 'unavailable' : 'loading'}/>;
+  if (access.blocked) return <AccessScreen kind="maintenance"/>;
+  if (access.telegramRequired) return <AccessScreen kind="telegram" botUrl={access.botUrl}/>;
+  if (kind === 'order-preview' && !access.isSeller) return <AccessScreen kind="unavailable"/>;
+  if (kind === 'admin' && !access.isSeller && !access.localAdminLogin) return <AccessScreen kind="unavailable"/>;
+  if (kind === 'admin') return <Suspense fallback={<div className="loading"><LoaderCircle className="spin"/></div>}><AdminPanel page={id ?? 'overview'} mode={mode} onToggleTheme={() => setAppearance(mode === 'dark' ? 'light' : 'dark')} onExit={() => { void loadAccess().then(setAccess); loadPublic(true).then(data => { setCatalog(data.catalog); setShop(data.shop); setSiteSettings(data.settings); configureAnalytics(data.settings.analyticsEnabled); void refreshReviews().catch(() => {}); }).catch(() => setLoadError(true)); go('/catalog'); }}/></Suspense>;
 
   return <div className="app-frame" data-page={kind}><div className="app-scroll">
     <header className="topbar">
@@ -228,7 +243,7 @@ export function App() {
         {kind === 'product' && (currentProduct ? <ProductPage key={currentProduct.id} product={currentProduct} group={group} shop={shop} favorite={favorites.includes(currentProduct.id)} onFavorite={() => toggleFavorite(currentProduct.id)} onAdd={qty => addToCart(currentProduct, qty)} onRequest={async details => { writeLocal(`request-handoff:${currentProduct.id}`, details); track('request_submit', { productId: currentProduct.id }); go(`/request-checkout/${currentProduct.id}`); }} onBack={() => go(productReturn || (group ? `/group/${group.id}` : '/catalog'))} navigate={go}/> : <Empty icon={<Package/>} title={t("Предложение недоступно")} text={t("Возможно, приём заявок закрыт или предложение скрыто. Посмотрите другие варианты.")} action={t("В каталог")} onAction={() => go('/catalog')}/>)}
         {kind === 'request-checkout' && currentProduct && <RequestCheckoutPage product={currentProduct} shop={shop} navigate={go}/>}
         {kind === 'checkout' && <CheckoutPage lines={lines} shop={shop} navigate={go}/>}
-        {kind === 'order' && (currentRecord ? <OrderPage record={currentRecord} catalog={catalog} navigate={go} onConfirm={async () => { const updated = await store.acceptQuote(currentRecord.id); setRequests(prev => prev.map(r => r.id === updated.id ? updated : r)); }}/> : <Empty icon={<Package/>} title={t("Заказ не найден")} text={t("В предпросмотре доступны только заказы, сохранённые в этом браузере.")} action={t("Мои заказы")} onAction={() => go('/orders')}/>)}
+        {kind === 'order' && (currentRecord ? <OrderPage record={currentRecord} catalog={catalog} navigate={go} onConfirm={async () => { const updated = await store.acceptQuote(currentRecord.id); setRequests(prev => prev.map(r => r.id === updated.id ? updated : r)); }}/> : <Empty icon={<Package/>} title={t("Заказ не найден")} text={t("Проверьте ссылку на заказ или свяжитесь с продавцом.")} action={t("Мои заказы")} onAction={() => go('/orders')}/>)}
         {kind === 'order-preview' && <OrderPreview catalog={catalog} state={id ?? ''} navigate={go}/>}
         {kind === 'support' && <SupportPage key={route} shop={shop} record={currentRecord} product={catalog.products.find(p => p.id === supportProductId)} navigate={go} notify={notify}/>}
 
@@ -240,14 +255,14 @@ export function App() {
 
         {kind === 'orders' && <OrdersPage orders={orders} requests={requests} navigate={go}/>}
 
-        {kind === 'profile' && <><PageTitle title={t("Профиль")}/><section className="profile-card"><div className="profile-avatar">{(telegram?.initDataUnsafe?.user?.first_name ?? t('Гость'))[0]}</div><h2>{telegram?.initDataUnsafe?.user?.first_name ?? t('Привет, гость!')}</h2><p>{t(telegram?.initData ? 'Рады видеть тебя в фиКУСе' : 'Осматривайся — здесь всё для тебя')}</p><span className="demo-badge">{t(telegram?.initData ? 'Telegram Mini App' : 'Режим предпросмотра')}</span></section><Wallet shop={shop}/><div className="menu-list"><MenuRow icon={<Package/>} title={t("Мои заказы")} extra={t(`${orders.length + requests.length}`)} onClick={() => go('/orders')}/><MenuRow icon={<Heart/>} title={t("Избранное")} extra={t(`${favorites.length}`)} onClick={() => go('/favorites')}/><MenuRow icon={<CircleHelp/>} title={t("Помощь и поддержка")} onClick={() => go('/support/new')}/></div>{kind === 'profile' && <section className="appearance-settings"><h3>{t("Оформление")}</h3><div className="appearance-options" role="group" aria-label={t("Тема оформления")}>{([['light', 'Светлая'], ['dark', 'Тёмная'], ['auto', 'Как в системе']] as const).map(([value, label]) => <button key={value} aria-pressed={appearance === value} className={appearance === value ? 'selected' : ''} onClick={() => { setAppearance(value); haptic(); }}>{t(label)}</button>)}</div></section>}<LanguageSettings/><p className="section-caption">Управление магазином</p><div className="menu-list"><MenuRow icon={<Settings2/>} title="Панель администратора" onClick={() => go('/admin/overview')}/></div><div className="profile-mascot"><Mascot theme={theme}/><p>{t("Сервисы для ваших задач. Поддержка до результата.")}</p><small>{t("фиКУС · v0.1")}</small></div></>}
+        {kind === 'profile' && <><PageTitle title={t("Профиль")}/><section className="profile-card"><div className="profile-avatar">{(telegram?.initDataUnsafe?.user?.first_name ?? t('Гость'))[0]}</div><h2>{telegram?.initDataUnsafe?.user?.first_name ?? t('Привет, гость!')}</h2><p>{t(telegram?.initData ? 'Рады видеть тебя в фиКУСе' : 'Осматривайся — здесь всё для тебя')}</p><span className="demo-badge">{t(telegram?.initData ? 'Telegram Mini App' : 'фиКУС')}</span></section><Wallet shop={shop}/><div className="menu-list"><MenuRow icon={<Package/>} title={t("Мои заказы")} extra={t(`${orders.length + requests.length}`)} onClick={() => go('/orders')}/><MenuRow icon={<Heart/>} title={t("Избранное")} extra={t(`${favorites.length}`)} onClick={() => go('/favorites')}/><MenuRow icon={<CircleHelp/>} title={t("Помощь и поддержка")} onClick={() => go('/support/new')}/></div>{kind === 'profile' && <section className="appearance-settings"><h3>{t("Оформление")}</h3><div className="appearance-options" role="group" aria-label={t("Тема оформления")}>{([['light', 'Светлая'], ['dark', 'Тёмная'], ['auto', 'Как в системе']] as const).map(([value, label]) => <button key={value} aria-pressed={appearance === value} className={appearance === value ? 'selected' : ''} onClick={() => { setAppearance(value); haptic(); }}>{t(label)}</button>)}</div></section>}<LanguageSettings/>{access.isSeller && <><p className="section-caption">Управление магазином</p><div className="menu-list"><MenuRow icon={<Settings2/>} title="Панель администратора" onClick={() => go('/admin/overview')}/></div></>}<div className="profile-mascot"><Mascot theme={theme}/><p>{t("Сервисы для ваших задач. Поддержка до результата.")}</p><small>{t("фиКУС · v0.1")}</small></div></>}
 
         {kind === 'help' && <><PageTitle title={t("На связи")} subtitle={t("Пара ответов, чтобы всё стало проще")}/><div className="help-hero"><Mascot theme={theme}/><h2>{t("Поможем разобраться")}</h2><p>{t("Выбирай сервис, читай условия и оформляй покупку или заявку.")}</p></div><div className="faq-list">{[
-          ['Как оформить заказ?', 'Товары с фиксированной ценой добавляйте в корзину. Для услуг «По запросу» откройте карточку и заполните параметры: стоимость и срок согласуются отдельно. Сейчас заказы и заявки сохраняются только локально, без отправки оператору.'],
-          ['Где посмотреть мои покупки?', 'Во вкладке «Заказы». В демонстрации история хранится только в этом браузере.'],
+          ['Как оформить заказ?', 'Товары с фиксированной ценой добавляйте в корзину. Для услуг «По запросу» откройте карточку и заполните параметры: стоимость и срок согласуются отдельно. На следующем шаге появится сообщение, которое нужно отправить продавцу в Telegram.'],
+          ['Где посмотреть мои покупки?', 'Уточнить состав, оплату и состояние заказа можно в чате продавца.'],
           ['Почему меняется оформление?', 'У некоторых разделов свой характер. В Claude живёт его персонаж, а в остальных разделах — фиКУС. Если вы пришли по ссылке Claude, его стиль останется с вами во всём маркете.'],
           ['Что входит в услугу?', 'Условия и состав указываются в описании каждого товара. Услуги настройки оказываются для ваших собственных профилей и сервисов.'],
-          ['Как связаться с магазином?', 'Рабочий контакт поддержки появится после подключения панели владельца. Сейчас это локальная демонстрация интерфейса.'],
+          ['Как связаться с магазином?', 'Откройте раздел «Помощь и поддержка» в профиле — там указан контакт магазина.'],
         ].map(([q, a]) => <details key={q}><summary>{t(q)}<Plus size={17}/></summary><p>{t(a)}</p></details>)}</div></>}
 
 
