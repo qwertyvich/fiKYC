@@ -85,3 +85,15 @@ test('currency totals do not mix rubles with dollars or accumulate fractional ro
   assert.deepEqual(currencyTotals([{ price: 1990, quantity: 1 }, { price: 0.5, quantity: 1, currency: 'USD' }, { price: 16, quantity: 1, currency: 'USD' }]), ['1 990 ₽', '16,5 $']);
   assert.deepEqual(currencyTotals([{ price: 0.1, quantity: 3, currency: 'USD' }]), ['0,3 $']);
 });
+
+
+test('explicit feed order crosses categories and survives hidden products without losing their positions', () => {
+  const sorted = { ...structuredClone(catalog), productOrder: ['c', 'b', 'a'] };
+  assert.deepEqual(selectProducts(sorted, 'all', '', 'manual', false).map(p=>p.id), ['c','b','a']);
+  assert.deepEqual(selectProducts(sorted, 'main', '', 'manual', false).map(p=>p.id), ['b','a']);
+  sorted.products[0].visible=false;
+  assert.deepEqual(selectProducts(sorted, 'all', '', 'manual', false).map(p=>p.id), ['b','a']);
+  assert.deepEqual(parseCatalog(sorted).productOrder, ['c','b','a']);
+  assert.throws(()=>parseCatalog({...sorted,productOrder:['c','c']}));
+  assert.throws(()=>parseCatalog({...sorted,productOrder:['missing']}));
+});

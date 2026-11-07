@@ -21,7 +21,7 @@ export function CheckoutPage({ lines, shop, navigate }: { lines: { product: Prod
       <label className="confirm-check"><input type="checkbox" checked={useBalance} onChange={e => setUseBalance(e.target.checked)}/><span>{t("Хочу оплатить с баланса магазина")}<small className="form-help balance-payment-help">{t("Продавец проверит баланс и согласует оплату в чате.")}</small></span></label>
       <div className="checkout-total"><span>{t("Итого")}</span><strong>{t(totals.join(' + '))}</strong></div><p className="form-help">{t(totals.length > 1 ? 'Валюты рассчитаны отдельно. Курс и итоговую оплату согласуйте с продавцом.' : 'Наличие и итоговую стоимость подтвердит продавец в чате.')}</p>
       {invalid && <p className="form-failure" role="alert">{t("Количество превышает остаток. Вернитесь в корзину и измените состав заказа.")}</p>}
-      <SellerMessage username={shop.supportTelegram} text={t(cartMessage(lines, note, useBalance))} disabled={invalid}/>
+      <SellerMessage productIds={lines.map(l=>l.product.id)} username={shop.supportTelegram} text={t(cartMessage(lines, note, useBalance))} disabled={invalid}/>
       <p className="fine-print">{t("Корзина сохранится после перехода в чат. Открытие чата и копирование текста не подтверждают отправку сообщения или оплату.")}</p>
     </div>}
   </>;
@@ -33,5 +33,5 @@ export function RequestCheckoutPage({ product, shop, navigate }: { product: Prod
   let valid = isRequest(product);
   try { validateRequest(product, details); } catch { valid = false; }
   const text = [t(`Здравствуйте! Хочу заказать услугу в фиКУС: ${t(product.title)}`), `${t('Артикул:')} ${product.id}`, '', ...requestFields(product).filter(f => details[f.key]).map(f => `${t(f.label)}: ${details[f.key]}`), '', t('Подтвердите, пожалуйста, стоимость, срок и условия выполнения.')].join('\n');
-  return <><div className="page-title"><button className="back-link" onClick={() => navigate(`/product/${product.id}`)}><ArrowLeft size={17}/>{t("К предложению")}</button><h1>{t("Заявка в Telegram")}</h1><p>{t("Условия и оплату согласуем с продавцом в чате.")}</p></div>{valid ? <SellerMessage username={shop.supportTelegram} text={t(text)}/> : <div className="context-notice"><p>{t("Заполните параметры заявки в карточке предложения.")}</p></div>}</>;
+  return <><div className="page-title"><button className="back-link" onClick={() => navigate(`/product/${product.id}`)}><ArrowLeft size={17}/>{t("К предложению")}</button><h1>{t("Заявка в Telegram")}</h1><p>{t("Условия и оплату согласуем с продавцом в чате.")}</p></div>{valid ? <SellerMessage productIds={[product.id]} username={shop.supportTelegram} text={t(text)}/> : <div className="context-notice"><p>{t("Заполните параметры заявки в карточке предложения.")}</p></div>}</>;
 }

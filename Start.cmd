@@ -13,5 +13,7 @@ if not exist node_modules (
     exit /b 1
   )
 )
+call npm run setup:local
+start "fiKUS API" cmd /k "npm run server"
 call npm run dev -- --open
 pause

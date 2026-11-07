@@ -1,6 +1,6 @@
-import { addClaudeOffers, expandSavedCatalog, initialCatalog } from './catalog';
+import { loadPublic, mutation, invalidatePublic, type AdminState } from './api';
 import { isRequest, parseCatalog, requestFields, validateRequest, type Catalog, type Order, type ServiceRequest, type ShopSettings } from './domain';
-import { defaultShop, enrichOffers, offerFor, parseShop, validStatus } from './commerce';
+import { offerFor, parseShop, validStatus } from './commerce';
 
 export interface StoreAdapter {
   loadCatalog(): Promise<Catalog>;
@@ -18,26 +18,13 @@ export function readLocal<T>(key: string, fallback: T): T {
 }
 export function writeLocal(key: string, value: unknown) { localStorage.setItem(`fikus:${key}`, JSON.stringify(value)); }
 
-// Replace this adapter with authenticated calls to the owner's panel.
-// Prices, stock, identity and payment status must be verified by that server.
+// Shared catalog and shop settings are served by the API.
+// Legacy demo orders remain local; payment and fulfillment are separate integrations.
 export const store: StoreAdapter = {
   async loadCatalog() {
-    let catalog: Catalog;
-    try { catalog = parseCatalog(readLocal('catalog', initialCatalog)); } catch { catalog = structuredClone(initialCatalog); }
-    if (!readLocal('services-expanded-v2', false)) {
-      catalog = parseCatalog(expandSavedCatalog(catalog));
-      try { writeLocal('catalog', catalog); writeLocal('services-expanded-v2', true); } catch { /* Keep the expanded catalog in memory. */ }
-    }
-    if (!readLocal('claude-offers-v1', false)) {
-      catalog = parseCatalog(addClaudeOffers(catalog));
-      try { writeLocal('catalog', catalog); writeLocal('claude-offers-v1', true); } catch { /* Keep the new offers in memory when storage is unavailable. */ }
-    }
-    for (const product of catalog.products) {
-      if (product.id === 'claude-warmed-kyc' && product.badge === 'KYC пройдена') product.badge = '';
-    }
-    return enrichOffers(catalog);
+    return (await loadPublic()).catalog;
   },
-  async saveCatalog(catalog) { writeLocal('catalog', parseCatalog(catalog)); },
+  async saveCatalog(catalog) { await mutation<AdminState>('/admin/state','PUT',{catalog:parseCatalog(catalog),revision:(await loadPublic()).revision}); invalidatePublic(); return; },
   async createOrder(items, note = '') {
     const catalog = await this.loadCatalog();
     const lines = items.map(i => {
@@ -71,7 +58,7 @@ export const store: StoreAdapter = {
     const value = readLocal<unknown>('requests', []);
     return Array.isArray(value) ? value.filter((r): r is ServiceRequest => !!r && typeof r.id === 'string' && typeof r.productId === 'string' && typeof r.title === 'string' && Number.isFinite(Date.parse(r.createdAt)) && validStatus(r.status) && r.details && typeof r.details === 'object' && !Array.isArray(r.details) && Object.values(r.details).every(v => typeof v === 'string')) : [];
   },
-  async loadShop() { try { return parseShop(readLocal('shop', defaultShop)); } catch { return { ...defaultShop }; } },
-  async saveShop(settings) { writeLocal('shop', parseShop(settings)); },
+  async loadShop() { return (await loadPublic()).shop; },
+  async saveShop(settings) { await mutation('/admin/state','PUT',{shop:parseShop(settings),revision:(await loadPublic()).revision}); invalidatePublic(); },
   async acceptQuote() { throw new Error('Подтверждение предложения станет доступно после подключения магазина.'); },
 };

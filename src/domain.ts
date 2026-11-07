@@ -6,7 +6,7 @@ export interface Group { id: string; title: string; icon: Brand; theme: Theme; v
 export type Currency = 'RUB' | 'USD';
 export interface OfferDetails { result: string; includes: string; requirements: string; region: string; term: string; fulfillment: string; refund: string }
 export interface Product { id: string; groupId: string; title: string; subtitle: string; description: string; price: number; currency?: Currency; stock: number; brand: Brand; badge: string; visible: boolean; saleMode?: 'fixed' | 'request'; requestKind?: RequestKind; acceptingRequests?: boolean; aliases?: string; buyerCount?: number; offer?: OfferDetails }
-export interface Catalog { version: 1; groups: Group[]; products: Product[] }
+export interface Catalog { version: 1; groups: Group[]; products: Product[]; productOrder?: string[] }
 export type Sort = 'manual' | 'price-asc' | 'price-desc' | 'name';
 export interface CartItem { productId: string; quantity: number }
 export type OrderStatus = 'awaiting_details' | 'awaiting_quote' | 'awaiting_confirmation' | 'awaiting_payment' | 'processing' | 'completed' | 'failed' | 'cancelled';
@@ -71,7 +71,8 @@ export function selectProducts(catalog: Catalog, groupId: string, query: string,
   const result = catalog.products.filter(p => p.visible && visibleGroups.has(p.groupId) && (groupId === 'all' || p.groupId === groupId) && (!availableOnly || isAvailable(p)) && `${p.title} ${p.subtitle} ${p.description} ${t(p.title)} ${t(p.subtitle)} ${t(p.description)} ${p.aliases ?? ''}`.toLocaleLowerCase(getLocale()).includes(q));
   if (sort === 'price-asc' || sort === 'price-desc') result.sort((a, b) => Number(isRequest(a)) - Number(isRequest(b)) || (isRequest(a) ? 0 : (a.currency ?? 'RUB').localeCompare(b.currency ?? 'RUB') || (sort === 'price-asc' ? a.price - b.price : b.price - a.price)));
   if (sort === 'name') result.sort((a, b) => t(a.title).localeCompare(t(b.title), getLocale()));
-  if (sort === 'manual') result.sort((a, b) => (order.get(a.groupId) ?? 0) - (order.get(b.groupId) ?? 0));
+  if (sort === 'manual' && catalog.productOrder) { const positions = new Map(catalog.productOrder.map((id, index) => [id, index])); result.sort((a,b) => (positions.get(a.id) ?? 2000) - (positions.get(b.id) ?? 2000)); }
+  else if (sort === 'manual') result.sort((a, b) => (order.get(a.groupId) ?? 0) - (order.get(b.groupId) ?? 0));
   return result;
 }
 export function parseCatalog(input: unknown): Catalog {
@@ -91,6 +92,7 @@ export function parseCatalog(input: unknown): Catalog {
     if (p.offer !== undefined && (!p.offer || !['result','includes','requirements','region','term','fulfillment','refund'].every(k => typeof p.offer?.[k as keyof OfferDetails] === 'string' && p.offer[k as keyof OfferDetails].length <= 10000))) throw new Error('Проверьте условия предложения');
     productIds.add(p.id);
   }
+  if (c.productOrder !== undefined && (!Array.isArray(c.productOrder) || c.productOrder.length > 2000 || new Set(c.productOrder).size !== c.productOrder.length || c.productOrder.some(id => typeof id !== 'string' || !productIds.has(id)))) throw new Error('Проверьте порядок товаров');
   return c;
 }
 export function cartLines(catalog: Catalog, cart: CartItem[]) {

@@ -9,13 +9,18 @@
     "preview": "vite preview --host 127.0.0.1 --port 4174",
     "test": "node --experimental-strip-types --test src/domain.test.ts src/commerce.test.ts src/seller.test.ts src/locale.test.ts",
     "test:localization": "node scripts/qa-localization.mjs",
-    "test:ui": "node scripts/qa-commerce.mjs",
+    "test:ui": "node scripts/qa-admin.mjs",
     "test:services": "node scripts/qa-services.mjs",
-    "test:commerce": "node scripts/qa-commerce.mjs",
+    "test:commerce": "node scripts/qa-admin.mjs",
     "test:clawd": "node scripts/qa-clawd.mjs",
     "test:covers": "node scripts/qa-covers.mjs",
-    "test:reviews": "node scripts/qa-reviews.mjs",
-    "test:seller": "node scripts/qa-seller.mjs"
+    "test:reviews": "node scripts/qa-admin.mjs",
+    "test:seller": "node scripts/qa-admin.mjs",
+    "server": "node --env-file-if-exists=.env server/index.mjs",
+    "start": "node --env-file-if-exists=.env server/index.mjs",
+    "test:server": "node --test server/*.test.mjs",
+    "setup:local": "node scripts/setup-local.mjs",
+    "test:admin": "node scripts/qa-admin.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -29,5 +34,8 @@
     "@vitejs/plugin-react": "^5.0.2",
     "typescript": "^5.9.2",
     "vite": "^7.1.4"
+  },
+  "engines": {
+    "node": ">=22.18.0"
   }
 }

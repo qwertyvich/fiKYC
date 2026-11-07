@@ -13,3 +13,7 @@ __pycache__/
 *.log
 .DS_Store
 Thumbs.db
+
+# Server state and local credentials
+data/
+*.sqlite*

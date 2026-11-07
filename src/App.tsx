@@ -1,3 +1,8 @@
+import { lazy, Suspense } from 'react';
+import { api, loadPublic, type PublicState } from './api';
+import { configureAnalytics, productVisit, track } from './analytics';
+import { refreshReviews } from './review-store';
+const AdminPanel = lazy(() => import('./admin/AdminPanel').then(m => ({ default: m.AdminPanel })));
 import { t, getLanguage, subscribeLanguage } from './i18n';
 import { LanguageSettings } from './LanguageSettings';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
@@ -23,6 +28,7 @@ let productReturn = '';
 const go = (route: string) => {
   const current = routeNow(); const scroller = document.querySelector('.app-scroll');
   scrollMemory.set(current, scroller?.scrollTop ?? 0);
+  if (route.startsWith('/product/') && current !== route) track('product_click', { productId: route.split('/')[2] });
   if (route.startsWith('/product/') && !current.startsWith('/product/')) productReturn = current;
   if (current === route) scroller?.scrollTo({ top: 0, behavior: 'smooth' }); else location.hash = route;
 };
@@ -54,7 +60,12 @@ export function App() {
   const [shopEditor, setShopEditor] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const routeRef = useRef(routeNow());
-  const [appearance, setAppearance] = useSaved<Appearance>('appearance', 'light', isAppearance);
+  const [appearance, setAppearanceState] = useState<Appearance>(() => safeSaved('appearance', readLocal<Appearance>('shop-default-appearance', 'light'), isAppearance));
+  const setAppearance = (value: Appearance) => { setAppearanceState(value); try { writeLocal('appearance', value); } catch {} };
+  const [siteSettings, setSiteSettings] = useState<PublicState['settings'] | null>(null);
+  const startParam = new URLSearchParams(location.search).get('tgWebAppStartParam') ?? new URLSearchParams(location.search).get('ref') ?? telegram?.initDataUnsafe?.start_param ?? '';
+  const [resolvingLink, setResolvingLink] = useState(startParam.startsWith('p_') && !location.hash.startsWith('#/admin'));
+  const analyticsStarted = useRef(false);
   const [systemMode, setSystemMode] = useState<ColorMode>(systemColorMode);
   const mode = resolveMode(appearance, systemMode);
   const [lockedTheme] = useState(() => entryTheme(location.search, telegram?.initDataUnsafe?.start_param));
@@ -73,9 +84,47 @@ export function App() {
 
   useEffect(() => {
     let live = true;
-    Promise.all([store.loadCatalog(), store.loadOrders(), store.loadRequests(), store.loadShop()]).then(([c, o, r, info]) => { if (live) { setCatalog(c); setOrders(o); setRequests(r); setShop(info); setLoadError(false); } }).catch(() => { if (live) setLoadError(true); });
+    Promise.all([store.loadCatalog(), store.loadOrders(), store.loadRequests(), store.loadShop(), loadPublic()]).then(([c, o, r, info, data]) => { if (live) {
+      setCatalog(c); setOrders(o); setRequests(r); setShop(info); setSiteSettings(data.settings); setLoadError(false);
+      configureAnalytics(data.settings.analyticsEnabled);
+      if (!isAppearance(readLocal('appearance', null))) setAppearanceState(data.settings.defaultAppearance);
+      try { writeLocal('shop-default-appearance', data.settings.defaultAppearance); } catch {}
+      void refreshReviews().catch(() => {});
+    } }).catch(() => { if (live) setLoadError(true); });
     return () => { live = false; };
   }, []);
+  useEffect(() => {
+    if (kind === 'admin') return;
+    let live = true;
+    const refresh = () => { if (document.visibilityState !== 'visible') return; loadPublic(true).then(data => {
+      if (!live) return;
+      setCatalog(prev => JSON.stringify(prev) === JSON.stringify(data.catalog) ? prev : data.catalog);
+      setShop(data.shop); setSiteSettings(data.settings); configureAnalytics(data.settings.analyticsEnabled);
+      void refreshReviews().catch(() => {});
+    }).catch(() => {}); };
+    refresh(); const timer = setInterval(refresh, 30000);
+    window.addEventListener('focus', refresh); document.addEventListener('visibilitychange', refresh);
+    return () => { live = false; clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
+  }, [kind]);
+  useEffect(() => {
+    if (!resolvingLink) return;
+    let live = true;
+    api<{ productId: string; linkId: string }>('/links/' + encodeURIComponent(startParam.slice(2))).then(data => {
+      if (!live) return;
+      location.hash = '/product/' + data.productId;
+      track('link_open', { productId: data.productId, linkId: data.linkId });
+    }).catch(() => { if (live) location.hash = '/product/_unavailable'; }).finally(() => { if (live) setResolvingLink(false); });
+    return () => { live = false; };
+  }, []);
+  useEffect(() => {
+    if (!catalog || !siteSettings || kind === 'admin') return;
+    if (!analyticsStarted.current) { track('session_start'); analyticsStarted.current = true; }
+  }, [catalog, siteSettings, kind]);
+  useEffect(() => {
+    if (!catalog) return;
+    if (kind === 'product' && currentProduct && !resolvingLink) return productVisit(currentProduct.id);
+    if (kind === 'checkout') track('checkout_view', { productIds: lines.map(l=>l.product.id) });
+  }, [kind, currentProduct?.id, resolvingLink, !!catalog]);
   useEffect(() => {
     if (catalog && kind === 'group' && !catalog.groups.some(g => g.id === id && g.visible)) go('/catalog');
   }, [catalog, kind, id]);
@@ -129,20 +178,26 @@ export function App() {
     return result;
   }, [catalog, kind, id, query, sort, available, favorites]);
 
-  function toggleFavorite(productId: string) { setFavorites(prev => prev.includes(productId) ? prev.filter(x => x !== productId) : [...prev, productId]); haptic(); }
+  function toggleFavorite(productId: string) { if (!favorites.includes(productId)) track('favorite_add', { productId }); setFavorites(prev => prev.includes(productId) ? prev.filter(x => x !== productId) : [...prev, productId]); haptic(); }
   function addToCart(p: Product, quantity = 1) {
     if (isRequest(p)) { go(`/product/${p.id}`); return; }
     const existing = cart.find(i => i.productId === p.id)?.quantity ?? 0;
     if (existing + quantity > p.stock) { notify('Больше нет в наличии'); return; }
     setCart(prev => existing ? prev.map(i => i.productId === p.id ? { ...i, quantity: i.quantity + quantity } : i) : [...prev, { productId: p.id, quantity }]);
+    track('cart_add', { productId: p.id, quantity });
     notify('Товар добавлен в корзину');
   }
   function changeQuantity(productId: string, delta: number) {
     const p = catalog?.products.find(p => p.id === productId);
     if (!p) return;
+    const oldQuantity = cart.find(i => i.productId === productId)?.quantity ?? 0;
+    const nextQuantity = Math.max(0, Math.min(p.stock, oldQuantity + delta));
+    if (oldQuantity !== nextQuantity) track(nextQuantity === 0 ? 'cart_remove' : 'cart_quantity', { productId, quantity: nextQuantity === 0 ? oldQuantity : nextQuantity });
     setCart(prev => prev.map(i => i.productId === productId ? { ...i, quantity: Math.max(0, Math.min(p.stock, i.quantity + delta)) } : i).filter(i => i.quantity > 0));
   }
 
+
+  if (kind === 'admin') return <Suspense fallback={<div className="loading"><LoaderCircle className="spin"/></div>}><AdminPanel page={id ?? 'overview'} mode={mode} onToggleTheme={() => setAppearance(mode === 'dark' ? 'light' : 'dark')} onExit={() => { loadPublic(true).then(data => { setCatalog(data.catalog); setShop(data.shop); setSiteSettings(data.settings); configureAnalytics(data.settings.analyticsEnabled); void refreshReviews().catch(() => {}); }).catch(() => setLoadError(true)); go('/catalog'); }}/></Suspense>;
 
   return <div className="app-frame" data-page={kind}><div className="app-scroll">
     <header className="topbar">
@@ -151,12 +206,13 @@ export function App() {
     </header>
 
     <main>
-      {!catalog ? <div className="loading">{loadError ? <><h2>{t("Не удалось открыть магазин")}</h2><p>{t("Проверьте соединение и попробуйте ещё раз.")}</p><button className="primary-button" onClick={() => location.reload()}>{t("Попробовать снова")}</button></> : <><LoaderCircle className="spin"/><p>{t("Расставляем всё по полочкам…")}</p></>}</div> : <>
+      {!catalog || resolvingLink ? <div className="loading">{loadError ? <><h2>{t("Не удалось открыть магазин")}</h2><p>{t("Проверьте соединение и попробуйте ещё раз.")}</p><button className="primary-button" onClick={() => location.reload()}>{t("Попробовать снова")}</button></> : <><LoaderCircle className="spin"/><p>{t("Расставляем всё по полочкам…")}</p></>}</div> : <>
         {catalogPage && <>
+          {siteSettings?.announcementEnabled && siteSettings.announcement && <div className="store-announcement">{siteSettings.announcement}</div>}
           {kind !== 'favorites' && (theme === 'claude' ? <ClaudeHero onExplore={() => document.querySelector('.catalog-heading')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })} onVerify={() => go('/product/claude-kyc')}/> : kind === 'catalog' && catalog.groups.some(g => g.id === 'claude' && g.visible) ? <ClaudeHero className="claude-featured" onExplore={() => { setQuery(''); go('/group/claude'); }} onVerify={() => go('/product/claude-kyc')}/> : <section className={`hero ${kind === 'group' ? 'group-hero' : ''}`}>
-            <div className="hero-copy"><span className="eyebrow"><span className="live-dot"/>{t(group ? group.title : 'Меньше хлопот. Больше возможностей.')}</span><h1>{t("Всё нужное.")}<br/>{t("В одном месте.")}</h1><p>{t("Пополнения, карты, сервисы и поездки — выбирай под свою задачу.")}</p><span className="hero-note"><ShieldCheck size={14}/>{t(" Выбирай. Подключай. Пользуйся.")}</span></div>
+            <div className="hero-copy"><span className="eyebrow"><span className="live-dot"/>{t(group ? group.title : 'Меньше хлопот. Больше возможностей.')}</span><h1>{t(siteSettings?.heroTitle ?? "Всё нужное. В одном месте.")}</h1><p>{t(siteSettings?.heroSubtitle ?? "Пополнения, карты, сервисы и поездки — выбирай под свою задачу.")}</p><span className="hero-note"><ShieldCheck size={14}/>{t(" Выбирай. Подключай. Пользуйся.")}</span></div>
           </section>)}
-          {kind === 'favorites' ? <PageTitle title={t("Избранное")} subtitle={t("То, что хочется оставить под рукой")}/> : kind === 'catalog' && theme !== 'claude' && catalog.groups.some(g => g.id === 'claude' && g.visible) && <button className="spotlight market-spotlight" onClick={() => document.querySelector('.catalog-heading')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })}><span className="market-spotlight-icon"><img src={`${import.meta.env.BASE_URL}ficus-mascot.png`} alt="" width={54} height={54}/></span><span><b>{t("Всё нужное. В одном месте.")}</b><small>{t("Пополнения, карты, сервисы и поездки")}</small></span><ArrowDown size={18}/></button>}
+          {kind === 'favorites' ? <PageTitle title={t("Избранное")} subtitle={t("То, что хочется оставить под рукой")}/> : kind === 'catalog' && theme !== 'claude' && catalog.groups.some(g => g.id === 'claude' && g.visible) && <button className="spotlight market-spotlight" onClick={() => document.querySelector('.catalog-heading')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })}><span className="market-spotlight-icon"><img src={`${import.meta.env.BASE_URL}ficus-mascot.png`} alt="" width={54} height={54}/></span><span><b>{t(siteSettings?.heroTitle ?? "Всё нужное. В одном месте.")}</b><small>{t(siteSettings?.heroSubtitle ?? "Пополнения, карты, сервисы и поездки")}</small></span><ArrowDown size={18}/></button>}
 
           {kind !== 'favorites' && <div className="catalog-guarantee"><ShieldCheck size={16}/><span>{t("100% гарантия · Доводим до согласованного результата")}</span></div>}
           {kind !== 'favorites' && <>
@@ -169,7 +225,7 @@ export function App() {
           {kind !== 'favorites' && <><div className="catalog-footer"><Leaf size={15}/><span>{t(theme === 'claude' ? 'От маленького «привет» — к большим идеям' : 'Растём вместе с твоими задачами')}</span></div>{theme === 'claude' && <a className="clawd-credits" href="https://codechrisb.github.io/MyClawd/" target="_blank" rel="noreferrer">Clawd animations · MyClawd ↗</a>}</>}
         </>}
 
-        {kind === 'product' && (currentProduct ? <ProductPage key={currentProduct.id} product={currentProduct} group={group} shop={shop} favorite={favorites.includes(currentProduct.id)} onFavorite={() => toggleFavorite(currentProduct.id)} onAdd={qty => addToCart(currentProduct, qty)} onRequest={async details => { writeLocal(`request-handoff:${currentProduct.id}`, details); go(`/request-checkout/${currentProduct.id}`); }} onBack={() => go(productReturn || (group ? `/group/${group.id}` : '/catalog'))} navigate={go}/> : <Empty icon={<Package/>} title={t("Предложение недоступно")} text={t("Возможно, приём заявок закрыт или предложение скрыто. Посмотрите другие варианты.")} action={t("В каталог")} onAction={() => go('/catalog')}/>)}
+        {kind === 'product' && (currentProduct ? <ProductPage key={currentProduct.id} product={currentProduct} group={group} shop={shop} favorite={favorites.includes(currentProduct.id)} onFavorite={() => toggleFavorite(currentProduct.id)} onAdd={qty => addToCart(currentProduct, qty)} onRequest={async details => { writeLocal(`request-handoff:${currentProduct.id}`, details); track('request_submit', { productId: currentProduct.id }); go(`/request-checkout/${currentProduct.id}`); }} onBack={() => go(productReturn || (group ? `/group/${group.id}` : '/catalog'))} navigate={go}/> : <Empty icon={<Package/>} title={t("Предложение недоступно")} text={t("Возможно, приём заявок закрыт или предложение скрыто. Посмотрите другие варианты.")} action={t("В каталог")} onAction={() => go('/catalog')}/>)}
         {kind === 'request-checkout' && currentProduct && <RequestCheckoutPage product={currentProduct} shop={shop} navigate={go}/>}
         {kind === 'checkout' && <CheckoutPage lines={lines} shop={shop} navigate={go}/>}
         {kind === 'order' && (currentRecord ? <OrderPage record={currentRecord} catalog={catalog} navigate={go} onConfirm={async () => { const updated = await store.acceptQuote(currentRecord.id); setRequests(prev => prev.map(r => r.id === updated.id ? updated : r)); }}/> : <Empty icon={<Package/>} title={t("Заказ не найден")} text={t("В предпросмотре доступны только заказы, сохранённые в этом браузере.")} action={t("Мои заказы")} onAction={() => go('/orders')}/>)}
@@ -178,13 +234,13 @@ export function App() {
 
 
         {kind === 'cart' && <><PageTitle title={t("Корзина")} subtitle={t(lines.length ? 'Всё готово к следующему шагу' : 'Соберём что-нибудь полезное?')}/>{lines.length ? <>
-          <div className="cart-list">{lines.map(({ product: p, quantity }) => <article className="cart-row" key={p.id}><button className={`cart-art art-${p.brand}`} onClick={() => go(`/product/${p.id}`)} aria-label={t(p.title)}><BrandArt brand={p.brand} productId={p.id}/></button><div className="cart-row-info"><button className="text-button" onClick={() => go(`/product/${p.id}`)}>{t(p.title)}</button><small>{t(p.subtitle)}</small><strong>{t(money(p.price * quantity, p.currency))}</strong><div className="quantity"><button aria-label={t(`Уменьшить ${p.title}`)} onClick={() => changeQuantity(p.id, -1)}><Minus size={14}/></button><span>{quantity}</span><button aria-label={t(`Увеличить ${p.title}`)} disabled={quantity >= p.stock} onClick={() => changeQuantity(p.id, 1)}><Plus size={14}/></button></div>{quantity > p.stock && <small className="error">{t("Доступно только ")}{p.stock}{t(" шт.")}</small>}</div><button className="icon-button remove" aria-label={t(`Удалить ${p.title}`)} onClick={() => setCart(prev => prev.filter(i => i.productId !== p.id))}><Trash2 size={17}/></button></article>)}</div>
+          <div className="cart-list">{lines.map(({ product: p, quantity }) => <article className="cart-row" key={p.id}><button className={`cart-art art-${p.brand}`} onClick={() => go(`/product/${p.id}`)} aria-label={t(p.title)}><BrandArt brand={p.brand} productId={p.id}/></button><div className="cart-row-info"><button className="text-button" onClick={() => go(`/product/${p.id}`)}>{t(p.title)}</button><small>{t(p.subtitle)}</small><strong>{t(money(p.price * quantity, p.currency))}</strong><div className="quantity"><button aria-label={t(`Уменьшить ${p.title}`)} onClick={() => changeQuantity(p.id, -1)}><Minus size={14}/></button><span>{quantity}</span><button aria-label={t(`Увеличить ${p.title}`)} disabled={quantity >= p.stock} onClick={() => changeQuantity(p.id, 1)}><Plus size={14}/></button></div>{quantity > p.stock && <small className="error">{t("Доступно только ")}{p.stock}{t(" шт.")}</small>}</div><button className="icon-button remove" aria-label={t(`Удалить ${p.title}`)} onClick={() => { track('cart_remove', { productId: p.id, quantity }); setCart(prev => prev.filter(i => i.productId !== p.id)); }}><Trash2 size={17}/></button></article>)}</div>
           <div className="summary-card"><div><span>{t("Товары (")}{cartCount})</span><span>{t(totals.join(' + '))}</span></div><div className="summary-total"><strong>{t("Итого")}</strong><strong>{totals.map(total => <span className="currency-total" key={total}>{total}</span>)}</strong></div>{totals.length > 1 && <p className="fine-print">{t("Каждая валюта рассчитана отдельно, без конвертации.")}</p>}<button className="primary-button" disabled={lines.some(l => l.quantity > l.product.stock)} onClick={() => go('/checkout')}>{t("Перейти к оформлению")}<ArrowRight size={18}/></button><p className="fine-print">{t("Подготовим сообщение со всеми позициями. Оплату и выполнение согласуем в личном чате продавца.")}</p></div>
         </> : <Empty icon={<ShoppingBag/>} title={t("Тут пока просторно")} text={t("Добавьте нужные сервисы из каталога. Они будут ждать вас здесь.")} action={t("За покупками")} onAction={() => go('/catalog')}/>}</>}
 
         {kind === 'orders' && <OrdersPage orders={orders} requests={requests} navigate={go}/>}
 
-        {kind === 'profile' && <><PageTitle title={t("Профиль")}/><section className="profile-card"><div className="profile-avatar">{(telegram?.initDataUnsafe?.user?.first_name ?? t('Гость'))[0]}</div><h2>{telegram?.initDataUnsafe?.user?.first_name ?? t('Привет, гость!')}</h2><p>{t(telegram?.initData ? 'Рады видеть тебя в фиКУСе' : 'Осматривайся — здесь всё для тебя')}</p><span className="demo-badge">{t(telegram?.initData ? 'Telegram Mini App' : 'Режим предпросмотра')}</span></section><Wallet shop={shop}/><div className="menu-list"><MenuRow icon={<Package/>} title={t("Мои заказы")} extra={t(`${orders.length + requests.length}`)} onClick={() => go('/orders')}/><MenuRow icon={<Heart/>} title={t("Избранное")} extra={t(`${favorites.length}`)} onClick={() => go('/favorites')}/><MenuRow icon={<CircleHelp/>} title={t("Помощь и поддержка")} onClick={() => go('/support/new')}/></div>{kind === 'profile' && <section className="appearance-settings"><h3>{t("Оформление")}</h3><div className="appearance-options" role="group" aria-label={t("Тема оформления")}>{([['light', 'Светлая'], ['dark', 'Тёмная'], ['auto', 'Как в системе']] as const).map(([value, label]) => <button key={value} aria-pressed={appearance === value} className={appearance === value ? 'selected' : ''} onClick={() => { setAppearance(value); haptic(); }}>{t(label)}</button>)}</div></section>}<LanguageSettings/><p className="section-caption">{t("Для владельца · локальное демо")}</p><div className="menu-list"><MenuRow icon={<Settings2/>} title={t("Редактор каталога")} onClick={() => go('/admin')}/><MenuRow icon={<CircleHelp/>} title={t("Контакты и условия магазина")} onClick={() => setShopEditor(true)}/><MenuRow icon={<Package/>} title={t("Просмотр состояний заказа")} onClick={() => go('/order-preview/awaiting_quote')}/></div><div className="profile-mascot"><Mascot theme={theme}/><p>{t("Сервисы для ваших задач. Поддержка до результата.")}</p><small>{t("фиКУС · v0.1")}</small></div></>}
+        {kind === 'profile' && <><PageTitle title={t("Профиль")}/><section className="profile-card"><div className="profile-avatar">{(telegram?.initDataUnsafe?.user?.first_name ?? t('Гость'))[0]}</div><h2>{telegram?.initDataUnsafe?.user?.first_name ?? t('Привет, гость!')}</h2><p>{t(telegram?.initData ? 'Рады видеть тебя в фиКУСе' : 'Осматривайся — здесь всё для тебя')}</p><span className="demo-badge">{t(telegram?.initData ? 'Telegram Mini App' : 'Режим предпросмотра')}</span></section><Wallet shop={shop}/><div className="menu-list"><MenuRow icon={<Package/>} title={t("Мои заказы")} extra={t(`${orders.length + requests.length}`)} onClick={() => go('/orders')}/><MenuRow icon={<Heart/>} title={t("Избранное")} extra={t(`${favorites.length}`)} onClick={() => go('/favorites')}/><MenuRow icon={<CircleHelp/>} title={t("Помощь и поддержка")} onClick={() => go('/support/new')}/></div>{kind === 'profile' && <section className="appearance-settings"><h3>{t("Оформление")}</h3><div className="appearance-options" role="group" aria-label={t("Тема оформления")}>{([['light', 'Светлая'], ['dark', 'Тёмная'], ['auto', 'Как в системе']] as const).map(([value, label]) => <button key={value} aria-pressed={appearance === value} className={appearance === value ? 'selected' : ''} onClick={() => { setAppearance(value); haptic(); }}>{t(label)}</button>)}</div></section>}<LanguageSettings/><p className="section-caption">Управление магазином</p><div className="menu-list"><MenuRow icon={<Settings2/>} title="Панель администратора" onClick={() => go('/admin/overview')}/></div><div className="profile-mascot"><Mascot theme={theme}/><p>{t("Сервисы для ваших задач. Поддержка до результата.")}</p><small>{t("фиКУС · v0.1")}</small></div></>}
 
         {kind === 'help' && <><PageTitle title={t("На связи")} subtitle={t("Пара ответов, чтобы всё стало проще")}/><div className="help-hero"><Mascot theme={theme}/><h2>{t("Поможем разобраться")}</h2><p>{t("Выбирай сервис, читай условия и оформляй покупку или заявку.")}</p></div><div className="faq-list">{[
           ['Как оформить заказ?', 'Товары с фиксированной ценой добавляйте в корзину. Для услуг «По запросу» откройте карточку и заполните параметры: стоимость и срок согласуются отдельно. Сейчас заказы и заявки сохраняются только локально, без отправки оператору.'],
@@ -194,7 +250,7 @@ export function App() {
           ['Как связаться с магазином?', 'Рабочий контакт поддержки появится после подключения панели владельца. Сейчас это локальная демонстрация интерфейса.'],
         ].map(([q, a]) => <details key={q}><summary>{t(q)}<Plus size={17}/></summary><p>{t(a)}</p></details>)}</div></>}
 
-        {kind === 'admin' && <Admin catalog={catalog} notify={notify} onSave={async c => { await store.saveCatalog(c); setCatalog(c); }}/>} 
+
         {!['catalog', 'group', 'favorites', 'product', 'cart', 'orders', 'profile', 'help', 'admin', 'checkout', 'order', 'order-preview', 'support', 'request-checkout'].includes(kind) && <Empty icon={<Search/>} title={t("Эта страница потерялась")} text={t("В каталоге всё на своих местах.")} action={t("В каталог")} onAction={() => go('/catalog')}/>}
       </>}
     </main>
@@ -251,28 +307,4 @@ function Sheet({ title, onClose, children, scrollHint = false }: { title: string
     return () => { if (scroller) scroller.style.overflow = old; window.removeEventListener('keydown', key); previous?.focus(); };
   }, []);
   return <div className="sheet-scrim" onClick={onClose}><div ref={ref} className="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" onClick={e => e.stopPropagation()}><div className="sheet-handle"/><div className="sheet-title"><h2 id="sheet-title">{t(title)}</h2><button className="icon-button" aria-label={t("Закрыть")} onClick={onClose}><X size={21}/></button></div>{t(children)}</div>{scrollHint && <div className={`sheet-scroll-hint${hasMoreBelow ? ' visible' : ''}`} aria-hidden="true"/>}</div>;
-}
-
-function Admin({ catalog, notify, onSave }: { catalog: Catalog; notify(message: string): void; onSave(c: Catalog): Promise<void> }) {
-  const [draft, setDraft] = useState(() => structuredClone(catalog));
-  const [editing, setEditing] = useState<Product | null>(null);
-  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(catalog);
-  useEffect(() => { if (!dirty) return; const handler = (event: BeforeUnloadEvent) => { event.preventDefault(); }; window.addEventListener('beforeunload', handler); return () => window.removeEventListener('beforeunload', handler); }, [dirty]);
-  function move<T>(items: T[], index: number, direction: number) { const next = [...items]; const target = index + direction; if (target < 0 || target >= next.length) return items; [next[index], next[target]] = [next[target], next[index]]; return next; }
-  async function save() { setPending(true); setError(''); try { await onSave(parseCatalog(draft)); notify('Каталог сохранён в этом браузере'); } catch (e) { setError(e instanceof Error ? e.message : 'Не удалось сохранить каталог'); } finally { setPending(false); } }
-  function exportJson() { const blob = new Blob([JSON.stringify(draft, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'fikus-catalog.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
-  return <><PageTitle title={t("Редактор каталога")} subtitle={t("Товары, группы и их порядок")}/><div className="admin-notice"><Settings2 size={19}/><p>{t("Локальный редактор для демонстрации. Изменения сохраняются в этом браузере. Для общей панели подключите API.")}</p></div><div className="admin-tools"><button className="secondary-button" onClick={exportJson}><Download size={16}/>{t("Экспорт JSON")}</button><button className="secondary-button" onClick={() => inputRef.current?.click()}><Upload size={16}/>{t("Импорт")}</button><input hidden type="file" accept="application/json,.json" ref={inputRef} onChange={async e => { const file = e.target.files?.[0]; if (!file) return; try { const next = parseCatalog(JSON.parse(await file.text())); setDraft(next); setError(''); notify('Импортирован черновик. Нажмите «Сохранить».'); } catch (e) { setError(e instanceof Error ? e.message : 'Не удалось прочитать файл'); } finally { if (inputRef.current) inputRef.current.value = ''; } }}/></div>
-    <div className="catalog-heading"><h2>{t("Группы")}</h2><button className="text-button" onClick={() => setEditingGroup({ id: crypto.randomUUID(), title: '', icon: 'ai', theme: 'fikus', visible: true })}><Plus size={16}/>{t("Добавить")}</button></div><div className="admin-groups">{draft.groups.map((g, index) => <div className={`admin-group ${!g.visible ? 'is-hidden' : ''}`} key={g.id}><BrandArt brand={g.icon} small/><button className="admin-name" onClick={() => setEditingGroup({ ...g })}><b>{t(g.title)}</b><small>{t(g.visible ? 'В каталоге' : 'Скрыта')} · {t(g.theme === 'claude' ? 'Тема Claude' : 'Тема фиКУС')}</small></button><div className="reorder"><button aria-label={t(`Поднять группу ${g.title}`)} disabled={index === 0} onClick={() => setDraft({ ...draft, groups: move(draft.groups, index, -1) })}><ArrowUp size={15}/></button><button aria-label={t(`Опустить группу ${g.title}`)} disabled={index === draft.groups.length - 1} onClick={() => setDraft({ ...draft, groups: move(draft.groups, index, 1) })}><ArrowDown size={15}/></button></div></div>)}</div>
-    <div className="catalog-heading"><h2>{t("Товары ")}<small>({draft.products.length})</small></h2><button className="text-button" disabled={!draft.groups.length} onClick={() => setEditing({ id: crypto.randomUUID(), title: '', subtitle: '', description: '', groupId: draft.groups[0].id, brand: draft.groups[0].icon, price: 0, stock: 0, badge: '', visible: true })}><Plus size={16}/>{t("Добавить")}</button></div>
-    {draft.groups.map(g => <section key={g.id} className="admin-product-group"><h3>{t(g.title)}</h3>{draft.products.filter(p => p.groupId === g.id).map((p, index, items) => <div className={`admin-product ${p.visible ? '' : 'is-hidden'}`} key={p.id}><span className={`admin-art art-${p.brand}`}><BrandArt brand={p.brand} productId={p.id} small/></span><button className="admin-name" onClick={() => setEditing({ ...p })}><b>{t(p.title)}</b><small>{t(priceLabel(p))} · {t(p.visible ? (isRequest(p) ? (isAvailable(p) ? 'Заявки открыты' : 'Заявки закрыты') : `${p.stock} шт.`) : 'Скрыт')}</small></button><div className="reorder"><button aria-label={t(`Поднять ${p.title}`)} disabled={index === 0} onClick={() => { const all = [...draft.products]; const a = all.findIndex(x => x.id === p.id); const b = all.findIndex(x => x.id === items[index - 1].id); [all[a], all[b]] = [all[b], all[a]]; setDraft({ ...draft, products: all }); }}><ArrowUp size={15}/></button><button aria-label={t(`Опустить ${p.title}`)} disabled={index === items.length - 1} onClick={() => { const all = [...draft.products]; const a = all.findIndex(x => x.id === p.id); const b = all.findIndex(x => x.id === items[index + 1].id); [all[a], all[b]] = [all[b], all[a]]; setDraft({ ...draft, products: all }); }}><ArrowDown size={15}/></button></div></div>)}</section>)}
-    <div className="admin-save">{t(error && <p className="error" role="alert">{t(error)}</p>)}<button className="primary-button" disabled={!dirty || pending} onClick={save}>{t(pending ? 'Сохраняем…' : dirty ? 'Сохранить изменения' : 'Всё сохранено')}<Check size={18}/></button><p className="fine-print">{t("Порядок задаётся стрелками. Скрытие группы убирает её товары из маркета, сохраняя их в редакторе.")}</p></div>
-    {editing && <Sheet title={t(draft.products.some(p => p.id === editing.id) ? 'Редактировать товар' : 'Новый товар')} onClose={() => setEditing(null)}><form className="edit-form" onSubmit={e => { e.preventDefault(); if (!editing.title.trim()) return; setDraft(prev => ({ ...prev, products: prev.products.some(p => p.id === editing.id) ? prev.products.map(p => p.id === editing.id ? { ...editing, title: editing.title.trim() } : p) : [...prev.products, { ...editing, title: editing.title.trim() }] })); setEditing(null); }}>
-      <label>{t("Название")}<input required maxLength={100} value={editing.title} onChange={e => setEditing({ ...editing, title: e.target.value })}/></label><label>{t("Короткое описание")}<input maxLength={160} value={editing.subtitle} onChange={e => setEditing({ ...editing, subtitle: e.target.value })}/></label><label>{t("Описание")}<textarea rows={4} maxLength={10000} value={editing.description} onChange={e => setEditing({ ...editing, description: e.target.value })}/></label><label>{t("Формат продажи")}<select value={editing.saleMode ?? 'fixed'} onChange={e => setEditing({ ...editing, saleMode: e.target.value as Product['saleMode'] })}><option value="fixed">{t("Фиксированная цена · корзина")}</option><option value="request">{t("По запросу · заявка")}</option></select></label>{isRequest(editing) ? <><label>{t("Параметры заявки")}<select value={editing.requestKind ?? 'general'} onChange={e => setEditing({ ...editing, requestKind: e.target.value as Product['requestKind'] })}>{requestKinds.map(k => <option key={k} value={k}>{t(requestKindLabels[k])}</option>)}</select></label><label className="checkbox-field"><input type="checkbox" checked={editing.acceptingRequests !== false} onChange={e => setEditing({ ...editing, acceptingRequests: e.target.checked })}/>{t("Принимать заявки")}</label></> : <div className="form-pair"><label>{t(editing.currency === 'USD' ? 'Цена, $' : 'Цена, ₽')}<input type="number" min="0" max="10000000" step="0.01" required value={editing.price} onChange={e => setEditing({ ...editing, price: Number(e.target.value) })}/></label><label>{t("В наличии")}<input type="number" min="0" max="1000000" step="1" required value={editing.stock} onChange={e => setEditing({ ...editing, stock: Number(e.target.value) })}/></label><label>{t("Валюта")}<select value={editing.currency ?? 'RUB'} onChange={e => setEditing({ ...editing, currency: e.target.value as Product['currency'] })}><option value="RUB">RUB · ₽</option><option value="USD">USD · $</option></select></label></div>}<label>{t("Группа")}<select value={editing.groupId} onChange={e => setEditing({ ...editing, groupId: e.target.value })}>{draft.groups.map(g => <option key={g.id} value={g.id}>{t(g.title)}</option>)}</select></label><label>{t("Иллюстрация")}<select value={editing.brand} onChange={e => setEditing({ ...editing, brand: e.target.value as Product['brand'] })}>{brands.map(v => <option key={v}>{t(v)}</option>)}</select></label><label>{t("Синонимы для поиска")}<input maxLength={300} value={editing.aliases ?? ''} onChange={e => setEditing({ ...editing, aliases: e.target.value })}/></label><label>{t("Число покупателей")}<input type="number" min="0" max="9007199254740991" step="1" placeholder={t("Нет данных")} value={editing.buyerCount ?? ''} onChange={e => setEditing({ ...editing, buyerCount: e.target.value === '' ? undefined : Number(e.target.value) })}/><span className="form-help">{t("Укажите число уникальных покупателей по данным магазина. Пустое поле — нет данных. Демо-заказы не учитываются.")}</span></label><OfferEditor product={editing} onChange={setEditing}/><label>{t("Плашка")}<input maxLength={30} placeholder={t("Например, Новое")} value={editing.badge} onChange={e => setEditing({ ...editing, badge: e.target.value })}/></label><label className="checkbox-field"><input type="checkbox" checked={editing.visible} onChange={e => setEditing({ ...editing, visible: e.target.checked })}/>{t("Показывать в каталоге")}</label><button className="primary-button" type="submit">{t("Готово")}<Check size={18}/></button><p className="fine-print">{t("После закрытия сохраните изменения в каталоге.")}</p>
-    </form></Sheet>}
-    {editingGroup && <Sheet title={t("Настройки группы")} onClose={() => setEditingGroup(null)}><form className="edit-form" onSubmit={e => { e.preventDefault(); if (!editingGroup.title.trim()) return; setDraft(prev => ({ ...prev, groups: prev.groups.some(g => g.id === editingGroup.id) ? prev.groups.map(g => g.id === editingGroup.id ? { ...editingGroup, title: editingGroup.title.trim() } : g) : [...prev.groups, { ...editingGroup, title: editingGroup.title.trim() }] })); setEditingGroup(null); }}><label>{t("Название")}<input required maxLength={60} value={editingGroup.title} onChange={e => setEditingGroup({ ...editingGroup, title: e.target.value })}/></label><label>{t("Тема раздела")}<select value={editingGroup.theme} onChange={e => setEditingGroup({ ...editingGroup, theme: e.target.value as Group['theme'] })}><option value="fikus">{t("фиКУС · зелёная")}</option><option value="claude">{t("Claude · терракотовая")}</option></select></label><label>{t("Значок")}<select value={editingGroup.icon} onChange={e => setEditingGroup({ ...editingGroup, icon: e.target.value as Group['icon'] })}>{brands.map(v => <option key={v}>{t(v)}</option>)}</select></label><label className="checkbox-field"><input type="checkbox" checked={editingGroup.visible} onChange={e => setEditingGroup({ ...editingGroup, visible: e.target.checked })}/>{t("Показывать группу и её товары")}</label><button type="submit" className="primary-button">{t("Готово")}<Check size={18}/></button></form></Sheet>}
-  </>;
 }
