@@ -85,7 +85,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 Параметр входа влияет только на оформление раздела и стартовый экран. Он не предоставляет скидки, права или доступ к данным. Для новых воронок расширьте `entryTheme` и начальный маршрут. Сейчас поддержаны два визуальных направления, каждое работает в светлом и тёмном режимах.
 
-Атрибут `html[data-theme]` задаёт бренд (`fikus` / `claude`), `html[data-mode]` — яркость (`light` / `dark`). Выбор режима сохраняется в `localStorage['fikus:appearance']` как JSON-строка `light`, `dark` или `auto`. По умолчанию — `dark`; `auto` следует Telegram `colorScheme` или `prefers-color-scheme`. Палитры вынесены в `src/themes.css`. фиКУС использует нейтрали Higgsfield и лайм; Claude — собственные тёплые нейтрали и Clay из официального CSS claude.com. Telegram header/background и meta theme-color синхронизируются с фактическим фоном текущей палитры.
+Атрибут `html[data-theme]` задаёт бренд (`fikus` / `claude`), `html[data-mode]` — яркость (`light` / `dark`). Выбор режима сохраняется в `localStorage['fikus:appearance']` как JSON-строка `light`, `dark` или `auto`. По умолчанию — `light`; `auto` следует Telegram `colorScheme` или `prefers-color-scheme`. Палитры вынесены в `src/themes.css`. фиКУС использует нейтрали Higgsfield и лайм; Claude — собственные тёплые нейтрали и Clay из официального CSS claude.com. Telegram header/background и meta theme-color синхронизируются с фактическим фоном текущей палитры.
 
 Палитра основывается на токенах CSS [официального Higgsfield](https://higgsfield.ai/): `--color-lime: #d1fe17`, `--color-page-primary: #131517`, `--color-surface-primary: #1c1e20`, `--color-btn-accent-text: #131517`. Светлая палитра — собственная адаптация для фиКУСа.
 

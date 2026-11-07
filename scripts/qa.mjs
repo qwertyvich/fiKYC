@@ -167,16 +167,16 @@ try {
     const appearanceContext = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: 'light', reducedMotion: 'reduce' });
     const appearancePage = await appearanceContext.newPage();
     await appearancePage.goto(baseURL);
-    await expect(appearancePage.locator('html')).toHaveAttribute('data-mode', 'dark');
+    await expect(appearancePage.locator('html')).toHaveAttribute('data-mode', 'light');
     await expect(appearancePage).toHaveTitle('фиКУС · Маркет');
     await appearancePage.getByRole('heading', { name: 'Каталог', exact: true }).waitFor();
     await expect(appearancePage.getByRole('button', { name: 'фиКУС — на главную', exact: true })).toBeVisible();
     assert.equal(await appearancePage.locator('html').evaluate(el => getComputedStyle(el).getPropertyValue('--accent').trim()), '#d1fe17');
     for (const mode of ['dark', 'light']) {
-      if (mode === 'light') await appearancePage.getByRole('button', { name: 'Включить светлую тему', exact: true }).click();
+      await appearancePage.getByRole('button', { name: mode === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему', exact: true }).click();
       await expect(appearancePage.locator('html')).toHaveAttribute('data-mode', mode);
       await appearancePage.screenshot({ path: `qa/palette-${mode}.png` });
-      await appearancePage.getByRole('button', { name: 'Знакомься, Claude' }).click();
+      await appearancePage.goto(baseURL + '/#/group/claude');
       await expect(appearancePage.locator('html')).toHaveAttribute('data-theme', 'claude');
       await expect(appearancePage.locator('html')).toHaveAttribute('data-mode', mode);
       const official = mode === 'dark'

@@ -54,7 +54,7 @@ export function App() {
   const [shopEditor, setShopEditor] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const routeRef = useRef(routeNow());
-  const [appearance, setAppearance] = useSaved<Appearance>('appearance', 'dark', isAppearance);
+  const [appearance, setAppearance] = useSaved<Appearance>('appearance', 'light', isAppearance);
   const [systemMode, setSystemMode] = useState<ColorMode>(systemColorMode);
   const mode = resolveMode(appearance, systemMode);
   const [lockedTheme] = useState(() => entryTheme(location.search, telegram?.initDataUnsafe?.start_param));
