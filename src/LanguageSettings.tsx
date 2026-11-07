@@ -1,18 +1,29 @@
 import { useSyncExternalStore } from 'react';
+import { Globe } from 'lucide-react';
 import { getLanguageChoice, setLanguageChoice, subscribeLanguage, t } from './i18n';
-import { type LanguageChoice } from './locale';
+
+const languageOptions = [
+  { value: 'en', label: 'English', flag: 'gb' },
+  { value: 'fa', label: 'فارسی', flag: 'ir' },
+  { value: 'zh', label: '中文', flag: 'cn' },
+  { value: 'ru', label: 'Русский', flag: 'ru' },
+] as const;
 
 export function LanguageSettings() {
   const choice = useSyncExternalStore(subscribeLanguage, getLanguageChoice);
   return <section className="appearance-settings language-settings">
-    <h3><label htmlFor="interface-language">{t('Язык интерфейса')}</label></h3>
-    <select id="interface-language" value={choice} onChange={event => setLanguageChoice(event.target.value as LanguageChoice)}>
-      <option value="auto">{t('Как в Telegram')}</option>
-      <option value="ru" lang="ru">Русский</option>
-      <option value="en" lang="en">English</option>
-      <option value="zh" lang="zh">简体中文</option>
-      <option value="fa" lang="fa">فارسی</option>
-    </select>
+    <h3 id="interface-language-label">{t('Язык интерфейса')}</h3>
+    <div id="interface-language" role="group" aria-labelledby="interface-language-label">
+      <div className="language-options">
+        {languageOptions.map(({ value, label, flag }) => <button type="button" key={value} data-language={value} aria-pressed={choice === value} onClick={() => setLanguageChoice(value)}>
+          <img className="language-flag" src={`${import.meta.env.BASE_URL}flags/${flag}.svg`} alt="" width={18} height={18} />
+          <span lang={value} dir="auto">{label}</span>
+        </button>)}
+      </div>
+      <button type="button" className="language-auto" data-language="auto" aria-pressed={choice === 'auto'} onClick={() => setLanguageChoice('auto')}>
+        <Globe size={18} aria-hidden="true" /><span>{t('Как в Telegram')}</span>
+      </button>
+    </div>
     <p>{t('По умолчанию используется язык Telegram. Ваш выбор сохраняется отдельно для этого аккаунта на этом устройстве.')}</p>
   </section>;
 }

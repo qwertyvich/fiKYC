@@ -1,4 +1,10 @@
-.language-settings select { width:100%; min-height:44px; padding:11px 12px; border:1px solid var(--border); border-radius:12px; background:var(--surface); color:var(--text); font:inherit; font-size:13px; }
+.language-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.language-settings #interface-language button { display:flex; align-items:center; justify-content:flex-start; gap:8px; min-width:0; min-height:44px; padding:9px 10px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--muted); font-size:13px; line-height:1.3; text-align:start; }
+.language-settings #interface-language button:hover { background:var(--soft); color:var(--ink); }
+.language-settings #interface-language button[aria-pressed="true"] { background:var(--soft); color:var(--ink); border-color:var(--muted); }
+.language-flag { display:block; flex-shrink:0; width:18px; height:18px; border-radius:50%; object-fit:cover; }
+.language-settings #interface-language .language-auto { margin-top:8px; width:100%; }
+@media(max-width:350px) { .language-settings #interface-language button { gap:6px; padding-inline:7px; font-size:12px; } }
 .language-settings p { color:var(--muted); font-size:11px; line-height:1.7; margin-top:10px; }
 html[lang="fa"] body, html[lang="fa"] button, html[lang="fa"] input, html[lang="fa"] select, html[lang="fa"] textarea { font-family:Tahoma, Arial, sans-serif; }
 html[lang="zh"] body, html[lang="zh"] button, html[lang="zh"] input, html[lang="zh"] select, html[lang="zh"] textarea { font-family:"Microsoft YaHei", "PingFang SC", sans-serif; }

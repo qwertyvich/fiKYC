@@ -29,7 +29,7 @@ export function ClaudeHero({ onExplore, onVerify, className = '' }: { onExplore(
   const { paused, toggle } = useContext(Motion);
   return <section className={`claude-welcome ${className}`} aria-label={t("Подписки Claude и верификация KYC")}>
     <div className="claude-welcome-top"><span className="claude-brand"><ClaudeMark/><span>Claude</span></span><button className="clawd-motion" aria-label={t(paused ? 'Включить анимации Clawd' : 'Приостановить анимации Clawd')} aria-pressed={!paused} onClick={toggle}>{paused ? <Play size={13}/> : <Pause size={13}/>}</button></div>
-    <h1>{t("Подписки Claude")}<br/><em>{t("и помощь с KYC")}</em></h1>
+    <h1>{t("Подписки и помощь с KYC")}</h1>
     <p>{t("Верификация вашего аккаунта, прогретые аккаунты с KYC, подписки Pro и Max. Условия и стоимость — в карточке каждой услуги.")}</p>
     <div className="claude-welcome-stage"><span className="clawd-greeting">{t("Подключение и верификация")}</span><Clawd scene="hello"/></div>
     <div className="claude-offer-actions"><button onClick={onExplore}><CreditCard size={16} strokeWidth={1.8} aria-hidden="true"/><span>{t("Подписки Claude")}</span></button><button onClick={onVerify}><ShieldCheck size={16} strokeWidth={1.8} aria-hidden="true"/><span>{t("Верификация KYC")}</span></button></div>

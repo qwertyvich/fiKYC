@@ -7,7 +7,7 @@
 .claude-welcome-bottom i{width:5px;height:5px;border-radius:50%;background:var(--claude-brand-accent);flex-shrink:0}
 .clawd-motion{display:grid;place-items:center;width:29px;height:29px;border-radius:50%;color:var(--muted);border:1px solid var(--border);background:var(--surface)}
 .claude-welcome h1{font-family:Georgia,'Times New Roman',serif;font-size:36px;line-height:1.06;font-weight:400;letter-spacing:-1.4px;margin:9px 0;color:var(--ink)}
-.claude-welcome h1 em{font-style:normal;color:var(--claude-brand-accent)}
+:root[data-mode=dark] .claude-welcome h1{color:#fff}
 .claude-welcome>p{font-size:11px;font-weight:350;line-height:1.65;color:var(--muted)}
 .claude-welcome-stage{position:relative;margin:5px auto 0;padding:17px 0 8px;max-width:260px}
 .clawd-greeting{position:absolute;right:4px;top:0;font-size:8px;letter-spacing:.2px;color:var(--muted)}

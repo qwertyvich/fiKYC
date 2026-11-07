@@ -13,29 +13,30 @@ const page = await context.newPage();
 const errors = [], checks = [], untranslated = {};
 page.on('pageerror', e => errors.push(e.message));
 const selector = () => page.locator('#interface-language');
+const languageButton = value => selector().locator(`[data-language="${value}"]`);
 async function lang(value) { await expect(page.locator('html')).toHaveAttribute('lang',value); }
 try {
   await page.goto(base+'/#/profile'); await lang('en');
-  await expect(selector()).toHaveValue('auto');
+  await expect(languageButton('auto')).toHaveAttribute('aria-pressed','true');
   await expect(page.getByRole('heading',{name:'Profile',exact:true})).toBeVisible();
   checks.push('Telegram en-GB defaults to English');
   for (const language of ['ru','en','zh','fa']) {
-    await selector().selectOption(language); await lang(language);
+    await languageButton(language).click(); await lang(language);
     await expect(page.locator('html')).toHaveAttribute('dir',language==='fa'?'rtl':'ltr');
-    await page.reload(); await lang(language); await expect(selector()).toHaveValue(language);
+    await page.reload(); await lang(language); await expect(languageButton(language)).toHaveAttribute('aria-pressed','true');
     await selector().scrollIntoViewIfNeeded();
     await mkdir('previews/localization',{recursive:true});
     await page.screenshot({path:`previews/localization/settings-${language}.png`});
     checks.push(`${language}: switching, direction, persistence`);
   }
-  await selector().selectOption('zh');
+  await languageButton('zh').click();
   await page.evaluate(()=>sessionStorage.setItem('qa-user',JSON.stringify({id:202,first_name:'Sara',language_code:'fa-IR'})));
-  await page.reload(); await lang('fa'); await expect(selector()).toHaveValue('auto');
-  await selector().selectOption('en');
+  await page.reload(); await lang('fa'); await expect(languageButton('auto')).toHaveAttribute('aria-pressed','true');
+  await languageButton('en').click();
   await page.evaluate(()=>sessionStorage.setItem('qa-user',JSON.stringify({id:101,first_name:'Alex',language_code:'en'})));
   await page.reload(); await lang('zh');
   checks.push('two Telegram IDs retain independent choices');
-  await selector().selectOption('auto'); await lang('en');
+  await languageButton('auto').click(); await lang('en');
   checks.push('automatic selection restores Telegram language');
   await page.goto(base+'/#/product/claude-pro');
   await page.getByRole('button',{name:'Add to cart',exact:true}).click();
@@ -43,7 +44,7 @@ try {
   await page.locator('textarea:not([readonly])').fill('My comment — یادداشت — 我的备注');
   const cart = await page.evaluate(()=>localStorage.getItem('fikus:cart'));
   for (const language of ['en','zh','fa']) {
-    await page.goto(base+'/#/profile'); await selector().selectOption(language);
+    await page.goto(base+'/#/profile'); await languageButton(language).click();
     assert.equal(await page.evaluate(()=>localStorage.getItem('fikus:cart')),cart);
     for (const route of ['/catalog','/group/claude','/product/claude-pro','/product/foreign-topup','/cart','/checkout','/orders','/support/new']) {
       await page.goto(base+'/#'+route); await expect(page.locator('main')).toBeVisible();
@@ -61,7 +62,7 @@ try {
   }
   for(const width of [320,1280]) {
     await page.setViewportSize({width,height:844});
-    await page.goto(base+'/#/profile'); await selector().selectOption('fa');
+    await page.goto(base+'/#/profile'); await languageButton('fa').click();
     await selector().scrollIntoViewIfNeeded();
     assert.ok(await page.locator('.app-scroll').evaluate(el=>el.scrollWidth<=el.clientWidth));
     await page.screenshot({path:`previews/localization/fa-settings-${width}.png`});
