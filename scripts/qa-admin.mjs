@@ -215,7 +215,7 @@ try {
       await buyer.getByRole('button', { name: 'В корзину', exact: true }).click();
       await buyer.getByRole('button', { name: /Корзина, 1 товаров/ }).click();
       await buyer.getByRole('button', { name: 'Перейти к оформлению', exact: true }).click();
-      await expect(buyer.getByRole('heading', { name: 'Заказ в Telegram' })).toBeVisible();
+      await expect(buyer.getByRole('heading', { name: 'Оформление заказа' })).toBeVisible();
       await expect
         .poll(() => db.prepare("SELECT count(*) AS n FROM events WHERE type='cart_add'").get().n, {
           timeout: 15000,

@@ -11,6 +11,7 @@ import { token, digest, equal, telegramUser } from './security.mjs';
 import { defaultSettings, parseSettings, directLink, eventTypes } from './settings.mjs';
 import { createAccess, blacklistValue } from './access.mjs';
 import { analytics } from './analytics.mjs';
+import { createGateway } from './gateway/gateway.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export async function createApp(options = {}) {
@@ -158,6 +159,11 @@ export async function createApp(options = {}) {
     createdAt: new Date(r.created_at).toISOString(),
     updatedAt: new Date(r.updated_at).toISOString(),
   });
+  const paymentOwner = (req, res) => {
+    const v = visitor(req, res), user = access.identity(req);
+    return user?.id ? 'tg:' + user.id : v;
+  };
+  const gateway = createGateway({ db, env, state, now: options.gatewayNow, botCall: options.gatewayBotCall });
   const server = createServer(async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -291,6 +297,13 @@ export async function createApp(options = {}) {
           audit('blacklist.remove');
           return send(res, { ok: true });
         }
+        if (path === '/api/admin/gateway' && method === 'GET') return send(res, gateway.admin());
+        if (path === '/api/admin/gateway' && method === 'PUT') {
+          const result = gateway.saveConfig(await body(req)); audit('gateway.settings'); return send(res, result);
+        }
+        if (/^\/api\/admin\/gateway\/FK-[A-F0-9-]+\/confirm$/.test(path) && method === 'POST') {
+          await body(req); await gateway.confirm(path.split('/')[4], 'panel'); return send(res, { ok: true });
+        }
         if (path === '/api/admin/state' && method === 'GET') return send(res, state());
         if (path === '/api/admin/state' && method === 'PUT')
           return saveState(req, res, await body(req));
@@ -379,6 +392,36 @@ export async function createApp(options = {}) {
           return send(res, { ok: true });
         }
         fail('Метод панели не найден', 404);
+      }
+      if (path === '/api/payments' && method === 'GET') return send(res, gateway.list(paymentOwner(req, res)));
+      if (path === '/api/payments' && method === 'POST') {
+        const v = paymentOwner(req, res); limit('payment:' + v, 20);
+        const user = access.identity(req);
+        if (env.NODE_ENV === 'production' && !user) fail('Откройте магазин через Telegram', 401);
+        return send(res, gateway.create(v, user?.id ?? '', await body(req)), 201);
+      }
+      const paymentRoute = path.match(/^\/api\/payments\/(FK-[A-F0-9-]+)(?:\/(retry|events|receipt))?$/);
+      if (paymentRoute) {
+        const [, id, action] = paymentRoute, v = paymentOwner(req, res);
+        const p = gateway.own(id, v);
+        if (!action && method === 'GET') return send(res, gateway.view(p));
+        if (action === 'retry' && method === 'POST') { limit('payment:' + v, 20); return send(res, gateway.retry(id, v, await body(req)), 201); }
+        if (action === 'receipt' && method === 'POST') {
+          limit('receipt:' + v, 10, 3600000);
+          const chunks = []; let size = 0;
+          for await (const chunk of req) { size += chunk.length; if (size > 12 * 1024 * 1024) fail('Квитанция — до 12 МБ', 413); chunks.push(chunk); }
+          return send(res, gateway.upload(id, v, Buffer.concat(chunks)), 201);
+        }
+        if (action === 'events' && method === 'GET') {
+          limit('payment-stream:' + v, 30);
+          res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' });
+          const push = () => { if (!res.destroyed) res.write('data: ' + JSON.stringify(gateway.view(p)) + '\n\n'); };
+          push(); gateway.events.on('change', push);
+          const timer = setInterval(push, 1000); timer.unref();
+          res.on('close', () => { clearInterval(timer); gateway.events.off('change', push); });
+          return;
+        }
+        fail('Метод оплаты не найден', 404);
       }
       if (path.startsWith('/api/links/') && method === 'GET') {
         const code = path.split('/').at(-1);
@@ -580,9 +623,11 @@ export async function createApp(options = {}) {
   cleanup.unref();
   server.on('close', () => {
     clearInterval(cleanup);
+    gateway.stop();
     db.close();
   });
-  return { server, db };
+  if (options.gatewayWorker !== false && env.NODE_ENV !== 'test') gateway.start();
+  return { server, db, gateway };
 }
 export async function startServer() {
   const { server } = await createApp();

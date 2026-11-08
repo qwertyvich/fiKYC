@@ -21,7 +21,8 @@
     "test:server": "node --test server/*.test.mjs",
     "setup:local": "node scripts/setup-local.mjs",
     "test:admin": "node scripts/qa-admin.mjs",
-    "test:access": "node scripts/qa-access.mjs"
+    "test:access": "node scripts/qa-access.mjs",
+    "test:gateway": "node scripts/qa-gateway.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

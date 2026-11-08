@@ -1,3 +1,4 @@
+import { GatewayPage } from './GatewayPage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard,
@@ -64,6 +65,7 @@ const pages = [
     caption: 'Каждое действие — в понятной ленте',
   },
   { id: 'blacklist', label: 'Чёрный список', icon: Ban, caption: 'Кому доступен ваш магазин' },
+  { id: 'gateway', label: 'Оплаты', icon: ShieldCheck, caption: 'Реквизиты, квитанции и проверка оплат' },
   { id: 'settings', label: 'Настройки', icon: Settings2, caption: 'Общие настройки в одном месте' },
 ];
 export function AdminPanel({
@@ -599,6 +601,7 @@ export function AdminPanel({
             />
           )}
           {current.id === 'blacklist' && <BlacklistManager notify={notify} />}
+          {current.id === 'gateway' && <GatewayPage/>}
           {current.id === 'settings' && <SettingsPage state={state} busy={busy} save={save} />}
           <footer className="a-page-footer">
             <span>
