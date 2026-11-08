@@ -1,3 +1,4 @@
+import { resolveRoute } from './routing';
 import { AccessScreen } from './AccessScreen';
 import { lazy, Suspense } from 'react';
 import { api, loadPublic, loadAccess, type AccessState, type PublicState } from './api';
@@ -8,7 +9,7 @@ import { t, getLanguage, subscribeLanguage } from './i18n';
 import { LanguageSettings } from './LanguageSettings';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronRight, CircleHelp, Download, Grid2X2, Heart, Leaf, List, LoaderCircle, Minus, Moon, Package, Plus, Search, Settings2, ShieldCheck, ShoppingBag, SlidersHorizontal, Sparkles, Sun, Trash2, Upload, UserRound, X } from 'lucide-react';
-import { brands, cartLines, currencyTotals, entryProduct, entryTheme, isAvailable, isRequest, priceLabel, requestFields, requestKinds, validateRequest, money, parseCatalog, selectProducts, themeFor, type CartItem, type Catalog, type Group, type Order, type Product, type ServiceRequest, type ShopSettings, type Sort } from './domain';
+import { brands, cartLines, currencyTotals, entryTheme, isAvailable, isRequest, priceLabel, requestFields, requestKinds, validateRequest, money, parseCatalog, selectProducts, themeFor, type CartItem, type Catalog, type Group, type Order, type Product, type ServiceRequest, type ShopSettings, type Sort } from './domain';
 import { readLocal, store, writeLocal } from './store';
 import { defaultShop } from './commerce';
 import { ProductStats } from './ProductReviews';
@@ -20,11 +21,11 @@ import { haptic, telegram } from './telegram';
 import { BrandArt, Mascot } from './visuals';
 import { ProductCover } from './ProductCover';
 import { ClaudeHero, ClawdProductArt, useClawdMotion } from './ClaudeSection';
-import { isAppearance, resolveMode, type Appearance, type ColorMode } from './appearance';
+import { APPEARANCE_STORAGE_KEY, isAppearance, resolveMode, type Appearance, type ColorMode } from './appearance';
 
 const systemColorMode = (): ColorMode => (telegram?.initData && telegram.colorScheme) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 
-const routeNow = () => location.hash.slice(1) || (entryProduct(location.search, telegram?.initDataUnsafe?.start_param) ? `/product/${entryProduct(location.search, telegram?.initDataUnsafe?.start_param)}` : null) || (entryTheme(location.search, telegram?.initDataUnsafe?.start_param) === 'claude' ? '/group/claude' : '/catalog');
+const routeNow = () => resolveRoute(location.hash, location.search, telegram?.initDataUnsafe?.start_param);
 const scrollMemory = new Map<string, number>();
 let productReturn = '';
 const go = (route: string) => {
@@ -64,8 +65,8 @@ export function App() {
   const [shopEditor, setShopEditor] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const routeRef = useRef(routeNow());
-  const [appearance, setAppearanceState] = useState<Appearance>(() => safeSaved('appearance', readLocal<Appearance>('shop-default-appearance', 'light'), isAppearance));
-  const setAppearance = (value: Appearance) => { setAppearanceState(value); try { writeLocal('appearance', value); } catch {} };
+  const [appearance, setAppearanceState] = useState<Appearance>(() => safeSaved(APPEARANCE_STORAGE_KEY, 'light', isAppearance));
+  const setAppearance = (value: Appearance) => { setAppearanceState(value); try { writeLocal(APPEARANCE_STORAGE_KEY, value); } catch {} };
   const [siteSettings, setSiteSettings] = useState<PublicState['settings'] | null>(null);
   const startParam = new URLSearchParams(location.search).get('tgWebAppStartParam') ?? new URLSearchParams(location.search).get('ref') ?? telegram?.initDataUnsafe?.start_param ?? '';
   const [resolvingLink, setResolvingLink] = useState(startParam.startsWith('p_') && !location.hash.startsWith('#/admin'));
@@ -98,8 +99,7 @@ export function App() {
     Promise.all([store.loadCatalog(), store.loadOrders(), store.loadRequests(), store.loadShop(), loadPublic()]).then(([c, o, r, info, data]) => { if (live) {
       setCatalog(c); setOrders(o); setRequests(r); setShop(info); setSiteSettings(data.settings); setLoadError(false);
       configureAnalytics(data.settings.analyticsEnabled);
-      if (!isAppearance(readLocal('appearance', null))) setAppearanceState(data.settings.defaultAppearance);
-      try { writeLocal('shop-default-appearance', data.settings.defaultAppearance); } catch {}
+      if (!isAppearance(readLocal(APPEARANCE_STORAGE_KEY, null))) setAppearanceState(data.settings.defaultAppearance);
       void refreshReviews().catch(() => {});
     } }).catch(() => { if (live) setLoadError(true); });
     return () => { live = false; };

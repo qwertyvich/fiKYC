@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1 --port 5174",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4174",
-    "test": "node --experimental-strip-types --test src/domain.test.ts src/commerce.test.ts src/seller.test.ts src/locale.test.ts src/admin/demo-statistics.test.ts",
+    "test": "node --experimental-strip-types --test src/domain.test.ts src/startup.test.ts src/commerce.test.ts src/seller.test.ts src/locale.test.ts src/admin/demo-statistics.test.ts",
     "test:localization": "node scripts/qa-localization.mjs",
     "test:ui": "node scripts/qa-admin.mjs",
     "test:services": "node scripts/qa-services.mjs",
@@ -22,7 +22,8 @@
     "setup:local": "node scripts/setup-local.mjs",
     "test:admin": "node scripts/qa-admin.mjs",
     "test:access": "node scripts/qa-access.mjs",
-    "test:gateway": "node scripts/qa-gateway.mjs"
+    "test:gateway": "node scripts/qa-gateway.mjs",
+    "test:startup": "node scripts/qa-startup.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

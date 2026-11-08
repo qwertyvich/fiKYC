@@ -94,7 +94,7 @@ try {
   });
   await check('light/dark, both brands, mobile and desktop fit without overflow', async () => {
     for (const mode of ['light', 'dark']) {
-      await page.evaluate(mode => localStorage.setItem('fikus:appearance', JSON.stringify(mode)), mode);
+      await page.evaluate(mode => localStorage.setItem('fikus:appearance-v2', JSON.stringify(mode)), mode);
       await page.reload();
       await expect(page.locator('html')).toHaveAttribute('data-mode', mode);
       for (const width of [320, 390, 1280]) {

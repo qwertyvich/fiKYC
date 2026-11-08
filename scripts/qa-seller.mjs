@@ -79,7 +79,7 @@ try {
   });
   await check('checkout and customer wallet fit light/dark at 320, 390 and 1280 pixels', async () => {
     for (const mode of ['light', 'dark']) {
-      await page.evaluate(m => localStorage.setItem('fikus:appearance', JSON.stringify(m)), mode); await page.reload();
+      await page.evaluate(m => localStorage.setItem('fikus:appearance-v2', JSON.stringify(m)), mode); await page.reload();
       for (const width of [320, 390, 1280]) {
         await page.setViewportSize({ width, height: 960 });
         for (const route of ['checkout', 'profile']) {
