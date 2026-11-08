@@ -297,6 +297,17 @@ export async function createApp(options = {}) {
           audit('blacklist.remove');
           return send(res, { ok: true });
         }
+        const receiptFileRoute = path.match(/^\/api\/admin\/gateway\/receipts\/([a-f0-9-]+)$/);
+        if (receiptFileRoute && method === 'GET') {
+          const file = gateway.receiptFile(receiptFileRoute[1]); if (!file) fail('Файл не найден', 404);
+          res.writeHead(200, {'Content-Type': file.mime, 'Content-Disposition': 'inline; filename="receipt.' + (file.mime === 'application/pdf' ? 'pdf' : file.mime.split('/')[1]) + '"', 'Cache-Control': 'no-store', 'Content-Security-Policy': "sandbox"});
+          return res.end(Buffer.from(file.data));
+        }
+        const receiptListRoute = path.match(/^\/api\/admin\/gateway\/(FK-[A-F0-9-]+)\/receipts$/);
+        if (receiptListRoute && method === 'GET') return send(res, gateway.receipts(receiptListRoute[1]));
+        if (path === '/api/admin/gateway/bootstrap' && method === 'POST') {
+          const b = await body(req); return send(res, gateway.bootstrap(b.text, 'admin-panel', b.confirmed));
+        }
         if (path === '/api/admin/gateway' && method === 'GET') return send(res, gateway.admin());
         if (path === '/api/admin/gateway' && method === 'PUT') {
           const result = gateway.saveConfig(await body(req)); audit('gateway.settings'); return send(res, result);

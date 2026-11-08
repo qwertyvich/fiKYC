@@ -27,6 +27,8 @@ try {
   await page.getByRole('button',{name:'Получить реквизиты',exact:true}).click();
   await expect(page.getByRole('button',{name:'Скопировать номер карты'})).toBeVisible();
   assert.match(page.url(),/payment\/FK-/);const id=page.url().split('/').at(-1);
+  await expect(page.getByRole('link',{name:'Отправить менеджеру в Telegram'})).toHaveAttribute('href',/^https:\/\/t\.me\/tcmai\?/);
+  assert.equal(await page.locator('a[href*="GatewayReqBot"]').count(),0);
   await page.screenshot({path:new URL('payment-light.png',dir).pathname});
   await page.evaluate(()=>{document.documentElement.dataset.mode='dark';});
   await page.screenshot({path:new URL('payment-dark.png',dir).pathname});
@@ -56,6 +58,11 @@ try {
   const admin=await context.newPage();await admin.goto(base+'/#/admin/gateway');
   await admin.getByLabel(/Пароль/).fill('isolated-password');await admin.getByRole('button',{name:/Войти/}).click();
   await expect(admin.getByRole('textbox',{name:/Кому отправлять квитанции/})).toBeVisible();
+  await admin.getByRole('button',{name:'Открыть квитанции'}).click();
+  await expect(admin.getByRole('link',{name:/Квитанция 1/})).toBeVisible();
+  const fileUrl=await admin.getByRole('link',{name:/Квитанция 1/}).getAttribute('href');
+  const fileResponse=await context.request.get(new URL(fileUrl,base).href);
+  assert.equal(fileResponse.status(),200);assert.match(fileResponse.headers()['content-type'],/application\/pdf/);
   await admin.screenshot({path:new URL('admin-mobile.png',dir).pathname});
   assert.deepEqual(errors,[]);await writeFile(new URL('result.json',dir),JSON.stringify({ok:true,checks:['warning','card','dark','320px','live stop','explicit retry','expiry','receipt upload','manual confirmation','history','admin'],browserErrors:errors},null,2));
   console.log('Gateway browser checks passed');

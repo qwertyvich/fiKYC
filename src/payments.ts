@@ -9,7 +9,6 @@ export interface Payment {
   expiresAt: number | null;
   serverNow: number;
   card: { number: string; bank: string; holder: string } | null;
-  receiptUrl: string;
   receiptCount: number;
   deliveryPending: boolean;
 }

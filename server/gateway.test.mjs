@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createApp } from './index.mjs';
 import { parseFeed } from './gateway/parser.mjs';
 
@@ -86,7 +88,7 @@ test('connection loss and malformed feed revoke all issued cards; unavailable fe
   const {g,feed,pay,advance} = await fixture(t);
   feed(card()); const p = pay(); g.disconnect();
   assert.equal(g.view(g.own(p.id,'alice')).card,null);
-  g.setConnected(); assert.equal(pay('new').status,'manual_review');
+  g.setConnected(); assert.ok(pay('new').card); // The drained update stream can recover a known card; old attempts stay revoked.
   advance(1001); feed(card()); assert.ok(pay('after').card);
   feed('Реквизиты №1\n🏦 Банк: Сбер'); assert.equal(g.view(g.own(p.id,'alice')).card,null); assert.equal(pay('invalid').status,'manual_review');
 });
@@ -96,7 +98,7 @@ test('Telegram receipt belongs to signed order owner, username recipient binds t
   await g.processUpdate({update_id:99,message:{message_id:1,chat:{id:777,type:'private'},from:{id:777,username:'tcmai'},text:'/start'}});
   assert.equal(g.admin().recipientReady,true);
   feed(card()); const p = pay();
-  const token = p.receiptUrl.split('receipt_')[1];
+  const token = db.prepare('SELECT receipt_token FROM payments WHERE id=?').get(p.id).receipt_token;
   await g.processUpdate({update_id:100,message:{chat:{id:222,type:'private'},from:{id:222},text:'/start receipt_'+token}});
   assert.equal(db.prepare('SELECT * FROM gateway_bindings WHERE telegram_id=?').get('222'),undefined);
   await g.processUpdate({update_id:101,message:{message_id:2,chat:{id:111,type:'private'},from:{id:111},text:'/start receipt_'+token}});
@@ -162,12 +164,18 @@ test('payment HTTP endpoints enforce ownership, server prices, private settings 
   const input={items:[{productId:product.id,quantity:1}],note:'',expectedAmount:5000,accepted:true};
   const request=(path,method='GET',data)=>fetch(base+'/api'+path,{method,headers:{Cookie:cookie,...(data?{'Content-Type':'application/json'}:{})},...(data?{body:JSON.stringify(data)}:{})});
   assert.equal((await request('/payments','POST',{...input,expectedAmount:1})).status,409);
-  const created=await request('/payments','POST',input);assert.equal(created.status,201);const p=await created.json();
+  const created=await request('/payments','POST',input);assert.equal(created.status,201);const p=await created.json();assert.ok(!JSON.stringify(p).includes('GatewayReqBot'));assert.equal(p.receiptUrl,undefined);
   assert.equal((await fetch(base+'/api/payments/'+p.id)).status,404);
   assert.equal((await fetch(base+'/api/payments/'+p.id+'/receipt',{method:'POST',headers:{Cookie:cookie,'Content-Type':'application/pdf'},body:'not-a-pdf'})).status,400);
   assert.equal((await fetch(base+'/api/payments/'+p.id+'/receipt',{method:'POST',headers:{Cookie:cookie,'Content-Type':'application/pdf'},body:'%PDF-1.4\nreceipt'})).status,201);
   assert.equal((await request('/payments/'+p.id)).status,200);
   assert.equal((await request('/admin/gateway')).status,401);
+  const fileId=g.receipts(p.id)[0].id;
+  assert.equal((await request('/admin/gateway/receipts/'+fileId)).status,401);
+  const login=await fetch(base+'/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:'fixture'})});
+  assert.equal(login.status,200);const adminCookie=login.headers.getSetCookie().find(v=>v.startsWith('fikus_admin=')).split(';')[0];
+  const file=await fetch(base+'/api/admin/gateway/receipts/'+fileId,{headers:{Cookie:adminCookie}});assert.equal(file.status,200);assert.equal(await file.text(),'%PDF-1.4\nreceipt');
+
 });
 
 test('signed Telegram owners can resume payments across devices while another Telegram account is denied', async t => {
@@ -197,5 +205,62 @@ test('source group is strictly read-only: old command jobs are cancelled and tra
   feed(card());g.create('invalid-target','-1002278926769',input());g.disconnect();await g.flush();
   assert.equal(db.prepare("SELECT status FROM gateway_outbox WHERE id='legacy-source'").get().status,'cancelled');
   assert.equal(calls.some(c=>String(c.payload?.chat_id ?? '')==='-1002278926769'),false);
-  assert.equal(db.prepare("SELECT count(*) n FROM gateway_outbox WHERE id LIKE 'stop:%' AND status='cancelled'").get().n,1);
+  assert.equal(db.prepare("SELECT count(*) n FROM gateway_outbox WHERE kind='customer' AND status='sent'").get().n,0);
+});
+
+test('owner bootstrap makes an in-range card available without a connected receipt recipient and has a bounded lifetime', async t => {
+  const {g,pay,advance,db} = await fixture(t);
+  g.saveConfig({receiptRecipient:'@not_connected'});
+  assert.equal(g.admin().recipientReady,false);
+  assert.throws(()=>g.bootstrap(card(A,'7 000'),'owner',false),/Подтвердите/);
+  g.bootstrap(card(A,'7 000'),'owner',true);
+  const p=pay();assert.equal(p.status,'awaiting_transfer');assert.ok(p.card);assert.equal(p.receiptUrl,undefined);
+  g.upload(p.id,'alice',Buffer.from('%PDF-1.4\nreceipt'));await g.flush();
+  assert.equal(g.view(g.own(p.id,'alice')).deliveryPending,true);
+  assert.equal(g.receipts(p.id).length,1);assert.equal(g.receiptFile(g.receipts(p.id)[0].id).mime,'application/pdf');
+  const another=pay('another');advance(900001);assert.equal(g.view(g.own(another.id,'another')).card,null);
+  assert.equal(pay('after-expiry').status,'manual_review');
+  assert.equal(db.prepare('SELECT count(*) n FROM gateway_cards WHERE active=1').get().n,0);
+});
+
+test('incoming stop overrides a private bootstrap and cannot be undone by importing the old card again', async t => {
+  const {g,feed,pay}=await fixture(t);
+  g.bootstrap(card(),'owner',true);const p=pay();feed(stop(A));
+  assert.equal(g.view(g.own(p.id,'alice')).card,null);
+  assert.throws(()=>g.bootstrap(card(),'owner',true),/уже передал/);
+});
+
+test('manual fallback can be retried explicitly when details arrive, without duplicating unavailable requests', async t => {
+  const {g,pay,db}=await fixture(t);
+  const p=pay();assert.equal(p.reason,'source_unseen');
+  const jobs=db.prepare("SELECT count(*) n FROM gateway_outbox WHERE kind='manual'").get().n;
+  assert.throws(()=>g.retry(p.id,'alice',{accepted:true,notPaid:true}),/пока недоступны/);
+  assert.equal(db.prepare("SELECT count(*) n FROM gateway_outbox WHERE kind='manual'").get().n,jobs);
+  g.bootstrap(card(),'owner',true);
+  assert.throws(()=>g.retry(p.id,'alice',{accepted:true,notPaid:false}),/Подтвердите/);
+  const next=g.retry(p.id,'alice',{accepted:true,notPaid:true});assert.ok(next.card);
+  assert.equal(g.retry(p.id,'alice',{accepted:true,notPaid:true}).id,next.id);
+});
+
+test('delayed genuine updates are applied, rejected source messages are diagnosable, and stale snapshots cannot undo a stop', async t => {
+  const {g,feed,pay,clock,db}=await fixture(t);
+  feed(card(),{date:Math.floor((clock()-180000)/1000)});assert.ok(pay().card);
+  feed(stop(A));
+  feed(card(),{date:Math.floor((clock()-120000)/1000)});assert.equal(pay('after-stop').status,'manual_review');
+  feed(card(),{from:{id:999,username:'other_bot'}});
+  const inbox=db.prepare('SELECT outcome FROM gateway_inbox ORDER BY update_id DESC LIMIT 1').get();assert.equal(inbox.outcome,'untrusted_sender');
+  assert.ok(g.admin().lastSourceMessageAt);assert.ok(!JSON.stringify(g.admin().inbox).includes(A));
+});
+
+test('known source cards survive a short restart after catch-up, but old attempts and stale checkpoints never revive', async t => {
+  const dir=await mkdtemp(join(tmpdir(),'fikus-source-cache-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+  const path=join(dir,'db.sqlite');let at=Date.now();
+  const options={dbPath:path,gatewayWorker:false,gatewayNow:()=>at,env:{NODE_ENV:'test',GATEWAY_BOT_TOKEN:'test'}};
+  let app=await createApp(options);app.gateway.setConnected();
+  app.gateway.receiveFeed({chat:{id:-1002278926769},from:{id:333,username:'feweqw34234_bot'},date:Math.floor(at/1000),text:card()},1);
+  app.gateway.stop();app.db.close();at+=30000;
+  app=await createApp(options);app.gateway.setConnected();assert.equal(app.gateway.admin().cards[0].active,true);
+  app.gateway.stop();app.db.close();at+=24*3600000;
+  app=await createApp(options);app.gateway.setConnected();assert.equal(app.gateway.admin().cards[0].active,false);
+  app.gateway.stop();app.db.close();
 });

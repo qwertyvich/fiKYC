@@ -5,7 +5,7 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=8787 DATABASE_PATH=/app/data/fikus.sql
 COPY --chown=node:node package.json ./
 COPY --chown=node:node src ./src
 COPY --chown=node:node server ./server
-COPY --chown=node:node scripts/bootstrap-production.mjs ./scripts/bootstrap-production.mjs
+COPY --chown=node:node scripts/bootstrap-production.mjs scripts/import-requisites.mjs ./scripts/
 COPY --chown=node:node dist ./dist
 USER node
 EXPOSE 8787

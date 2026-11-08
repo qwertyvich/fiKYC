@@ -6,6 +6,7 @@
 !server/**
 !scripts/
 !scripts/bootstrap-production.mjs
+!scripts/import-requisites.mjs
 !dist/
 !dist/**
 !deploy/
