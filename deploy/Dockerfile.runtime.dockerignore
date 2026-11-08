@@ -1,0 +1,13 @@
+**
+!package.json
+!src/
+!src/**
+!server/
+!server/**
+!scripts/
+!scripts/bootstrap-production.mjs
+!dist/
+!dist/**
+!deploy/
+!deploy/Dockerfile.runtime
+!deploy/Dockerfile.runtime.dockerignore
