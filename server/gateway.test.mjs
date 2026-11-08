@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHmac } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -306,4 +306,70 @@ test('legacy internally expired cap can be repaired only within its original 15-
   db.prepare("DELETE FROM gateway_meta WHERE key='bootstrapExpiresAt'").run();advance(6*60000);
   assert.equal(g.repairShortenedTimers(),1);assert.ok(g.view(g.own(p.id,'alice')).card);
   feed(stop(A));assert.equal(g.repairShortenedTimers(),0);assert.equal(g.view(g.own(p.id,'alice')).card,null);
+});
+
+test('topups use the same 15-minute card flow and credit exactly once only after receipt confirmation', async t => {
+  const {g,feed,db}=await fixture(t);feed(card());
+  const catalogBefore=db.prepare('SELECT catalog,revision FROM state').get();
+  const input={amount:'1 500,50',requestKey:randomUUID(),accepted:true};
+  const p=g.createTopup('alice','111',input);assert.equal(p.purpose,'topup');assert.equal(p.amount,1500.5);assert.ok(p.card);assert.equal(p.expiresAt-p.createdAt,900000);
+  assert.equal(g.createTopup('alice','111',input).id,p.id);
+  assert.equal(g.createTopup('alice','111',{...input,requestKey:input.requestKey.toUpperCase()}).id,p.id);
+  assert.throws(()=>g.createTopup('alice','111',{...input,amount:'2000'}),/Сумма изменилась/);
+  assert.equal(g.wallet('alice').balance,0);assert.throws(()=>g.own(p.id,'bob'),/не найден/);
+  await assert.rejects(g.confirm(p.id,'777'),/квитанции/);
+  g.upload(p.id,'alice',Buffer.from('%PDF-1.4\nreceipt'));assert.equal(g.wallet('alice').balance,0);
+  await g.confirm(p.id,'777');await g.confirm(p.id,'777');
+  assert.equal(g.wallet('alice').balance,1500.5);assert.equal(g.wallet('alice').entries.length,1);assert.equal(g.wallet('bob').balance,0);
+  assert.equal(g.createTopup('alice','111',input).id,p.id);assert.equal(g.wallet('alice').balance,1500.5);
+  assert.deepEqual(db.prepare('SELECT catalog,revision FROM state').get(),catalogBefore);
+});
+
+test('topup stops, amount limits, expiry and retries preserve the purpose and never duplicate a wallet credit', async t => {
+  const {g,feed,advance}=await fixture(t);feed(card());
+  assert.equal(g.createTopup('large','222',{amount:'10000',requestKey:randomUUID(),accepted:true}).status,'manual_review');
+  const first=g.createTopup('alice','111',{amount:'3500',requestKey:randomUUID(),accepted:true});
+  feed(stop(first.card.number));assert.equal(g.view(g.own(first.id,'alice')).card,null);
+  feed(card());const next=g.retry(first.id,'alice',{notPaid:true,accepted:true});assert.equal(next.purpose,'topup');assert.ok(next.card);
+  g.upload(first.id,'alice',Buffer.from('%PDF-1.4\nreceipt'));assert.equal(g.view(g.own(next.id,'alice')).card,null);
+  g.upload(next.id,'alice',Buffer.from('%PDF-1.4\nsecond scan'));await g.confirm(next.id,'777');await g.confirm(first.id,'777');
+  assert.equal(g.wallet('alice').balance,3500);assert.equal(g.wallet('alice').entries.length,1);
+  const late=g.createTopup('alice','111',{amount:'1250',requestKey:randomUUID(),accepted:true});advance(900001);assert.equal(g.view(g.own(late.id,'alice')).status,'awaiting_receipt');
+  g.upload(late.id,'alice',Buffer.from('%PDF-1.4\nlate receipt'));await g.confirm(late.id,'777');assert.equal(g.wallet('alice').balance,4750);
+});
+
+test('invalid topup input cannot create an intent or affect balances', async t => {
+  const {g,db}=await fixture(t);
+  for(const amount of ['0','-5','Infinity','1e3','1.234','1000001'])assert.throws(()=>g.createTopup('alice','111',{amount,accepted:true,requestKey:randomUUID()}));
+  assert.throws(()=>g.createTopup('alice','111',{amount:'1500',accepted:false,requestKey:randomUUID()}),/Подтвердите/);
+  assert.throws(()=>g.createTopup('alice','111',{amount:'1500',accepted:true,currency:'USD',requestKey:randomUUID()}),/рублях/);
+  assert.throws(()=>g.createTopup('alice','111',{amount:'1500',accepted:true,requestKey:'bad'}),/Обновите/);
+  assert.equal(db.prepare("SELECT count(*) n FROM payments WHERE purpose='topup'").get().n,0);assert.equal(g.wallet('alice').balance,0);
+});
+
+test('topup HTTP routes bind balances to signed Telegram owners across devices and reject buyer confirmation', async t => {
+  const botToken='isolated-wallet-auth';
+  const {server,gateway:g}=await createApp({dbPath:':memory:',gatewayWorker:false,env:{NODE_ENV:'production',BOT_TOKEN:botToken,GATEWAY_BOT_TOKEN:''}});
+  await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>server.close(r)));
+  const base='http://127.0.0.1:'+server.address().port;
+  const proof=id=>{const p=new URLSearchParams({auth_date:String(Math.floor(Date.now()/1000)),user:JSON.stringify({id,first_name:'Buyer'})});const secret=createHmac('sha256','WebAppData').update(botToken).digest();p.set('hash',createHmac('sha256',secret).update([...p].sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`${k}=${v}`).join('\n')).digest('hex'));return p.toString();};
+  const request=(id,path,method='GET',body)=>fetch(base+'/api'+path,{method,headers:{'X-Telegram-Init-Data':proof(id),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
+  assert.equal((await fetch(base+'/api/wallet')).status,401);
+  const key=randomUUID();const created=await request(123,'/wallet/topups','POST',{amount:'1200.55',requestKey:key,accepted:true,ownerId:'tg:456',purpose:'order'});
+  assert.equal(created.status,201);const p=await created.json();assert.equal(p.purpose,'topup');assert.equal(p.amount,1200.55);assert.equal(p.receiptUrl,undefined);
+  assert.equal((await request(456,'/payments/'+p.id)).status,404);
+  assert.equal((await request(123,'/admin/gateway/'+p.id+'/confirm','POST',{})).status,401);
+  g.upload(p.id,'tg:123',Buffer.from('%PDF-1.4\nconfirmed transfer'));await g.confirm(p.id,'test-admin');
+  assert.equal((await (await request(123,'/wallet')).json()).balance,1200.55);
+  assert.equal((await (await request(456,'/wallet')).json()).balance,0);
+  const repeated=await request(123,'/wallet/topups','POST',{amount:'1200.55',requestKey:key,accepted:true});assert.equal((await repeated.json()).id,p.id);
+});
+
+test('confirmed topups and idempotency keys survive a restart without another credit', async t => {
+  const dir=await mkdtemp(join(tmpdir(),'fikus-wallet-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+  const options={dbPath:join(dir,'db.sqlite'),gatewayWorker:false,env:{NODE_ENV:'test',GATEWAY_BOT_TOKEN:''}};
+  let app=await createApp(options);const input={amount:'1500,25',accepted:true,requestKey:randomUUID()};
+  const p=app.gateway.createTopup('tg:123','123',input);app.gateway.upload(p.id,'tg:123',Buffer.from('%PDF-1.4\nverified'));await app.gateway.confirm(p.id,'test-admin');
+  app.gateway.stop();app.db.close();app=await createApp(options);
+  try {assert.equal(app.gateway.wallet('tg:123').balance,1500.25);assert.equal(app.gateway.createTopup('tg:123','123',input).id,p.id);await app.gateway.confirm(p.id,'test-admin');assert.equal(app.gateway.wallet('tg:123').entries.length,1);}finally{app.gateway.stop();app.db.close();}
 });

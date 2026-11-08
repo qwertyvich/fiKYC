@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { parseTopupAmount } from '../../src/wallet-domain.ts';
 import { EventEmitter } from 'node:events';
 import { parseFeed } from './parser.mjs';
 import { bootstrapRequisites } from './bootstrap.mjs';
@@ -17,8 +18,14 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     CREATE TABLE IF NOT EXISTS gateway_receipts(id TEXT PRIMARY KEY,payment_id TEXT NOT NULL,file_id TEXT NOT NULL,kind TEXT NOT NULL,created_at INTEGER NOT NULL,UNIQUE(payment_id,file_id));
     CREATE TABLE IF NOT EXISTS gateway_receipt_files(id TEXT PRIMARY KEY,data BLOB NOT NULL,mime TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS gateway_inbox(update_id INTEGER PRIMARY KEY,message_id INTEGER,sender_id TEXT,sender_username TEXT,event_at INTEGER,received_at INTEGER NOT NULL,outcome TEXT NOT NULL,text TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS wallet_ledger(payment_id TEXT PRIMARY KEY,owner_id TEXT NOT NULL,currency TEXT NOT NULL CHECK(currency='RUB'),amount_minor INTEGER NOT NULL CHECK(amount_minor>0),created_at INTEGER NOT NULL);
+    CREATE INDEX IF NOT EXISTS wallet_ledger_owner ON wallet_ledger(owner_id,created_at);
     CREATE TABLE IF NOT EXISTS gateway_bindings(telegram_id TEXT PRIMARY KEY,payment_id TEXT NOT NULL);
   `);
+  const paymentColumns = db.prepare('PRAGMA table_info(payments)').all().map(c => c.name);
+  if (!paymentColumns.includes('purpose')) db.exec("ALTER TABLE payments ADD COLUMN purpose TEXT NOT NULL DEFAULT 'order'");
+  if (!paymentColumns.includes('request_key')) db.exec('ALTER TABLE payments ADD COLUMN request_key TEXT');
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS payment_request_key ON payments(visitor_id,purpose,request_key) WHERE request_key IS NOT NULL");
   const defaults = { enabled: true, sourceChatId: '-1002278926769', sourceSender: '@feweqw34234_bot', receiptRecipient: '@tcmai', botUsername: 'GatewayReqBot' };
   db.prepare('INSERT OR IGNORE INTO gateway_config VALUES(1,?)').run(JSON.stringify(defaults));
   const config = () => ({ ...defaults, ...JSON.parse(db.prepare('SELECT json FROM gateway_config WHERE id=1').get().json) });
@@ -119,7 +126,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     reconcile(); p = row(p.id);
     const c = p.card && db.prepare('SELECT * FROM gateway_cards WHERE number=?').get(p.card);
     const show = p.status === 'awaiting_transfer' && ready() && c?.active && c.version === p.card_version && p.expires_at > now();
-    return { id: p.id, items: JSON.parse(p.items), amount: p.amount_minor / 100, currency: p.currency, status: p.status, reason: p.reason, createdAt: p.created_at, expiresAt: p.expires_at, serverNow: now(), card: show ? { number: c.number, bank: c.bank, holder: c.holder } : null, receiptCount: db.prepare('SELECT count(*) n FROM gateway_receipts WHERE payment_id=?').get(p.id).n, deliveryPending: !!db.prepare("SELECT id FROM gateway_outbox WHERE payment_id=? AND kind='receipt' AND status='pending'").get(p.id) };
+    return { id: p.id, purpose: p.purpose, items: JSON.parse(p.items), amount: p.amount_minor / 100, currency: p.currency, status: p.status, reason: p.reason, createdAt: p.created_at, expiresAt: p.expires_at, serverNow: now(), card: show ? { number: c.number, bank: c.bank, holder: c.holder } : null, receiptCount: db.prepare('SELECT count(*) n FROM gateway_receipts WHERE payment_id=?').get(p.id).n, deliveryPending: !!db.prepare("SELECT id FROM gateway_outbox WHERE payment_id=? AND kind='receipt' AND status='pending'").get(p.id) };
   }
   function own(id, visitorId) { const p = row(id); if (!p || p.visitor_id !== visitorId) error('Заказ не найден', 404); return p; }
   function family(id) {
@@ -153,15 +160,36 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     if (!Number.isSafeInteger(amountMinor) || amountMinor < 1 || amountMinor > 100_000_000_00) error('Проверьте сумму заказа');
     if (typeof input.expectedAmount !== 'number' || Math.round(input.expectedAmount * 100) !== amountMinor) error('Стоимость изменилась. Обновите корзину и проверьте сумму.', 409);
     reconcile();
-    const existing = db.prepare("SELECT * FROM payments WHERE visitor_id=? AND status IN ('awaiting_transfer','awaiting_receipt','receipt_review','manual_review') ORDER BY created_at DESC").all(visitorId).find(p => p.items === JSON.stringify(items) && p.note === input.note.trim());
+    const existing = db.prepare("SELECT * FROM payments WHERE visitor_id=? AND purpose='order' AND status IN ('awaiting_transfer','awaiting_receipt','receipt_review','manual_review') ORDER BY created_at DESC").all(visitorId).find(p => p.items === JSON.stringify(items) && p.note === input.note.trim());
     if (existing) return view(existing);
     return transaction(() => issue(visitorId, telegramId, items, input.note.trim(), amountMinor, currencies[0]));
   }
-  function issue(visitorId, telegramId, items, note, amountMinor, currency, retryOf = null) {
+  function wallet(ownerId) {
+    const total = db.prepare("SELECT COALESCE(sum(amount_minor),0) amount FROM wallet_ledger WHERE owner_id=? AND currency='RUB'").get(ownerId).amount;
+    if (!Number.isSafeInteger(total)) error('Не удалось отобразить баланс. Обратитесь к менеджеру.', 500);
+    return {currency:'RUB', balance:total/100, entries:db.prepare('SELECT payment_id AS paymentId,amount_minor,created_at AS createdAt FROM wallet_ledger WHERE owner_id=? ORDER BY created_at DESC LIMIT 20').all(ownerId).map(e=>({paymentId:e.paymentId,amount:e.amount_minor/100,createdAt:e.createdAt}))};
+  }
+  function createTopup(ownerId, telegramId, input) {
+    if (input.accepted !== true) error('Подтвердите условия пополнения');
+    if (input.currency !== undefined && input.currency !== 'RUB') error('Пополнение на карту доступно в рублях');
+    if (typeof input.requestKey !== 'string' || !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(input.requestKey)) error('Обновите форму пополнения и повторите попытку');
+    const requestKey = input.requestKey.toLowerCase();
+    const minor = parseTopupAmount(input.amount);
+    reconcile();
+    return transaction(() => {
+      const existing = db.prepare("SELECT * FROM payments WHERE visitor_id=? AND purpose='topup' AND request_key=?").get(ownerId,requestKey);
+      if (existing) {
+        if (existing.amount_minor !== minor) error('Сумма изменилась. Откройте новое пополнение.',409);
+        return view(existing);
+      }
+      return issue(ownerId,telegramId,[{productId:'__wallet_topup__',title:'Пополнение баланса',quantity:1,price:minor/100,currency:'RUB'}],'',minor,'RUB',null,'topup',requestKey);
+    });
+  }
+  function issue(visitorId, telegramId, items, note, amountMinor, currency, retryOf = null, purpose = 'order', requestKey = null) {
     const chosen = providers.choose({ amountMinor, currency });
     const id = 'FK-' + randomUUID().slice(0, 12).toUpperCase();
     const reason = chosen ? '' : !ready() ? 'gateway_unavailable' : !bootstrapOpen() ? 'source_confirmation_expired' : currency !== 'RUB' ? 'currency' : !db.prepare('SELECT number FROM gateway_cards WHERE active=1 LIMIT 1').get() ? (meta('lastFeedAt') ? 'source_stopped' : 'source_unseen') : 'limits';
-    db.prepare('INSERT INTO payments(id,visitor_id,telegram_id,items,note,amount_minor,currency,provider,status,card,card_version,expires_at,created_at,reason,retry_of,receipt_token) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(id, visitorId, telegramId ?? '', JSON.stringify(items), note, amountMinor, currency, chosen?.provider.id ?? 'manual', chosen ? 'awaiting_transfer' : 'manual_review', chosen?.card.number ?? null, chosen?.card.version ?? null, chosen ? now() + PAYMENT_TTL : null, now(), reason, retryOf, randomUUID().replaceAll('-', ''));
+    db.prepare('INSERT INTO payments(id,visitor_id,telegram_id,items,note,amount_minor,currency,provider,status,card,card_version,expires_at,created_at,reason,retry_of,receipt_token,purpose,request_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(id, visitorId, telegramId ?? '', JSON.stringify(items), note, amountMinor, currency, chosen?.provider.id ?? 'manual', chosen ? 'awaiting_transfer' : 'manual_review', chosen?.card.number ?? null, chosen?.card.version ?? null, chosen ? now() + PAYMENT_TTL : null, now(), reason, retryOf, randomUUID().replaceAll('-', ''),purpose,requestKey);
     if (!chosen) queue('manual', id, { text: `Нужна помощь с оплатой · ${id}\nСумма: ${amountMinor / 100} ${currency}\nПокупатель Telegram ID: ${telegramId || 'не определён'}\n${items.map(i => `${i.title} × ${i.quantity}`).join('\n')}\nКомментарий: ${note || '—'}\nПричина: ${{gateway_unavailable: 'Автоматическая выдача сейчас недоступна', currency: 'Нужно согласовать валюту и способ оплаты', limits: 'Нет карты с подходящими лимитами', source_unseen: 'Ещё не получено объявление реквизитов из источника', source_stopped: 'Источник остановил реквизиты', source_confirmation_expired: 'Срок начальной проверки истёк. Нужны новые реквизиты источника или подтверждение владельца'}[reason]}` }, 'manual:' + id);
     return view(row(id));
   }
@@ -174,7 +202,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     if (p.status === 'manual_review' && !providers.choose({amountMinor: p.amount_minor, currency: p.currency})) error('Реквизиты пока недоступны. Можно связаться с менеджером и уточнить способ оплаты.', 409);
     return transaction(() => {
       db.prepare("UPDATE payments SET status='superseded' WHERE id=?").run(id);
-      return issue(p.visitor_id, p.telegram_id, JSON.parse(p.items), p.note, p.amount_minor, p.currency, id);
+      return issue(p.visitor_id, p.telegram_id, JSON.parse(p.items), p.note, p.amount_minor, p.currency, id, p.purpose);
     });
   }
   function receiveFeed(message, updateId) {
@@ -300,14 +328,27 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     if (p.status === 'paid') return;
     if (p.status !== 'receipt_review') error('Сначала дождитесь квитанции', 409);
     transaction(() => {
-      // Review and stock changes are atomic; receipts alone never mark a purchase paid.
-      const s = state(), items = JSON.parse(p.items);
-      for (const i of items) {
-        const product = s.catalog.products.find(p => p.id === i.productId);
-        if (!product || product.stock < i.quantity) error('Остатка недостаточно. Свяжитесь с покупателем перед подтверждением.', 409);
-        product.stock -= i.quantity;
+      const latest = row(id);
+      if (latest.status === 'paid') return;
+      if (latest.status !== 'receipt_review') error('Сначала дождитесь квитанции',409);
+      // Credits and stock changes are atomic; a receipt alone never confirms payment.
+      if (p.purpose === 'topup') {
+        const root = family(id)[0];
+        const credited = db.prepare('SELECT * FROM wallet_ledger WHERE payment_id=?').get(root);
+        if (credited && (credited.owner_id !== p.visitor_id || credited.amount_minor !== p.amount_minor)) error('Проверьте зачисление с менеджером',409);
+        const balanceMinor = db.prepare('SELECT COALESCE(sum(amount_minor),0) amount FROM wallet_ledger WHERE owner_id=?').get(p.visitor_id).amount;
+        if (!Number.isSafeInteger(balanceMinor + (credited ? 0 : p.amount_minor))) error('Сумма баланса слишком велика. Обратитесь к менеджеру.',409);
+        db.prepare('INSERT OR IGNORE INTO wallet_ledger VALUES(?,?,?,?,?)').run(root,p.visitor_id,'RUB',p.amount_minor,now());
+        if (!credited) db.prepare('INSERT INTO audit(action,at) VALUES(?,?)').run('wallet.credit:'+root+':'+actorId,now());
+      } else {
+        const s = state(), items = JSON.parse(p.items);
+        for (const i of items) {
+          const product = s.catalog.products.find(p => p.id === i.productId);
+          if (!product || product.stock < i.quantity) error('Остатка недостаточно. Свяжитесь с покупателем перед подтверждением.', 409);
+          product.stock -= i.quantity;
+        }
+        db.prepare('UPDATE state SET catalog=?,revision=revision+1 WHERE id=1').run(JSON.stringify(s.catalog));
       }
-      db.prepare('UPDATE state SET catalog=?,revision=revision+1 WHERE id=1').run(JSON.stringify(s.catalog));
       for (const relatedId of family(id)) db.prepare("UPDATE payments SET status='paid',paid_at=? WHERE id=?").run(now(), relatedId);
       db.prepare('INSERT INTO audit(action,at) VALUES(?,?)').run('payment.confirm:' + id + ':' + actorId, now());
 
@@ -338,6 +379,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
       const jobs = db.prepare("SELECT * FROM gateway_outbox WHERE status='pending' AND next_at<=? ORDER BY CASE WHEN id LIKE 'stop:%' THEN 0 WHEN kind='customer' THEN 1 WHEN kind='receipt' THEN 2 WHEN kind='manual' THEN 3 ELSE 4 END,rowid LIMIT 12").all(now());
       for (const job of jobs) {
         const payload = JSON.parse(job.payload);
+        const approvalText = row(job.payment_id)?.purpose === 'topup' ? 'Подтвердить и зачислить на баланс' : 'Подтвердить поступление денег';
         if (['receipt', 'manual'].includes(job.kind) && !recipient()) continue;
         if (['source','customer'].includes(job.kind)) { db.prepare("UPDATE gateway_outbox SET status='cancelled' WHERE id=?").run(job.id); continue; }
         try {
@@ -347,11 +389,11 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
             const file = db.prepare('SELECT * FROM gateway_receipt_files WHERE id=?').get(payload.uploadId);
             const form = new FormData();
             form.set('chat_id', recipient()); form.set('caption', payload.text.slice(0, 1000));
-            form.set('reply_markup', JSON.stringify({ inline_keyboard: [[{ text: 'Подтвердить поступление денег', callback_data: 'confirm:' + job.payment_id }]] }));
+            form.set('reply_markup', JSON.stringify({ inline_keyboard: [[{ text: approvalText, callback_data: 'confirm:' + job.payment_id }]] }));
             form.set('document', new Blob([file.data], { type: file.mime }), 'receipt.' + (file.mime === 'application/pdf' ? 'pdf' : file.mime.split('/')[1]));
             result = await call('sendDocument', form);
           }
-          else if (job.kind === 'receipt') result = await call(payload.kind === 'photo' ? 'sendPhoto' : 'sendDocument', { chat_id: recipient(), [payload.kind]: payload.file_id, caption: payload.text.slice(0, 1000), reply_markup: { inline_keyboard: [[{ text: 'Подтвердить поступление денег', callback_data: 'confirm:' + job.payment_id }]] } });
+          else if (job.kind === 'receipt') result = await call(payload.kind === 'photo' ? 'sendPhoto' : 'sendDocument', { chat_id: recipient(), [payload.kind]: payload.file_id, caption: payload.text.slice(0, 1000), reply_markup: { inline_keyboard: [[{ text: approvalText, callback_data: 'confirm:' + job.payment_id }]] } });
           else result = await call('sendMessage', { ...payload, chat_id: job.kind === 'manual' ? recipient() : payload.chat_id, text: payload.text.slice(0, 4000) });
           if (closed) return;
           db.prepare("UPDATE gateway_outbox SET status='sent' WHERE id=?").run(job.id);
@@ -396,5 +438,5 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     reconcile();
     return { config: config(), tokenConfigured: !!env.GATEWAY_BOT_TOKEN, connected: healthy(), recipientReady: !!recipient(), lastFeedAt: Number(meta('lastFeedAt') ?? 0), lastSourceMessageAt: Number(meta('lastSourceMessageAt') ?? 0), lastPollAt: Number(meta('lastPollAt') ?? 0), pollError: meta('pollError') ?? '', bootstrapExpiresAt: Number(meta('bootstrapExpiresAt') ?? 0), inbox: db.prepare('SELECT update_id AS updateId,message_id AS messageId,sender_username AS senderUsername,event_at AS eventAt,received_at AS receivedAt,outcome FROM gateway_inbox ORDER BY received_at DESC,update_id DESC LIMIT 10').all(), senderBound: !!meta('senderId'), pendingDeliveries: db.prepare("SELECT count(*) n FROM gateway_outbox WHERE status='pending'").get().n, cards: db.prepare('SELECT * FROM gateway_cards').all().map(c => ({ bank: c.bank, holder: c.holder, last4: c.number.slice(-4), min: c.min_minor / 100, max: c.max_minor / 100, active: !!c.active && issuable() })), payments: db.prepare('SELECT * FROM payments ORDER BY created_at DESC LIMIT 100').all().map(p => ({ ...view(p), telegramId: p.telegram_id, note: p.note })) };
   }
-  return { repairShortenedTimers, receipts: id => db.prepare('SELECT r.id,r.created_at AS createdAt,f.mime FROM gateway_receipts r LEFT JOIN gateway_receipt_files f ON f.id=r.id WHERE payment_id=? ORDER BY r.created_at').all(id), receiptFile: id => db.prepare('SELECT data,mime FROM gateway_receipt_files WHERE id=?').get(id), bootstrap: (text, actor, confirmed) => { const result = bootstrapRequisites(db,text,{actor,confirmed,now:now()}); events.emit('change'); return result; }, config, saveConfig, create, retry, upload, view, own, admin, confirm, receiveFeed, processUpdate, flush, start, stop, disconnect, events, list: (visitorId) => { reconcile(); return db.prepare('SELECT * FROM payments WHERE visitor_id=? ORDER BY created_at DESC LIMIT 100').all(visitorId).map(view); }, setConnected: () => { connected = true; lastPoll = now(); setMeta('lastPollAt', now()); } };
+  return { wallet, createTopup, repairShortenedTimers, receipts: id => db.prepare('SELECT r.id,r.created_at AS createdAt,f.mime FROM gateway_receipts r LEFT JOIN gateway_receipt_files f ON f.id=r.id WHERE payment_id=? ORDER BY r.created_at').all(id), receiptFile: id => db.prepare('SELECT data,mime FROM gateway_receipt_files WHERE id=?').get(id), bootstrap: (text, actor, confirmed) => { const result = bootstrapRequisites(db,text,{actor,confirmed,now:now()}); events.emit('change'); return result; }, config, saveConfig, create, retry, upload, view, own, admin, confirm, receiveFeed, processUpdate, flush, start, stop, disconnect, events, list: (visitorId) => { reconcile(); return db.prepare('SELECT * FROM payments WHERE visitor_id=? ORDER BY created_at DESC LIMIT 100').all(visitorId).map(view); }, setConnected: () => { connected = true; lastPoll = now(); setMeta('lastPollAt', now()); } };
 }

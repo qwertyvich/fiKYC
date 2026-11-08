@@ -404,6 +404,13 @@ export async function createApp(options = {}) {
         }
         fail('Метод панели не найден', 404);
       }
+      if (path === '/api/wallet' && method === 'GET') return send(res, gateway.wallet(paymentOwner(req,res)));
+      if (path === '/api/wallet/topups' && method === 'POST') {
+        const owner = paymentOwner(req,res), user = access.identity(req);
+        if (env.NODE_ENV === 'production' && !user) fail('Откройте магазин через Telegram',401);
+        limit('payment:'+owner,20);
+        return send(res,gateway.createTopup(owner,user?.id ?? '',await body(req)),201);
+      }
       if (path === '/api/payments' && method === 'GET') return send(res, gateway.list(paymentOwner(req, res)));
       if (path === '/api/payments' && method === 'POST') {
         const v = paymentOwner(req, res); limit('payment:' + v, 20);

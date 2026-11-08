@@ -1,5 +1,6 @@
 export interface Payment {
   id: string;
+  purpose: 'order' | 'topup';
   items: { productId: string; title: string; quantity: number; price: number; currency: 'RUB' | 'USD' }[];
   amount: number;
   currency: 'RUB' | 'USD';
