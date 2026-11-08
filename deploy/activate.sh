@@ -12,7 +12,7 @@ backup="$shared/backups/$(date -u +%Y%m%dT%H%M%SZ)-$revision"
 install -d -m 700 "$backup"
 cp -a /etc/nginx/sites-available/kyc.kraken892.rest "$backup/kyc.nginx.conf"
 readlink -f /opt/fikus-miniapp/current > "$backup/previous-release"
-docker inspect --format '{{.Name}} {{.Id}} {{.State.StartedAt}}' $(docker ps -q) | sort > "$backup/containers.before"
+docker inspect --format '{{.Name}} {{.Id}} {{.State.StartedAt}}' $(docker ps -q) | awk '$1 != "/fikus-app-1"' | sort > "$backup/containers.before"
 find /etc/nginx/sites-available /etc/nginx/conf.d -maxdepth 1 -type f ! -name kyc.kraken892.rest -exec sha256sum {} + | sort > "$backup/nginx-others.before"
 export FIKUS_RELEASE="$revision" FIKUS_RELEASE_DIR="$release"
 compose=(docker compose -p fikus -f "$release/deploy/compose.production.yml")
@@ -52,7 +52,14 @@ if ! systemctl reload nginx; then
   nginx -t && systemctl reload nginx
   echo 'Previous frontend and vhost restored'; exit 1
 fi
-if ! curl --resolve kyc.kraken892.rest:443:127.0.0.1 --fail --silent --show-error --max-time 15 https://kyc.kraken892.rest/api/health; then
+probe_https() {
+  for attempt in $(seq 1 15); do
+    if curl --resolve kyc.kraken892.rest:443:127.0.0.1 --fail --silent --show-error --max-time 10 https://kyc.kraken892.rest/api/health | python3 -c 'import json,sys;sys.exit(0 if json.load(sys.stdin).get("ok") is True else 1)' 2>/dev/null; then return 0; fi
+    sleep 1
+  done
+  return 1
+}
+if ! probe_https; then
   ln -s "$previous" /opt/fikus-miniapp/current.rollback
   mv -Tf /opt/fikus-miniapp/current.rollback /opt/fikus-miniapp/current
   cp -a "$backup/kyc.nginx.conf" /etc/nginx/sites-available/kyc.kraken892.rest

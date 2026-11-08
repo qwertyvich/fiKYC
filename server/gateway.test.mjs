@@ -182,10 +182,20 @@ test('signed Telegram owners can resume payments across devices while another Te
   const cookie=device.headers.getSetCookie()[0].split(';')[0];assert.equal((await fetch(base+'/api/payments/'+payment.id,{headers:{Cookie:cookie}})).status,200);
   const other=await fetch(base+'/api/payments/'+payment.id,{headers:{'X-Telegram-Init-Data':proof(456)}});assert.equal(other.status,404);
 });
-test('healthy Telegram transport cannot hide a silent card source: missing fresh announcements revoke active transfers', async t => {
+test('a quiet read-only source does not expire a valid 15-minute transfer while Telegram remains connected', async t => {
   const {g,feed,pay,advance} = await fixture(t);
   feed(card()); const p=pay();advance(90001);
-  assert.equal(g.view(g.own(p.id,'alice')).status,'invalidated');
-  assert.equal(g.view(g.own(p.id,'alice')).reason,'source_stale');
-  feed(card());assert.ok(pay('fresh').card);
+  assert.equal(g.view(g.own(p.id,'alice')).status,'awaiting_transfer');
+  assert.ok(g.view(g.own(p.id,'alice')).card);
+  assert.equal(g.admin().pendingDeliveries,0);
+});
+
+test('source group is strictly read-only: old command jobs are cancelled and transport blocks all outbound messages to it', async t => {
+  const {g,db,calls,feed,input}=await fixture(t);
+  assert.throws(()=>g.saveConfig({receiptRecipient:'-1002278926769'}),/только для чтения/);
+  db.prepare("INSERT INTO gateway_outbox(id,kind,payment_id,payload) VALUES(?,?,?,?)").run('legacy-source','source','',JSON.stringify({chat_id:'-1002278926769',text:'/card@feweqw34234_bot'}));
+  feed(card());g.create('invalid-target','-1002278926769',input());g.disconnect();await g.flush();
+  assert.equal(db.prepare("SELECT status FROM gateway_outbox WHERE id='legacy-source'").get().status,'cancelled');
+  assert.equal(calls.some(c=>String(c.payload?.chat_id ?? '')==='-1002278926769'),false);
+  assert.equal(db.prepare("SELECT count(*) n FROM gateway_outbox WHERE id LIKE 'stop:%' AND status='cancelled'").get().n,1);
 });

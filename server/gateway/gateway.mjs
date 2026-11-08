@@ -28,7 +28,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
   let freshnessFloor = now();
   const recipient = () => /^-?\d+$/.test(config().receiptRecipient) ? config().receiptRecipient : meta('recipientId');
   const healthy = () => connected && now() - lastPoll < 8_000;
-  const ready = () => config().enabled && !!env.GATEWAY_BOT_TOKEN && !!recipient() && healthy() && now() - Number(meta('lastFeedAt') ?? 0) < 90_000;
+  const ready = () => config().enabled && !!env.GATEWAY_BOT_TOKEN && !!recipient() && healthy();
   const transaction = (fn) => {
     db.exec('BEGIN IMMEDIATE');
     try { const result = fn(); db.exec('COMMIT'); return result; } catch (e) { db.exec('ROLLBACK'); throw e; }
@@ -52,6 +52,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
   function saveConfig(input) {
     const c = { ...config(), ...input };
     if (typeof c.enabled !== 'boolean' || !/^-100\d{5,20}$/.test(c.sourceChatId ?? '') || !/^(?:@?[a-zA-Z][a-zA-Z0-9_]{4,31}|\d{1,20})$/.test(c.sourceSender ?? '') || !/^(?:@?[a-zA-Z][a-zA-Z0-9_]{4,31}|-?\d{1,20})$/.test(c.receiptRecipient ?? '') || !/^[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(c.botUsername ?? '')) error('Проверьте чат, отправителя и получателя квитанций');
+    if (c.receiptRecipient === c.sourceChatId) error('Чат с реквизитами доступен только для чтения. Выберите отдельного получателя квитанций.');
     const old = config();
     transaction(() => {
       db.prepare('UPDATE gateway_config SET json=? WHERE id=1').run(JSON.stringify(Object.fromEntries(Object.keys(defaults).map(k => [k, c[k]]))));
@@ -70,11 +71,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
   function reconcile() {
     expire();
     if (connected && !healthy()) disconnect();
-    else if (healthy() && now() - Number(meta('lastFeedAt') ?? 0) >= 90_000 && db.prepare('SELECT number FROM gateway_cards WHERE active=1 LIMIT 1').get()) {
-      freshnessFloor = now();
-      transaction(() => { db.prepare('UPDATE gateway_cards SET active=0,version=version+1 WHERE active=1').run(); invalidate('source_stale'); });
-      events.emit('change');
-    }
+
   }
   function row(id) { return db.prepare('SELECT * FROM payments WHERE id=?').get(id); }
   function view(p) {
@@ -199,13 +196,23 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     });
     events.emit('change'); return view(row(id));
   }
-  const call = botCall ?? (async (method, payload, signal) => {
+  const transport = botCall ?? (async (method, payload, signal) => {
     const response = await fetch(`https://api.telegram.org/bot${env.GATEWAY_BOT_TOKEN}/${method}`, { method: 'POST', ...(payload instanceof FormData ? { body: payload } : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }), signal: signal ?? AbortSignal.timeout(12_000) });
     const result = await response.json();
     // Never expose URLs containing the bot token in logs or API errors.
     if (!result.ok) throw Object.assign(new Error('Telegram API request failed'), { retryAfter: result.parameters?.retry_after, telegramCode: result.error_code });
     return result.result;
   });
+  // Defense in depth: the source group is read-only for every outgoing API call,
+  // including malformed receipt configuration and jobs left by older releases.
+  const readOnlyMethods = new Set(['getChat', 'getChatMember', 'getChatAdministrators', 'getChatMemberCount']);
+  const call = async (method, payload, signal) => {
+    const destination = payload instanceof FormData ? payload.get('chat_id') : payload?.chat_id;
+    if (String(destination ?? '') === config().sourceChatId && !readOnlyMethods.has(method)) {
+      throw Object.assign(new Error('Исходный чат доступен только для чтения'), { code: 'source_chat_read_only' });
+    }
+    return transport(method, payload, signal);
+  };
   async function receivePrivate(message) {
     if (message.chat?.type !== 'private' || message.from?.is_bot) return;
     const id = String(message.from.id), c = config();
@@ -283,7 +290,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
       for (const job of jobs) {
         const payload = JSON.parse(job.payload);
         if (['receipt', 'manual'].includes(job.kind) && !recipient()) continue;
-        if (job.kind === 'source' && !config().enabled) continue;
+        if (job.kind === 'source') { db.prepare("UPDATE gateway_outbox SET status='cancelled' WHERE id=?").run(job.id); continue; }
         try {
           let result;
           if (job.kind === 'callback') result = await call('answerCallbackQuery', payload);
@@ -301,6 +308,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
           db.prepare("UPDATE gateway_outbox SET status='sent' WHERE id=?").run(job.id);
         } catch (e) {
           if (closed) return;
+          if (e.code === 'source_chat_read_only') { db.prepare("UPDATE gateway_outbox SET status='cancelled' WHERE id=?").run(job.id); continue; }
           db.prepare('UPDATE gateway_outbox SET attempts=attempts+1,next_at=? WHERE id=?').run(now() + Math.max((e.retryAfter ?? 0) * 1000, Math.min(300_000, 2000 * 2 ** Math.min(job.attempts, 7))), job.id);
         }
       }
@@ -327,13 +335,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
       if (!closed) worker = setTimeout(poll, 350);
     }
   }
-  function refreshSource() {
-    const c = config();
-    if (!c.enabled || !healthy() || !/^@?[a-zA-Z]/.test(c.sourceSender) || now() - Number(meta('lastSourceRequest') ?? 0) < 60_000) return;
-    setMeta('lastSourceRequest', now());
-    queue('source', '', { chat_id: c.sourceChatId, text: '/card@' + c.sourceSender.replace(/^@/, '') }, 'source:' + Math.floor(now() / 60000));
-  }
-  const tick = setInterval(() => { if (!closed) { reconcile(); refreshSource(); void flush(); } }, 1000);
+  const tick = setInterval(() => { if (!closed) { reconcile(); void flush(); } }, 1000);
   tick.unref();
   function start() { if (env.GATEWAY_BOT_TOKEN && !worker) { worker = setTimeout(poll, 0); worker.unref(); } }
   function stop() { closed = true; clearTimeout(worker); clearInterval(tick); abort?.abort(); events.removeAllListeners(); }
