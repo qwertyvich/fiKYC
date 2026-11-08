@@ -264,3 +264,46 @@ test('known source cards survive a short restart after catch-up, but old attempt
   app=await createApp(options);app.gateway.setConnected();assert.equal(app.gateway.admin().cards[0].active,false);
   app.gateway.stop();app.db.close();
 });
+
+test('a transfer issued ten minutes after bootstrap still gets a full 15 minutes; bootstrap admission closes separately', async t => {
+  const {g,pay,advance,feed,clock}=await fixture(t);
+  g.bootstrap(card(),'owner',true);
+  advance(10*60000);
+  const p=pay();assert.equal(p.expiresAt-p.serverNow,15*60000);
+  advance(6*60000);
+  const ongoing=g.view(g.own(p.id,'alice'));assert.equal(ongoing.status,'awaiting_transfer');assert.ok(ongoing.card);assert.equal(ongoing.expiresAt-clock(),9*60000);
+  const next=pay('later');assert.equal(next.status,'manual_review');assert.equal(next.reason,'source_confirmation_expired');
+  feed(stop(A));assert.equal(g.view(g.own(p.id,'alice')).status,'invalidated');assert.equal(g.view(g.own(p.id,'alice')).card,null);
+});
+
+test('bootstrap admission expiry never shortens an issued transfer and refresh never extends its 15 minutes', async t => {
+  const {g,pay,advance,db}=await fixture(t);
+  g.bootstrap(card(),'owner',true);advance(14*60000);
+  const p=pay();assert.equal(p.expiresAt-p.serverNow,900000);
+  advance(2*60000);assert.ok(g.view(g.own(p.id,'alice')).card);assert.equal(pay().expiresAt,p.expiresAt);
+  advance(13*60000+1);const expired=g.view(g.own(p.id,'alice'));assert.equal(expired.status,'awaiting_receipt');assert.equal(expired.card,null);
+  assert.equal(db.prepare('SELECT count(*) n FROM gateway_cards WHERE active=1').get().n,0);
+  assert.equal(pay('after').status,'manual_review');
+});
+
+test('legacy five-minute cap is corrected to the original issue time plus 15 minutes without reopening admission', async t => {
+  const {g,pay,advance,db,clock}=await fixture(t);
+  g.bootstrap(card(),'owner',true);advance(10*60000);const p=pay();
+  const cutoff=Number(db.prepare("SELECT value FROM gateway_meta WHERE key='bootstrapExpiresAt'").get().value);
+  db.prepare('UPDATE payments SET expires_at=? WHERE id=?').run(cutoff,p.id);
+  g.disconnect('restart');g.setConnected();assert.equal(g.repairShortenedTimers(),1);
+  const fixed=g.view(g.own(p.id,'alice'));assert.equal(fixed.expiresAt-fixed.createdAt,900000);assert.ok(fixed.card);
+  advance(6*60000);assert.ok(g.view(g.own(p.id,'alice')).card);assert.equal(pay('new').status,'manual_review');
+  assert.equal(g.repairShortenedTimers(),0);
+});
+
+test('legacy internally expired cap can be repaired only within its original 15-minute window; source stops never revive', async t => {
+  const {g,pay,advance,db,feed}=await fixture(t);
+  g.bootstrap(card(),'owner',true);advance(10*60000);const p=pay();
+  const cutoff=Number(db.prepare("SELECT value FROM gateway_meta WHERE key='bootstrapExpiresAt'").get().value);
+  db.prepare("UPDATE payments SET expires_at=?,status='awaiting_receipt',reason='expired' WHERE id=?").run(cutoff,p.id);
+  db.prepare('UPDATE gateway_cards SET active=0,version=version+1').run();
+  db.prepare("DELETE FROM gateway_meta WHERE key='bootstrapExpiresAt'").run();advance(6*60000);
+  assert.equal(g.repairShortenedTimers(),1);assert.ok(g.view(g.own(p.id,'alice')).card);
+  feed(stop(A));assert.equal(g.repairShortenedTimers(),0);assert.equal(g.view(g.own(p.id,'alice')).card,null);
+});

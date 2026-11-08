@@ -34,6 +34,8 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
   const recipient = () => /^-?\d+$/.test(config().receiptRecipient) ? config().receiptRecipient : meta('recipientId');
   const healthy = () => connected && now() - lastPoll < 8_000;
   const ready = () => config().enabled && !!env.GATEWAY_BOT_TOKEN && healthy();
+  const bootstrapOpen = () => !Number(meta('bootstrapExpiresAt') ?? 0) || now() < Number(meta('bootstrapExpiresAt'));
+  const issuable = () => ready() && bootstrapOpen();
   const transaction = (fn) => {
     db.exec('BEGIN IMMEDIATE');
     try { const result = fn(); db.exec('COMMIT'); return result; } catch (e) { db.exec('ROLLBACK'); throw e; }
@@ -53,7 +55,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
   }
   // Persisted cards are never assumed current after a restart.
   disconnect('restart');
-  const providers = createProviderRegistry([createCardProvider({ db, available: ready })]);
+  const providers = createProviderRegistry([createCardProvider({ db, available: issuable })]);
   function saveConfig(input) {
     const c = { ...config(), ...input };
     if (typeof c.enabled !== 'boolean' || !/^-100\d{5,20}$/.test(c.sourceChatId ?? '') || !/^(?:@?[a-zA-Z][a-zA-Z0-9_]{4,31}|\d{1,20})$/.test(c.sourceSender ?? '') || !/^(?:@?[a-zA-Z][a-zA-Z0-9_]{4,31}|-?\d{1,20})$/.test(c.receiptRecipient ?? '') || !/^[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(c.botUsername ?? '')) error('Проверьте чат, отправителя и получателя квитанций');
@@ -76,12 +78,41 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
   function reconcile() {
     expire();
     const bootstrapExpiry = Number(meta('bootstrapExpiresAt') ?? 0);
-    if (bootstrapExpiry && bootstrapExpiry <= now()) {
-      transaction(() => { db.prepare('UPDATE gateway_cards SET active=0,version=version+1 WHERE active=1').run(); invalidate('bootstrap_expired'); db.prepare("DELETE FROM gateway_meta WHERE key='bootstrapExpiresAt'").run(); });
-      events.emit('change');
+    if (bootstrapExpiry && bootstrapExpiry <= now() && !db.prepare("SELECT id FROM payments WHERE status='awaiting_transfer' LIMIT 1").get()) {
+      // Admission closes at the bootstrap deadline. Already issued transfers keep
+      // their own 15-minute lease; explicit source stops still revoke immediately.
+      const result = db.prepare('UPDATE gateway_cards SET active=0,version=version+1 WHERE active=1').run();
+      if (result.changes) events.emit('change');
     }
     if (connected && !healthy()) disconnect();
 
+  }
+  function repairShortenedTimers() {
+    const bootAt = Number(meta('bootstrapAt') ?? 0), cutoff = bootAt + PAYMENT_TTL;
+    // Repair only the old bootstrap cap, never a source stop, receipt, retry or a
+    // genuinely elapsed 15-minute transfer. Run after draining Telegram updates.
+    if (!bootAt || meta('lastFeedAt')) return 0;
+    if (!meta('bootstrapExpiresAt')) setMeta('bootstrapExpiresAt', cutoff);
+    const candidates = db.prepare(`SELECT p.*,c.active AS card_active,c.version AS current_card_version
+      FROM payments p JOIN gateway_cards c ON c.number=p.card
+      WHERE p.created_at>=? AND p.created_at<? AND p.expires_at=? AND p.created_at+?>?
+      AND p.expires_at<p.created_at+?
+      AND (p.status='awaiting_transfer' OR (p.status='awaiting_receipt' AND p.reason='expired') OR (p.status='invalidated' AND p.reason='restart'))
+      AND NOT EXISTS(SELECT 1 FROM gateway_receipts r WHERE r.payment_id=p.id)
+      AND NOT EXISTS(SELECT 1 FROM payments child WHERE child.retry_of=p.id)`).all(bootAt,cutoff,cutoff,PAYMENT_TTL,now(),PAYMENT_TTL);
+    let count = 0;
+    transaction(() => {
+      for (const p of candidates) {
+        const unchanged = p.card_active && p.current_card_version === p.card_version;
+        const legacyExpiry = !p.card_active && p.current_card_version === p.card_version + 1;
+        if (!unchanged && !legacyExpiry) continue;
+        db.prepare('UPDATE gateway_cards SET active=1 WHERE number=?').run(p.card);
+        db.prepare("UPDATE payments SET status='awaiting_transfer',reason='',expires_at=?,card_version=? WHERE id=?").run(p.created_at+PAYMENT_TTL,p.current_card_version,p.id);
+        db.prepare('INSERT INTO audit(action,at) VALUES(?,?)').run('payment.timer_cap_repaired:'+p.id,now());
+        count++;
+      }
+    });
+    return count;
   }
   function row(id) { return db.prepare('SELECT * FROM payments WHERE id=?').get(id); }
   function view(p) {
@@ -129,9 +160,9 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
   function issue(visitorId, telegramId, items, note, amountMinor, currency, retryOf = null) {
     const chosen = providers.choose({ amountMinor, currency });
     const id = 'FK-' + randomUUID().slice(0, 12).toUpperCase();
-    const reason = chosen ? '' : !ready() ? 'gateway_unavailable' : currency !== 'RUB' ? 'currency' : !db.prepare('SELECT number FROM gateway_cards WHERE active=1 LIMIT 1').get() ? (meta('lastFeedAt') ? 'source_stopped' : 'source_unseen') : 'limits';
-    db.prepare('INSERT INTO payments(id,visitor_id,telegram_id,items,note,amount_minor,currency,provider,status,card,card_version,expires_at,created_at,reason,retry_of,receipt_token) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(id, visitorId, telegramId ?? '', JSON.stringify(items), note, amountMinor, currency, chosen?.provider.id ?? 'manual', chosen ? 'awaiting_transfer' : 'manual_review', chosen?.card.number ?? null, chosen?.card.version ?? null, chosen ? Math.min(now() + PAYMENT_TTL, Number(meta('bootstrapExpiresAt') ?? Infinity)) : null, now(), reason, retryOf, randomUUID().replaceAll('-', ''));
-    if (!chosen) queue('manual', id, { text: `Нужна помощь с оплатой · ${id}\nСумма: ${amountMinor / 100} ${currency}\nПокупатель Telegram ID: ${telegramId || 'не определён'}\n${items.map(i => `${i.title} × ${i.quantity}`).join('\n')}\nКомментарий: ${note || '—'}\nПричина: ${{gateway_unavailable: 'Автоматическая выдача сейчас недоступна', currency: 'Нужно согласовать валюту и способ оплаты', limits: 'Нет карты с подходящими лимитами', source_unseen: 'Ещё не получено объявление реквизитов из источника', source_stopped: 'Источник остановил реквизиты'}[reason]}` }, 'manual:' + id);
+    const reason = chosen ? '' : !ready() ? 'gateway_unavailable' : !bootstrapOpen() ? 'source_confirmation_expired' : currency !== 'RUB' ? 'currency' : !db.prepare('SELECT number FROM gateway_cards WHERE active=1 LIMIT 1').get() ? (meta('lastFeedAt') ? 'source_stopped' : 'source_unseen') : 'limits';
+    db.prepare('INSERT INTO payments(id,visitor_id,telegram_id,items,note,amount_minor,currency,provider,status,card,card_version,expires_at,created_at,reason,retry_of,receipt_token) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(id, visitorId, telegramId ?? '', JSON.stringify(items), note, amountMinor, currency, chosen?.provider.id ?? 'manual', chosen ? 'awaiting_transfer' : 'manual_review', chosen?.card.number ?? null, chosen?.card.version ?? null, chosen ? now() + PAYMENT_TTL : null, now(), reason, retryOf, randomUUID().replaceAll('-', ''));
+    if (!chosen) queue('manual', id, { text: `Нужна помощь с оплатой · ${id}\nСумма: ${amountMinor / 100} ${currency}\nПокупатель Telegram ID: ${telegramId || 'не определён'}\n${items.map(i => `${i.title} × ${i.quantity}`).join('\n')}\nКомментарий: ${note || '—'}\nПричина: ${{gateway_unavailable: 'Автоматическая выдача сейчас недоступна', currency: 'Нужно согласовать валюту и способ оплаты', limits: 'Нет карты с подходящими лимитами', source_unseen: 'Ещё не получено объявление реквизитов из источника', source_stopped: 'Источник остановил реквизиты', source_confirmation_expired: 'Срок начальной проверки истёк. Нужны новые реквизиты источника или подтверждение владельца'}[reason]}` }, 'manual:' + id);
     return view(row(id));
   }
   function retry(id, visitorId, input) {
@@ -349,7 +380,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
         setMeta('offset', update.update_id + 1);
       }
       lastPoll = now(); connected = updates.length < 100;
-      if (connected) { catchupCleared = false; setMeta('lastPollAt', now()); setMeta('pollError', ''); events.emit('change'); }
+      if (connected) { catchupCleared = false; setMeta('lastPollAt', now()); setMeta('pollError', ''); repairShortenedTimers(); events.emit('change'); }
     } catch (e) {
       if (!closed) { setMeta('pollError', e.telegramCode ?? e.code ?? 'connection_error'); disconnect(); }
     } finally {
@@ -363,7 +394,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
   function stop() { closed = true; clearTimeout(worker); clearInterval(tick); abort?.abort(); events.removeAllListeners(); }
   function admin() {
     reconcile();
-    return { config: config(), tokenConfigured: !!env.GATEWAY_BOT_TOKEN, connected: healthy(), recipientReady: !!recipient(), lastFeedAt: Number(meta('lastFeedAt') ?? 0), lastSourceMessageAt: Number(meta('lastSourceMessageAt') ?? 0), lastPollAt: Number(meta('lastPollAt') ?? 0), pollError: meta('pollError') ?? '', bootstrapExpiresAt: Number(meta('bootstrapExpiresAt') ?? 0), inbox: db.prepare('SELECT update_id AS updateId,message_id AS messageId,sender_username AS senderUsername,event_at AS eventAt,received_at AS receivedAt,outcome FROM gateway_inbox ORDER BY received_at DESC,update_id DESC LIMIT 10').all(), senderBound: !!meta('senderId'), pendingDeliveries: db.prepare("SELECT count(*) n FROM gateway_outbox WHERE status='pending'").get().n, cards: db.prepare('SELECT * FROM gateway_cards').all().map(c => ({ bank: c.bank, holder: c.holder, last4: c.number.slice(-4), min: c.min_minor / 100, max: c.max_minor / 100, active: !!c.active && ready() })), payments: db.prepare('SELECT * FROM payments ORDER BY created_at DESC LIMIT 100').all().map(p => ({ ...view(p), telegramId: p.telegram_id, note: p.note })) };
+    return { config: config(), tokenConfigured: !!env.GATEWAY_BOT_TOKEN, connected: healthy(), recipientReady: !!recipient(), lastFeedAt: Number(meta('lastFeedAt') ?? 0), lastSourceMessageAt: Number(meta('lastSourceMessageAt') ?? 0), lastPollAt: Number(meta('lastPollAt') ?? 0), pollError: meta('pollError') ?? '', bootstrapExpiresAt: Number(meta('bootstrapExpiresAt') ?? 0), inbox: db.prepare('SELECT update_id AS updateId,message_id AS messageId,sender_username AS senderUsername,event_at AS eventAt,received_at AS receivedAt,outcome FROM gateway_inbox ORDER BY received_at DESC,update_id DESC LIMIT 10').all(), senderBound: !!meta('senderId'), pendingDeliveries: db.prepare("SELECT count(*) n FROM gateway_outbox WHERE status='pending'").get().n, cards: db.prepare('SELECT * FROM gateway_cards').all().map(c => ({ bank: c.bank, holder: c.holder, last4: c.number.slice(-4), min: c.min_minor / 100, max: c.max_minor / 100, active: !!c.active && issuable() })), payments: db.prepare('SELECT * FROM payments ORDER BY created_at DESC LIMIT 100').all().map(p => ({ ...view(p), telegramId: p.telegram_id, note: p.note })) };
   }
-  return { receipts: id => db.prepare('SELECT r.id,r.created_at AS createdAt,f.mime FROM gateway_receipts r LEFT JOIN gateway_receipt_files f ON f.id=r.id WHERE payment_id=? ORDER BY r.created_at').all(id), receiptFile: id => db.prepare('SELECT data,mime FROM gateway_receipt_files WHERE id=?').get(id), bootstrap: (text, actor, confirmed) => { const result = bootstrapRequisites(db,text,{actor,confirmed,now:now()}); events.emit('change'); return result; }, config, saveConfig, create, retry, upload, view, own, admin, confirm, receiveFeed, processUpdate, flush, start, stop, disconnect, events, list: (visitorId) => { reconcile(); return db.prepare('SELECT * FROM payments WHERE visitor_id=? ORDER BY created_at DESC LIMIT 100').all(visitorId).map(view); }, setConnected: () => { connected = true; lastPoll = now(); setMeta('lastPollAt', now()); } };
+  return { repairShortenedTimers, receipts: id => db.prepare('SELECT r.id,r.created_at AS createdAt,f.mime FROM gateway_receipts r LEFT JOIN gateway_receipt_files f ON f.id=r.id WHERE payment_id=? ORDER BY r.created_at').all(id), receiptFile: id => db.prepare('SELECT data,mime FROM gateway_receipt_files WHERE id=?').get(id), bootstrap: (text, actor, confirmed) => { const result = bootstrapRequisites(db,text,{actor,confirmed,now:now()}); events.emit('change'); return result; }, config, saveConfig, create, retry, upload, view, own, admin, confirm, receiveFeed, processUpdate, flush, start, stop, disconnect, events, list: (visitorId) => { reconcile(); return db.prepare('SELECT * FROM payments WHERE visitor_id=? ORDER BY created_at DESC LIMIT 100').all(visitorId).map(view); }, setConnected: () => { connected = true; lastPoll = now(); setMeta('lastPollAt', now()); } };
 }
