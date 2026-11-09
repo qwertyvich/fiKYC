@@ -26,32 +26,34 @@ export function validateChannelFile(input, catalog, now = Date.now()) {
   if (typeof input !== 'string' || Buffer.byteLength(input, 'utf8') > 1024 * 1024) fail('Загрузите JSON-файл размером до 1 МБ');
   try { data = JSON.parse(input.replace(/^\uFEFF/, '')); } catch { fail('Не удалось прочитать JSON. Проверьте кавычки, запятые и скобки.'); }
   if (!data || data.version !== 1 || !Array.isArray(data.products) || data.products.length > 1000) fail('Нужны version: 1 и массив products (до 1000 товаров)');
-  const ids = new Set(); let total = 0, scheduled = 0;
-  const products = data.products.map((p, index) => {
+  const ids = new Set(); let total = 0, scheduled = 0, placeholders = 0, draftProducts = 0;
+  const products = data.products.flatMap((p, index) => {
     const prefix = `Товар ${index + 1}`;
     if (!p || typeof p !== 'object') fail(`${prefix}: проверьте запись`);
     const id = text(p.id, `${prefix}, id`, 100);
     if (!catalog.products.some(product => product.id === id)) fail(`${prefix}: ID «${id}» отсутствует в каталоге. Скопируйте его из вкладки импорта.`);
     if (ids.has(id)) fail(`${prefix}: ID «${id}» повторяется`); ids.add(id);
     const name = text(p.name, `${prefix}, name`, 200);
-    if (!Number.isSafeInteger(p.buyers) || p.buyers < 0 || p.buyers > 1000000000) fail(`${prefix}, buyers: целое число от 0 до 1 000 000 000`);
     const mark = p.mark ?? null;
     if (mark !== null && (typeof mark !== 'number' || !Number.isFinite(mark) || mark < 1 || mark > 5 || Math.abs(mark * 10 - Math.round(mark * 10)) > 1e-8)) fail(`${prefix}, mark: оценка от 1 до 5 с одним знаком после точки или null`);
     if (!Array.isArray(p.reviews) || p.reviews.length > 5000) fail(`${prefix}: нужен массив reviews (до 5000 отзывов)`);
     const reviewIds = new Set();
-    const reviews = p.reviews.map((r, i) => {
+    const reviews = p.reviews.flatMap((r, i) => {
       const label = `${prefix}, отзыв ${i + 1}`;
       if (!r || typeof r !== 'object') fail(`${label}: проверьте запись`);
       const reviewId = text(r.id, `${label}, id`, 150);
       if (reviewIds.has(reviewId)) fail(`${label}: ID «${reviewId}» повторяется`); reviewIds.add(reviewId);
       if (!Number.isInteger(r.mark) || r.mark < 1 || r.mark > 5) fail(`${label}, mark: целое число от 1 до 5`);
+      if (r.name === '' && r.date === '' && r.text === '') { placeholders++; return []; }
       const createdAt = date(r.date, `${label}, date`); if (createdAt > now) scheduled++; total++;
       if (total > 10000) fail('В одном файле допускается до 10 000 отзывов');
-      return {id: reviewId, name: text(r.name, `${label}, name`, 60), mark: r.mark, text: text(r.text, `${label}, text`, 2000), date: r.date, createdAt};
+      return [{id: reviewId, name: text(r.name, `${label}, name`, 60), mark: r.mark, text: text(r.text, `${label}, text`, 2000), date: r.date, createdAt}];
     });
-    return {id, name, buyers: p.buyers, mark, reviews};
+    if (p.buyers === null && mark === null && !reviews.length) { draftProducts++; return []; }
+    if (!Number.isSafeInteger(p.buyers) || p.buyers < 0 || p.buyers > 1000000000) fail(`${prefix}, buyers: заполните реальное число покупателей — целое число от 0 до 1 000 000 000`);
+    return [{id, name, buyers: p.buyers, mark, reviews}];
   });
-  return {version: 1, products, summary: {products: products.length, reviews: total, scheduled}};
+  return {version: 1, products, summary: {products: products.length, reviews: total, scheduled, ...(placeholders ? {placeholders} : {}), ...(draftProducts ? {draftProducts} : {})}};
 }
 
 export function createChannelImport({db, state, now = Date.now}) {
@@ -70,6 +72,7 @@ export function createChannelImport({db, state, now = Date.now}) {
   }
   function stage(raw, filename) {
     const data = inspect(raw), at = now();
+    if (!data.products.length && data.summary.draftProducts) fail('В файле пока только незаполненные товары. Заполните данные хотя бы одного товара перед сохранением.');
     const name = typeof filename === 'string' ? filename.replace(/[\x00-\x1f/\\]/g, '').slice(0, 160) : 'channel-import.json';
     db.prepare("UPDATE channel_import_file SET pending_json=?,pending_filename=?,pending_at=?,pending_apply_at=?,error='' WHERE id=1").run(raw, name || 'channel-import.json', at, nextImportAt(at));
     db.prepare('INSERT INTO audit(action,at) VALUES(?,?)').run('channel-import.staged', at);

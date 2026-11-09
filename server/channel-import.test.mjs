@@ -85,3 +85,25 @@ test('saved files survive restarts and a missed midnight is caught up on startup
   clock.at=nextImportAt(clock.at)+3600000;
   const two=await fixture(t,{dbPath,clock});assert.equal(two.channelImport.status().pending,false);assert.equal(two.channelImport.status().activeFilename,'example.json');assert.equal(two.db.prepare('SELECT count(*) n FROM reviews').get().n,2);
 });
+
+test('all-product template follows the catalog, varies slot counts from 50 to 7 and never publishes blank placeholders',async t=>{
+  const f=await fixture(t);
+  const {channelImportTemplate}=await import('../src/channel-import-template.ts');
+  const catalog=f.catalog();catalog.productOrder=[...catalog.products].reverse().map(p=>p.id);
+  const template=channelImportTemplate(catalog);const counts=template.products.map(p=>p.reviews.length);
+  assert.equal(template.products.length,catalog.products.length);assert.equal(template.products[0].id,catalog.productOrder[0]);
+  assert.equal(counts[0],50);assert.equal(counts.at(-1),7);assert.ok(counts.every(n=>n>=7&&n<=50));assert.ok(counts.some((n,i)=>i>0&&n>counts[i-1]));assert.equal(counts[Math.floor(counts.length*.45)],40);
+  const raw=()=>JSON.stringify(template);let parsed=f.channelImport.inspect(raw());assert.equal(parsed.products.length,0);assert.equal(parsed.summary.reviews,0);assert.equal(parsed.summary.placeholders,counts.reduce((s,n)=>s+n,0));
+  assert.throws(()=>f.channelImport.stage(raw(),'blank.json'),/незаполненные товары/);
+  const p=template.products[0];p.buyers=12;Object.assign(p.reviews[0],{name:'Анна',mark:4,date:'2026-11-08 14:30',text:'Перенесённый реальный отзыв'});
+  parsed=f.channelImport.inspect(raw());assert.equal(parsed.products.length,1);assert.equal(parsed.summary.reviews,1);assert.equal(parsed.products[0].reviews.length,1);
+  f.channelImport.stage(raw(),'filled.json');f.clock.at=nextImportAt(f.clock.at);f.channelImport.runScheduled();
+  assert.equal(f.db.prepare('SELECT count(*) n FROM reviews').get().n,1);assert.equal(f.channelImport.status().importedProducts,1);
+});
+test('partly filled placeholders report errors and cannot silently turn into imported reviews',async t=>{
+  const f=await fixture(t);const p=f.data.products[0];p.reviews=[{id:'blank',name:'',mark:5,date:'',text:''}];p.buyers=null;p.mark=null;
+  assert.equal(f.channelImport.inspect(f.raw()).summary.reviews,0);
+  p.reviews[0].name='Анна';assert.throws(()=>f.channelImport.inspect(f.raw()),/date/);
+  Object.assign(p.reviews[0],{date:'2026-11-08 14:30',text:'Реальный текст'});assert.throws(()=>f.channelImport.inspect(f.raw()),/buyers/);
+  p.buyers=0;assert.equal(f.channelImport.inspect(f.raw()).summary.reviews,1);
+});

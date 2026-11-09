@@ -16,7 +16,10 @@ try{
  const downloadPromise=admin.waitForEvent('download');await admin.getByRole('button',{name:'Скачать заполненный пример'}).click();const download=await downloadPromise;const template=JSON.parse(await readFile(await download.path(),'utf8'));
  assert.equal(template.products[0].id,'claude-kyc');
  template.products[0].reviews[0].text='Архивный отзыв из Telegram';template.products[0].reviews[1].text='Отзыв с будущей датой';template.products[0].reviews[1].date='2026-11-11 14:30';
+ const allDownloadPromise=admin.waitForEvent('download');await admin.getByRole('button',{name:'Скачать шаблон всех товаров'}).click();const allDownload=await allDownloadPromise;const allTemplate=JSON.parse(await readFile(await allDownload.path(),'utf8'));
+ assert.equal(allTemplate.products.length,53);assert.equal(allTemplate.products[0].reviews.length,50);assert.equal(allTemplate.products.at(-1).reviews.length,7);
  const input=admin.getByLabel('Файл импорта из Telegram');
+ await input.setInputFiles({name:'all-products.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(allTemplate))});await expect(admin.getByRole('button',{name:'Сохранить для ночного обновления'})).toBeDisabled();await expect(admin.getByText(/Пустых заготовок:/)).toBeVisible();
  await input.setInputFiles({name:'broken.json',mimeType:'application/json',buffer:Buffer.from('{}')});await expect(admin.getByRole('alert')).toContainText('version');
  await input.setInputFiles({name:'channel.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(template))});
  await expect(admin.getByText(/из них с будущей датой — 1/)).toBeVisible();await admin.getByRole('button',{name:'Сохранить для ночного обновления'}).click();await expect(admin.locator('.channel-import').getByRole('status')).toContainText('Файл сохранён');
@@ -30,5 +33,5 @@ try{
  await admin.setViewportSize({width:1280,height:900});await admin.screenshot({path:new URL('admin-desktop.png',out).pathname,fullPage:true});
  await admin.setViewportSize({width:320,height:780});assert.ok(await admin.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await admin.screenshot({path:new URL('admin-narrow.png',out).pathname,fullPage:true});
  assert.equal((await buyerCtx.request.get(base+'/api/admin/channel-import/file')).status(),401);
- assert.deepEqual(errors,[]);await writeFile(new URL('result.json',out),JSON.stringify({ok:true,checks:['admin-only import','filled download','invalid format','preview','midnight staging','Moscow scheduling','public imported stats','source attribution','future hidden','exact date visible','320px','desktop','no Telegram calls'],browserErrors:errors},null,2));console.log('Channel import browser checks passed');await buyerCtx.close();
+ assert.deepEqual(errors,[]);await writeFile(new URL('result.json',out),JSON.stringify({ok:true,checks:['admin-only import','filled download','all-products download','blank placeholders blocked','invalid format','preview','midnight staging','Moscow scheduling','public imported stats','source attribution','future hidden','exact date visible','320px','desktop','no Telegram calls'],browserErrors:errors},null,2));console.log('Channel import browser checks passed');await buyerCtx.close();
 }finally{await browser.close();await new Promise(r=>app.server.close(r));}
