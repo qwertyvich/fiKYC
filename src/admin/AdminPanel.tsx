@@ -1,4 +1,5 @@
 import { GatewayPage } from './GatewayPage';
+import { ChannelImportPage } from './ChannelImportPage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard,
@@ -24,6 +25,7 @@ import {
   X,
   Search,
   Ban,
+  FileUp,
 } from 'lucide-react';
 import { api, mutation, invalidatePublic, type AdminState, type SiteSettings } from '../api';
 import { telegram } from '../telegram';
@@ -52,6 +54,7 @@ const pages = [
     caption: 'Обратная связь под вашим контролем',
   },
   { id: 'links', label: 'Прямые ссылки', icon: Link2, caption: 'Из сообщения — прямо к товару' },
+  { id: 'channel-import', label: 'Импорт из Telegram', icon: FileUp, caption: 'Отзывы и покупки из вашего канала' },
   {
     id: 'analytics',
     label: 'Аналитика',
@@ -602,6 +605,7 @@ export function AdminPanel({
           )}
           {current.id === 'blacklist' && <BlacklistManager notify={notify} />}
           {current.id === 'gateway' && <GatewayPage/>}
+          {current.id === 'channel-import' && <ChannelImportPage state={state}/>}
           {current.id === 'settings' && <SettingsPage state={state} busy={busy} save={save} />}
           <footer className="a-page-footer">
             <span>

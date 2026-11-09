@@ -11,6 +11,9 @@ export interface Review {
   status: 'published' | 'hidden' | 'pending';
   reply: string;
   own?: boolean;
+  source?: 'telegram';
+  externalId?: string;
+  scheduled?: boolean;
 }
 let cached: Review[] = [];
 const listeners = new Set<() => void>();

@@ -1,0 +1,34 @@
+import {chromium,expect} from '@playwright/test';
+import assert from 'node:assert/strict';
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
+import {createApp} from '../server/index.mjs';
+import {nextImportAt} from '../server/channel-import.mjs';
+let at=Date.parse('2026-11-09T12:00:00+03:00');
+const app=await createApp({dbPath:':memory:',gatewayWorker:false,importNow:()=>at,env:{NODE_ENV:'test',ADMIN_PASSWORD:'fixture',BOT_TOKEN:'',GATEWAY_BOT_TOKEN:''}});
+await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+app.server.address().port;
+const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE}:{})});
+const ctx=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce',acceptDownloads:true});await ctx.route('https://telegram.org/**',r=>r.fulfill({body:''}));
+const admin=await ctx.newPage();const errors=[];admin.on('pageerror',e=>errors.push(e.message));
+const out=new URL('../qa/channel-import/',import.meta.url);await mkdir(out,{recursive:true});
+try{
+ await admin.goto(base+'/#/admin/channel-import');await admin.getByLabel(/Пароль/).fill('fixture');await admin.getByRole('button',{name:/Войти/}).click();
+ await expect(admin.getByRole('heading',{name:'Импорт из Telegram',exact:true,level:1})).toBeVisible();
+ const downloadPromise=admin.waitForEvent('download');await admin.getByRole('button',{name:'Скачать заполненный пример'}).click();const download=await downloadPromise;const template=JSON.parse(await readFile(await download.path(),'utf8'));
+ assert.equal(template.products[0].id,'claude-kyc');
+ template.products[0].reviews[0].text='Архивный отзыв из Telegram';template.products[0].reviews[1].text='Отзыв с будущей датой';template.products[0].reviews[1].date='2026-11-11 14:30';
+ const input=admin.getByLabel('Файл импорта из Telegram');
+ await input.setInputFiles({name:'broken.json',mimeType:'application/json',buffer:Buffer.from('{}')});await expect(admin.getByRole('alert')).toContainText('version');
+ await input.setInputFiles({name:'channel.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(template))});
+ await expect(admin.getByText(/из них с будущей датой — 1/)).toBeVisible();await admin.getByRole('button',{name:'Сохранить для ночного обновления'}).click();await expect(admin.locator('.channel-import').getByRole('status')).toContainText('Файл сохранён');
+ assert.equal(app.db.prepare('SELECT count(*) n FROM reviews').get().n,0);
+ await admin.screenshot({path:new URL('staged-mobile.png',out).pathname,fullPage:true});
+ at=nextImportAt(at);app.channelImport.runScheduled();await admin.getByRole('button',{name:'Обновить состояние'}).click();await expect(admin.getByText('Импортировано: 1 товаров · 2 отзывов · ожидают даты: 1')).toBeVisible();
+ const buyerCtx=await browser.newContext({viewport:{width:390,height:844}});await buyerCtx.route('https://telegram.org/**',r=>r.fulfill({body:''}));const buyer=await buyerCtx.newPage();buyer.on('pageerror',e=>errors.push(e.message));
+ await buyer.goto(base+'/#/product/claude-kyc');await expect(buyer.getByText('Архивный отзыв из Telegram',{exact:true})).toBeVisible();await expect(buyer.getByText('Отзыв с будущей датой',{exact:true})).toHaveCount(0);await expect(buyer.getByText('Из Telegram',{exact:true})).toBeVisible();await expect(buyer.locator('.rating-summary').first()).toContainText('4,7');await expect(buyer.locator('.buyer-count').first()).toContainText('128');
+ await buyer.screenshot({path:new URL('imported-review-mobile.png',out).pathname,fullPage:true});
+ at=Date.parse('2026-11-11T14:30:00+03:00');await buyer.reload();await expect(buyer.getByText('Отзыв с будущей датой',{exact:true})).toBeVisible();
+ await admin.setViewportSize({width:1280,height:900});await admin.screenshot({path:new URL('admin-desktop.png',out).pathname,fullPage:true});
+ await admin.setViewportSize({width:320,height:780});assert.ok(await admin.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await admin.screenshot({path:new URL('admin-narrow.png',out).pathname,fullPage:true});
+ assert.equal((await buyerCtx.request.get(base+'/api/admin/channel-import/file')).status(),401);
+ assert.deepEqual(errors,[]);await writeFile(new URL('result.json',out),JSON.stringify({ok:true,checks:['admin-only import','filled download','invalid format','preview','midnight staging','Moscow scheduling','public imported stats','source attribution','future hidden','exact date visible','320px','desktop','no Telegram calls'],browserErrors:errors},null,2));console.log('Channel import browser checks passed');await buyerCtx.close();
+}finally{await browser.close();await new Promise(r=>app.server.close(r));}

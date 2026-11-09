@@ -12,6 +12,7 @@ import { defaultSettings, parseSettings, directLink, eventTypes } from './settin
 import { createAccess, blacklistValue } from './access.mjs';
 import { analytics } from './analytics.mjs';
 import { createGateway } from './gateway/gateway.mjs';
+import { createChannelImport } from './channel-import.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export async function createApp(options = {}) {
@@ -158,12 +159,17 @@ export async function createApp(options = {}) {
     reply: r.reply,
     createdAt: new Date(r.created_at).toISOString(),
     updatedAt: new Date(r.updated_at).toISOString(),
+    ...(r.external_id ? { source: 'telegram', externalId: r.external_id, scheduled: r.status === 'published' && r.created_at > (options.importNow?.() ?? Date.now()) } : {}),
   });
   const paymentOwner = (req, res) => {
     const v = visitor(req, res), user = access.identity(req);
     return user?.id ? 'tg:' + user.id : v;
   };
   const gateway = createGateway({ db, env, state, now: options.gatewayNow, botCall: options.gatewayBotCall });
+  const channelImport = createChannelImport({db,state,now:options.importNow});
+  channelImport.runScheduled();
+  const importTimer = setInterval(() => channelImport.runScheduled(), 30000);
+  importTimer.unref();
   const server = createServer(async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -199,7 +205,7 @@ export async function createApp(options = {}) {
           s.settings;
         return send(res, {
           revision: s.revision,
-          catalog: publicCatalog(s.catalog),
+          catalog: channelImport.enrich(publicCatalog(s.catalog)),
           shop: s.shop,
           settings: publicSettings,
         });
@@ -246,6 +252,16 @@ export async function createApp(options = {}) {
       }
       if (path.startsWith('/api/admin/')) {
         if (!isAdmin(req)) fail('Войдите в панель администратора', 401);
+        if (path === '/api/admin/channel-import' && method === 'GET') return send(res, channelImport.status());
+        if (path === '/api/admin/channel-import/preview' && method === 'POST') {
+          const b = await body(req); const data = channelImport.inspect(b.text);
+          return send(res, {summary:data.summary, products:data.products.map(p=>({id:p.id,name:p.name,buyers:p.buyers,mark:p.mark,reviews:p.reviews.length,scheduled:p.reviews.filter(r=>r.createdAt>(options.importNow?.() ?? Date.now())).length}))});
+        }
+        if (path === '/api/admin/channel-import' && method === 'PUT') {
+          const b = await body(req); return send(res, channelImport.stage(b.text,b.filename));
+        }
+        if (path === '/api/admin/channel-import' && method === 'DELETE') return send(res, channelImport.cancel());
+        if (path === '/api/admin/channel-import/file' && method === 'GET') return send(res, channelImport.download());
         if (path === '/api/admin/blacklist' && method === 'GET')
           return send(
             res,
@@ -385,7 +401,7 @@ export async function createApp(options = {}) {
         if (path === '/api/admin/reviews' && method === 'GET')
           return send(
             res,
-            db.prepare('SELECT * FROM reviews ORDER BY updated_at DESC').all().map(reviewRow),
+            db.prepare('SELECT r.*,m.external_id FROM reviews r LEFT JOIN channel_review_map m ON m.review_id=r.id ORDER BY r.updated_at DESC').all().map(reviewRow),
           );
         if (/^\/api\/admin\/reviews\/[\w-]+$/.test(path) && method === 'PATCH') {
           const b = await body(req);
@@ -453,9 +469,9 @@ export async function createApp(options = {}) {
           s = state();
         const rows = db
           .prepare(
-            "SELECT * FROM reviews WHERE status='published' OR visitor_id=? ORDER BY created_at DESC",
+            "SELECT r.*,m.external_id FROM reviews r LEFT JOIN channel_review_map m ON m.review_id=r.id WHERE (r.status='published' AND r.created_at<=?) OR r.visitor_id=? ORDER BY r.created_at DESC",
           )
-          .all(v);
+          .all(options.importNow?.() ?? Date.now(),v);
         return send(
           res,
           rows
@@ -641,11 +657,12 @@ export async function createApp(options = {}) {
   cleanup.unref();
   server.on('close', () => {
     clearInterval(cleanup);
+    clearInterval(importTimer);
     gateway.stop();
     db.close();
   });
   if (options.gatewayWorker !== false && env.NODE_ENV !== 'test') gateway.start();
-  return { server, db, gateway };
+  return { server, db, gateway, channelImport };
 }
 export async function startServer() {
   const { server } = await createApp();

@@ -5,7 +5,8 @@ export type Brand = typeof brands[number];
 export interface Group { id: string; title: string; icon: Brand; theme: Theme; visible: boolean }
 export type Currency = 'RUB' | 'USD';
 export interface OfferDetails { result: string; includes: string; requirements: string; region: string; term: string; fulfillment: string; refund: string }
-export interface Product { id: string; groupId: string; title: string; subtitle: string; description: string; price: number; currency?: Currency; stock: number; brand: Brand; badge: string; visible: boolean; saleMode?: 'fixed' | 'request'; requestKind?: RequestKind; acceptingRequests?: boolean; aliases?: string; buyerCount?: number; offer?: OfferDetails }
+export interface Product { id: string; groupId: string; title: string; subtitle: string; description: string; price: number; currency?: Currency; stock: number; brand: Brand; badge: string; visible: boolean; saleMode?: 'fixed' | 'request'; requestKind?: RequestKind; acceptingRequests?: boolean; aliases?: string; buyerCount?: number; channelStats?: ChannelStats; offer?: OfferDetails }
+export interface ChannelStats { buyers: number; mark: number | null }
 export interface Catalog { version: 1; groups: Group[]; products: Product[]; productOrder?: string[] }
 export type Sort = 'manual' | 'price-asc' | 'price-desc' | 'name';
 export interface CartItem { productId: string; quantity: number }

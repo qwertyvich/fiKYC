@@ -258,13 +258,14 @@ export function ReviewsManager({
     [reply, setReply] = useState(''),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
-  const published = reviews.filter((r) => r.status === 'published');
+  const published = reviews.filter((r) => r.status === 'published' && !r.scheduled);
   const avg = published.length
     ? (published.reduce((s, r) => s + r.rating, 0) / published.length).toFixed(1).replace('.', ',')
     : '—';
+  const inStatus = (r: Review, key: string) => key === 'all' || (key === 'scheduled' ? r.scheduled : key === 'published' ? r.status === 'published' && !r.scheduled : r.status === key);
   const filtered = reviews.filter(
     (r) =>
-      (status === 'all' || r.status === status) &&
+      inStatus(r, status) &&
       (product === 'all' || r.productId === product) &&
       `${r.author} ${r.text}`.toLowerCase().includes(query.toLowerCase()),
   );
@@ -305,6 +306,7 @@ export function ReviewsManager({
           [
             ['pending', 'На проверке'],
             ['published', 'Опубликованы'],
+            ['scheduled', 'Запланированы'],
             ['hidden', 'Скрыты'],
             ['all', 'Все'],
           ] as const
@@ -316,7 +318,7 @@ export function ReviewsManager({
             onClick={() => setStatus(key)}
           >
             {title}
-            <span>{reviews.filter((r) => key === 'all' || r.status === key).length}</span>
+            <span>{reviews.filter((r) => inStatus(r, key)).length}</span>
           </button>
         ))}
       </div>
@@ -348,7 +350,7 @@ export function ReviewsManager({
               <span className="a-client-avatar">{Array.from(review.author)[0]}</span>
               <div>
                 <b>{review.author}</b>
-                <small>{dateTime(review.createdAt)}</small>
+                <small>{dateTime(review.createdAt)}{review.source === 'telegram' && ' · Из Telegram'}</small>
               </div>
               <Badge
                 tone={
@@ -360,7 +362,7 @@ export function ReviewsManager({
                 }
               >
                 {review.status === 'published'
-                  ? 'Опубликован'
+                  ? (review.scheduled ? 'Запланирован' : 'Опубликован')
                   : review.status === 'pending'
                     ? 'На проверке'
                     : 'Скрыт'}
