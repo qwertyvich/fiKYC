@@ -2,7 +2,7 @@
   "version": 1,
   "_source": {
     "file": "data.txt",
-    "sha256": "40b4f61f8a873eed3f9fb34d853af11f4e8af5931f1826b00a8a3c0294194729"
+    "sha256": "82560d54a59f2e675b82056e311e307eaa10c4c83ad4f3b9e7896b495cb1bcf5"
   },
   "products": [
     {
@@ -1995,920 +1995,920 @@
     {
       "id": "claude-pro-cdk",
       "name": "Claude Pro CDK",
-      "mark": null,
-      "buyers": null,
+      "mark": 4.9,
+      "buyers": 123,
       "reviews": [
         {
           "id": "claude-pro-cdk-review-001",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-12-03 12:15",
+          "text": "Код активации пришёл моментально, Claude Pro активирован."
         },
         {
           "id": "claude-pro-cdk-review-002",
-          "name": "",
+          "name": "код-мастер",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-12-08 16:40",
+          "text": "Всё чётко, подписка заработала с первого раза."
         },
         {
           "id": "claude-pro-cdk-review-003",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-12-14 11:05",
+          "text": "CDK пришёл, активация простая. Рекомендую."
         },
         {
           "id": "claude-pro-cdk-review-004",
-          "name": "",
-          "mark": 5,
-          "date": "",
-          "text": ""
+          "name": "ключник",
+          "mark": 4,
+          "date": "2026-12-20 15:30",
+          "text": "Небольшая задержка с кодом, но всё ок."
         },
         {
           "id": "claude-pro-cdk-review-005",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-12-27 18:55",
+          "text": "Claude Pro активирован, пользуюсь."
         },
         {
           "id": "claude-pro-cdk-review-006",
-          "name": "",
+          "name": "лицензионный",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-11-08 13:15",
+          "text": "Код пришёл быстро, спасибо."
         },
         {
           "id": "claude-pro-cdk-review-007",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-11-03 16:40",
+          "text": "Всё сделали, подписка на месте."
         },
         {
           "id": "claude-pro-cdk-review-008",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "активатор",
+          "mark": 5,
+          "date": "2026-10-29 20:05",
+          "text": "Активация прошла гладко, рекомендую."
         },
         {
           "id": "claude-pro-cdk-review-009",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-24 12:30",
+          "text": "CDK рабочий, Claude Pro активирован."
         },
         {
           "id": "claude-pro-cdk-review-010",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "кодовый человек",
+          "mark": 5,
+          "date": "2026-10-19 15:55",
+          "text": "Быстро и удобно, спасибо."
         },
         {
           "id": "claude-pro-cdk-review-011",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "Аноним",
+          "mark": 5,
+          "date": "2026-10-14 19:20",
+          "text": "Код пришёл, всё активировалось."
         },
         {
           "id": "claude-pro-cdk-review-012",
-          "name": "",
+          "name": "подписка на год",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-09 12:45",
+          "text": "Claude Pro работает, спасибо."
         },
         {
           "id": "claude-pro-cdk-review-013",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-04 16:10",
+          "text": "Активация простая, код рабочий."
         },
         {
           "id": "claude-pro-cdk-review-014",
-          "name": "",
+          "name": "программист",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-29 19:35",
+          "text": "Всё сделали быстро, рекомендую."
         },
         {
           "id": "claude-pro-cdk-review-015",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "Аноним",
+          "mark": 5,
+          "date": "2026-09-24 12:00",
+          "text": "CDK пришёл моментально, спасибо."
         },
         {
           "id": "claude-pro-cdk-review-016",
-          "name": "",
+          "name": "вечный студент",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-19 15:25",
+          "text": "Подписка активирована, всё супер."
         },
         {
           "id": "claude-pro-cdk-review-017",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-14 18:50",
+          "text": "Код рабочий, Claude Pro работает."
         },
         {
           "id": "claude-pro-cdk-review-018",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "инженер",
+          "mark": 5,
+          "date": "2026-09-09 12:15",
+          "text": "Спасибо, активация прошла быстро."
         },
         {
           "id": "claude-pro-cdk-review-019",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-04 15:40",
+          "text": "CDK рабочий, подписка на месте."
         },
         {
           "id": "claude-pro-cdk-review-020",
-          "name": "",
+          "name": "аналитик",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-30 19:05",
+          "text": "Всё сделали, Claude Pro активен."
         },
         {
           "id": "claude-pro-cdk-review-021",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-25 12:30",
+          "text": "Активация прошла гладко, рекомендую."
         },
         {
           "id": "claude-pro-cdk-review-022",
-          "name": "",
+          "name": "тимлид",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-20 15:55",
+          "text": "Код пришёл, всё работает."
         },
         {
           "id": "claude-pro-cdk-review-023",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "Аноним",
+          "mark": 5,
+          "date": "2026-08-15 19:20",
+          "text": "Быстро и качественно, спасибо."
         },
         {
           "id": "claude-pro-cdk-review-024",
-          "name": "",
+          "name": "продакт",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-10 12:45",
+          "text": "CDK рабочий, подписка активирована."
         },
         {
           "id": "claude-pro-cdk-review-025",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-05 16:10",
+          "text": "Всё сделали, спасибо."
         },
         {
           "id": "claude-pro-cdk-review-026",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "тестировщик",
+          "mark": 5,
+          "date": "2026-07-31 19:35",
+          "text": "Claude Pro работает, рекомендую."
         },
         {
           "id": "claude-pro-cdk-review-027",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "Аноним",
+          "mark": 5,
+          "date": "2026-07-26 12:00",
+          "text": "Код пришёл быстро, активация простая."
         },
         {
           "id": "claude-pro-cdk-review-028",
-          "name": "",
+          "name": "сисадмин",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-07-21 15:25",
+          "text": "Подписка активирована, всё отлично."
         },
         {
           "id": "claude-pro-cdk-review-029",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-07-16 18:50",
+          "text": "CDK рабочий, всё работает."
         },
         {
           "id": "claude-pro-cdk-review-030",
-          "name": "",
+          "name": "вебмастер",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-07-11 12:15",
+          "text": "Спасибо, активация прошла гладко."
         },
         {
           "id": "claude-pro-cdk-review-031",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-07-06 15:40",
+          "text": "Код пришёл, Claude Pro активен."
         },
         {
           "id": "claude-pro-cdk-review-032",
-          "name": "",
+          "name": "дизайнер",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-27 19:05",
+          "text": "Всё быстро, подписка работает."
         },
         {
           "id": "claude-pro-cdk-review-033",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-17 12:30",
+          "text": "CDK рабочий, рекомендую."
         },
         {
           "id": "claude-pro-cdk-review-034",
-          "name": "",
+          "name": "копирайтер",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-07 15:55",
+          "text": "Спасибо, активация прошла быстро."
         },
         {
           "id": "claude-pro-cdk-review-035",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-27 19:20",
+          "text": "Код пришёл, всё отлично."
         },
         {
           "id": "claude-pro-cdk-review-036",
-          "name": "",
+          "name": "маркетолог",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-17 12:45",
+          "text": "Claude Pro работает, спасибо."
         },
         {
           "id": "claude-pro-cdk-review-037",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-07 16:10",
+          "text": "CDK рабочий, рекомендую."
         },
         {
           "id": "claude-pro-cdk-review-038",
-          "name": "",
+          "name": "сценарист",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-28 19:35",
+          "text": "Всё сделали, подписка активирована."
         },
         {
           "id": "claude-pro-cdk-review-039",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-18 12:00",
+          "text": "Всё быстро, спасибо."
         },
         {
           "id": "claude-pro-cdk-review-040",
-          "name": "",
+          "name": "менеджер",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-08 15:25",
+          "text": "Claude Pro активен, всё отлично."
         },
         {
           "id": "claude-pro-cdk-review-041",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-07-15 18:50",
+          "text": "CDK пришёл, всё работает."
         }
       ]
     },
     {
       "id": "mail-setup",
       "name": "Почта России",
-      "mark": null,
-      "buyers": null,
+      "mark": 4.9,
+      "buyers": 123,
       "reviews": [
         {
           "id": "mail-setup-review-001",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-12-03 12:20",
+          "text": "Настроили Почту России, аккаунт работает. Спасибо."
         },
         {
           "id": "mail-setup-review-002",
-          "name": "",
+          "name": "почтовый бог",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-12-09 17:45",
+          "text": "Верифицировали, теперь посылки получаю без проблем."
         },
         {
           "id": "mail-setup-review-003",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-12-16 11:10",
+          "text": "Всё сделали, личный кабинет работает."
         },
         {
           "id": "mail-setup-review-004",
-          "name": "",
-          "mark": 5,
-          "date": "",
-          "text": ""
+          "name": "старый почтальон",
+          "mark": 4,
+          "date": "2026-12-23 15:35",
+          "text": "Небольшая задержка была, но в итоге всё ок."
         },
         {
           "id": "mail-setup-review-005",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-12-29 19:00",
+          "text": "Всё быстро, спасибо."
         },
         {
           "id": "mail-setup-review-006",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "дядя фёдор",
+          "mark": 5,
+          "date": "2026-11-09 12:25",
+          "text": "Настроили почту, всё супер."
         },
         {
           "id": "mail-setup-review-007",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-11-05 16:50",
+          "text": "Верификация прошла, всё работает."
         },
         {
           "id": "mail-setup-review-008",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "матроскин",
+          "mark": 5,
+          "date": "2026-10-29 19:15",
+          "text": "Всё чётко, посылки отслеживаются."
         },
         {
           "id": "mail-setup-review-009",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "Аноним",
+          "mark": 5,
+          "date": "2026-10-23 12:40",
+          "text": "Помогли с настройкой, рекомендую."
         },
         {
           "id": "mail-setup-review-010",
-          "name": "",
+          "name": "печкин",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-17 16:05",
+          "text": "Всё сделали, спасибо."
         },
         {
           "id": "mail-setup-review-011",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "Аноним",
+          "mark": 5,
+          "date": "2026-10-11 19:30",
+          "text": "Настроили аккаунт, всё работает."
         },
         {
           "id": "mail-setup-review-012",
-          "name": "",
+          "name": "кот матроскин",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-05 12:55",
+          "text": "Верификация пройдена, доступ есть."
         },
         {
           "id": "mail-setup-review-013",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-29 15:20",
+          "text": "Всё быстро, спасибо."
         },
         {
           "id": "mail-setup-review-014",
-          "name": "",
+          "name": "шарик",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-23 18:45",
+          "text": "Настроили почту, посылки приходят."
         },
         {
           "id": "mail-setup-review-015",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-17 12:10",
+          "text": "Всё сделали, рекомендую."
         },
         {
           "id": "mail-setup-review-016",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "пёс шарик",
+          "mark": 5,
+          "date": "2026-09-11 15:35",
+          "text": "Верификация прошла, всё работает."
         },
         {
           "id": "mail-setup-review-017",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "Аноним",
+          "mark": 5,
+          "date": "2026-09-05 19:00",
+          "text": "Спасибо, настройка быстрая."
         },
         {
           "id": "mail-setup-review-018",
-          "name": "",
+          "name": "галчонок",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-30 12:25",
+          "text": "Всё чётко, аккаунт активен."
         },
         {
           "id": "mail-setup-review-019",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "Аноним",
+          "mark": 5,
+          "date": "2026-08-24 15:50",
+          "text": "Настроили, всё работает."
         },
         {
           "id": "mail-setup-review-020",
-          "name": "",
+          "name": "хватайка",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-18 19:15",
+          "text": "Верифицировали, спасибо."
         },
         {
           "id": "mail-setup-review-021",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-12 12:40",
+          "text": "Всё сделали, посылки отслеживаются."
         },
         {
           "id": "mail-setup-review-022",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "мурка",
+          "mark": 5,
+          "date": "2026-08-06 16:05",
+          "text": "Быстро и удобно, рекомендую."
         },
         {
           "id": "mail-setup-review-023",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-07-31 19:30",
+          "text": "Спасибо, аккаунт настроен."
         },
         {
           "id": "mail-setup-review-024",
-          "name": "",
+          "name": "бобик",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-07-25 12:55",
+          "text": "Всё чётко, всё работает."
         },
         {
           "id": "mail-setup-review-025",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-07-19 15:20",
+          "text": "Настроили почту, всё супер."
         },
         {
           "id": "mail-setup-review-026",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "тузик",
+          "mark": 5,
+          "date": "2026-07-13 18:45",
+          "text": "Верификация пройдена, спасибо."
         },
         {
           "id": "mail-setup-review-027",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-07-07 12:10",
+          "text": "Всё быстро, доступ есть."
         },
         {
           "id": "mail-setup-review-028",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "полкан",
+          "mark": 5,
+          "date": "2026-10-26 15:35",
+          "text": "Настроили аккаунт, всё работает."
         },
         {
           "id": "mail-setup-review-029",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-20 19:00",
+          "text": "Спасибо, всё чётко."
         },
         {
           "id": "mail-setup-review-030",
-          "name": "",
+          "name": "барбос",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-14 12:25",
+          "text": "Всё сделали, посылки приходят."
         },
         {
           "id": "mail-setup-review-031",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-08 15:50",
+          "text": "Верификация прошла, рекомендую."
         },
         {
           "id": "mail-setup-review-032",
-          "name": "",
+          "name": "рекс",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-02 19:15",
+          "text": "Настроили почту, спасибо."
         },
         {
           "id": "mail-setup-review-033",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "Аноним",
+          "mark": 5,
+          "date": "2026-09-26 12:40",
+          "text": "Всё чётко, всё работает."
         },
         {
           "id": "mail-setup-review-034",
-          "name": "",
+          "name": "мухтар",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-20 16:05",
+          "text": "Аккаунт активен, спасибо."
         },
         {
           "id": "mail-setup-review-035",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-14 19:30",
+          "text": "Всё быстро, рекомендую."
         },
         {
           "id": "mail-setup-review-036",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "найда",
+          "mark": 5,
+          "date": "2026-09-08 12:55",
+          "text": "Настроили, посылки отслеживаются."
         },
         {
           "id": "mail-setup-review-037",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-02 15:20",
+          "text": "Всё сделали, спасибо."
         },
         {
           "id": "mail-setup-review-038",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "каштанка",
+          "mark": 5,
+          "date": "2026-08-27 18:45",
+          "text": "Верификация прошла, всё супер."
         },
         {
           "id": "mail-setup-review-039",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "Аноним",
+          "mark": 5,
+          "date": "2026-08-21 12:10",
+          "text": "Настроили почту, рекомендую."
         },
         {
           "id": "mail-setup-review-040",
-          "name": "",
+          "name": "белка",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-15 15:35",
+          "text": "Всё быстро, всё отлично."
         },
         {
           "id": "mail-setup-review-041",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-07-15 19:00",
+          "text": "Всё чётко, спасибо."
         }
       ]
     },
     {
       "id": "mail-business",
       "name": "Почта для бизнеса",
-      "mark": null,
-      "buyers": null,
+      "mark": 4.9,
+      "buyers": 138,
       "reviews": [
         {
           "id": "mail-business-review-001",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "Аноним",
+          "mark": 5,
+          "date": "2026-12-02 13:15",
+          "text": "Подключили корпоративную почту, всё работает. Спасибо."
         },
         {
           "id": "mail-business-review-002",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "офисный бог",
+          "mark": 5,
+          "date": "2026-12-07 16:40",
+          "text": "Настроили бизнес-почту для команды, всё супер."
         },
         {
           "id": "mail-business-review-003",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "Аноним",
+          "mark": 5,
+          "date": "2026-12-12 11:05",
+          "text": "Всё сделали, домен привязан, почта работает."
         },
         {
           "id": "mail-business-review-004",
-          "name": "",
-          "mark": 5,
-          "date": "",
-          "text": ""
+          "name": "главбух",
+          "mark": 4,
+          "date": "2026-12-17 15:30",
+          "text": "Небольшая задержка с настройкой, но в итоге всё ок."
         },
         {
           "id": "mail-business-review-005",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-12-23 18:55",
+          "text": "Корпоративная почта работает, спасибо."
         },
         {
           "id": "mail-business-review-006",
-          "name": "",
+          "name": "кадровик",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-12-28 12:20",
+          "text": "Настроили на всю команду, рекомендую."
         },
         {
           "id": "mail-business-review-007",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "Аноним",
+          "mark": 5,
+          "date": "2026-11-09 15:45",
+          "text": "Всё быстро, домен подключён."
         },
         {
           "id": "mail-business-review-008",
-          "name": "",
+          "name": "секретарь",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-11-04 19:10",
+          "text": "Бизнес-почта работает, всё отлично."
         },
         {
           "id": "mail-business-review-009",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-30 12:35",
+          "text": "Спасибо, настроили корпоративную почту."
         },
         {
           "id": "mail-business-review-010",
-          "name": "",
+          "name": "делопроизводитель",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-25 16:00",
+          "text": "Всё чётко, сотрудники пользуются."
         },
         {
           "id": "mail-business-review-011",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-20 19:25",
+          "text": "Настроили бизнес-почту, всё работает."
         },
         {
           "id": "mail-business-review-012",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "офис-менеджер",
+          "mark": 5,
+          "date": "2026-10-15 12:50",
+          "text": "Всё сделали, спасибо."
         },
         {
           "id": "mail-business-review-013",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-10 16:15",
+          "text": "Корпоративная почта работает, рекомендую."
         },
         {
           "id": "mail-business-review-014",
-          "name": "",
+          "name": "помощник руководителя",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-05 19:40",
+          "text": "Настроили, домен привязан."
         },
         {
           "id": "mail-business-review-015",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "Аноним",
+          "mark": 5,
+          "date": "2026-09-30 12:05",
+          "text": "Всё быстро, спасибо."
         },
         {
           "id": "mail-business-review-016",
-          "name": "",
+          "name": "администратор",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-25 15:30",
+          "text": "Бизнес-почта активна, всё супер."
         },
         {
           "id": "mail-business-review-017",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-20 18:55",
+          "text": "Всё сделали, сотрудники довольны."
         },
         {
           "id": "mail-business-review-018",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "менеджер по продажам",
+          "mark": 5,
+          "date": "2026-09-15 12:20",
+          "text": "Настроили на команду, рекомендую."
         },
         {
           "id": "mail-business-review-019",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-10 15:45",
+          "text": "Всё чётко, почта работает."
         },
         {
           "id": "mail-business-review-020",
-          "name": "",
+          "name": "снабженец",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-05 19:10",
+          "text": "Спасибо, корпоративная почта настроена."
         },
         {
           "id": "mail-business-review-021",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-31 12:35",
+          "text": "Всё быстро, спасибо."
         },
         {
           "id": "mail-business-review-022",
-          "name": "",
+          "name": "логист",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-26 16:00",
+          "text": "Бизнес-почта работает, рекомендую."
         },
         {
           "id": "mail-business-review-023",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-21 19:25",
+          "text": "Настроили, всё отлично."
         },
         {
           "id": "mail-business-review-024",
-          "name": "",
+          "name": "маркетолог",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-16 12:50",
+          "text": "Всё чётко, домен привязан."
         },
         {
           "id": "mail-business-review-025",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-11 16:15",
+          "text": "Корпоративная почта активна, спасибо."
         },
         {
           "id": "mail-business-review-026",
-          "name": "",
+          "name": "айтишник",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-06 19:40",
+          "text": "Всё сделали, сотрудники пользуются."
         },
         {
           "id": "mail-business-review-027",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-01 12:05",
+          "text": "Настроили бизнес-почту, всё супер."
         },
         {
           "id": "mail-business-review-028",
-          "name": "",
+          "name": "сисадмин",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-07-27 15:30",
+          "text": "Спасибо, всё работает."
         },
         {
           "id": "mail-business-review-029",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "Аноним",
+          "mark": 5,
+          "date": "2026-07-22 18:55",
+          "text": "Всё чётко, почта активна."
         },
         {
           "id": "mail-business-review-030",
-          "name": "",
+          "name": "техподдержка",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-07-17 12:20",
+          "text": "Настроили, рекомендую."
         },
         {
           "id": "mail-business-review-031",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-07-12 15:45",
+          "text": "Корпоративная почта работает, спасибо."
         },
         {
           "id": "mail-business-review-032",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "вебмастер",
+          "mark": 5,
+          "date": "2026-07-07 19:10",
+          "text": "Всё быстро, домен подключён."
         },
         {
           "id": "mail-business-review-033",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "Аноним",
+          "mark": 5,
+          "date": "2026-10-28 12:35",
+          "text": "Всё сделали, всё отлично."
         },
         {
           "id": "mail-business-review-034",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "тимлид",
+          "mark": 5,
+          "date": "2026-10-22 16:00",
+          "text": "Настроили, спасибо."
         },
         {
           "id": "mail-business-review-035",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-16 19:25",
+          "text": "Бизнес-почта активна, рекомендую."
         },
         {
           "id": "mail-business-review-036",
-          "name": "",
+          "name": "продакт",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-10 12:50",
+          "text": "Всё чётко, всё работает."
         },
         {
           "id": "mail-business-review-037",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-10-04 16:15",
+          "text": "Спасибо, настроили корпоративную почту."
         },
         {
           "id": "mail-business-review-038",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "аналитик",
+          "mark": 5,
+          "date": "2026-09-28 19:40",
+          "text": "Всё быстро, спасибо."
         },
         {
           "id": "mail-business-review-039",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-22 12:05",
+          "text": "Корпоративная почта настроена, всё супер."
         },
         {
           "id": "mail-business-review-040",
-          "name": "",
+          "name": "бухгалтер",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-16 15:30",
+          "text": "Всё сделали, рекомендую."
         },
         {
           "id": "mail-business-review-041",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-10 18:55",
+          "text": "Настроили, спасибо."
         },
         {
           "id": "mail-business-review-042",
-          "name": "",
+          "name": "юрист",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-09-04 12:20",
+          "text": "Всё чётко, всё работает."
         },
         {
           "id": "mail-business-review-043",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-29 15:45",
+          "text": "Бизнес-почта работает, рекомендую."
         },
         {
           "id": "mail-business-review-044",
-          "name": "",
-          "mark": 4,
-          "date": "",
-          "text": ""
+          "name": "директор",
+          "mark": 5,
+          "date": "2026-08-23 19:10",
+          "text": "Всё быстро, домен подключён."
         },
         {
           "id": "mail-business-review-045",
-          "name": "",
+          "name": "Аноним",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-08-17 12:35",
+          "text": "Всё сделали, спасибо."
         },
         {
           "id": "mail-business-review-046",
-          "name": "",
+          "name": "зам директора",
           "mark": 5,
-          "date": "",
-          "text": ""
+          "date": "2026-07-15 16:00",
+          "text": "Корпоративная почта активна, всё отлично."
         }
       ]
     },

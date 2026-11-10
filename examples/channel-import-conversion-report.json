@@ -1,36 +1,19 @@
 {
-  "checkedAt": "2026-11-10T14:35:00.185Z",
+  "checkedAt": "2026-11-10T14:46:56.772Z",
   "applyAt": "2026-11-10T21:00:00.000Z",
   "summaryAtApply": {
-    "products": 50,
-    "reviews": 1359,
-    "scheduled": 311,
-    "placeholders": 128,
-    "draftProducts": 3
+    "products": 53,
+    "reviews": 1487,
+    "scheduled": 327
   },
-  "sourceRows": 1491,
+  "sourceRows": 1619,
   "duplicatesRemoved": 132,
   "summary": {
-    "products": 50,
-    "reviews": 1359,
-    "scheduled": 312,
-    "placeholders": 128,
-    "draftProducts": 3
+    "products": 53,
+    "reviews": 1487,
+    "scheduled": 328
   },
-  "missingProducts": [
-    {
-      "id": "claude-pro-cdk",
-      "name": "Claude Pro CDK"
-    },
-    {
-      "id": "mail-setup",
-      "name": "Почта России"
-    },
-    {
-      "id": "mail-business",
-      "name": "Почта для бизнеса"
-    }
-  ],
+  "missingProducts": [],
   "corrections": [
     {
       "line": 567,
