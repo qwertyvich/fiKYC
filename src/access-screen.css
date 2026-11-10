@@ -29,6 +29,15 @@
   padding: 20px 0 30px;
   min-height: 0;
 }
+.access-screen--loading main > img {
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+}
+.access-screen--loading h1 {
+  font-size: 22px;
+  letter-spacing: -0.4px;
+}
 .access-art {
   width: 215px;
   height: 230px;
