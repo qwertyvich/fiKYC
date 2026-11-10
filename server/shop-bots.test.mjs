@@ -24,10 +24,10 @@ test('tokens are encrypted, excluded from admin/public output and shared identit
 });
 test('menu links resolve to exact product/section and priority changes only the chosen funnel',async t=>{
  const app=await fixture(t);const bot=app.shopBots.getRow('123456789');app.shopBots.setEmojiManifest({claude:{id:'5208665212483310136'},next:{id:'5354815888639942120'}});
- const m=app.shopBots.menu(bot);assert.deepEqual(m.reply_markup.inline_keyboard.slice(0,4).map(r=>r[0].text),['Вериф Claude','Аккаунты Claude','✨ Аккаунты нейросетей','✉️ Аккаунты почтовых сервисов']);
+ const m=app.shopBots.menu(bot);assert.deepEqual(m.reply_markup.inline_keyboard.slice(0,4).map(r=>r[0].text),['Верификация Claude','Аккаунты Claude','✨ Аккаунты нейросетей','✉️ Аккаунты почтовых сервисов']);
  const first=m.reply_markup.inline_keyboard[0][0];assert.equal(first.icon_custom_emoji_id,'5208665212483310136');const code=new URL(first.web_app.url).searchParams.get('ref').slice(2);const resolved=await fetch(app.base+'/api/links/'+code).then(r=>r.json());assert.equal(resolved.productId,'claude-kyc');
  await app.shopBots.save({token:secondary,theme:'claude',priority:'group:mail'});const m2=app.shopBots.menu(app.shopBots.getRow('234567890'));assert.match(m2.reply_markup.inline_keyboard[0][0].text,/почтовых/);
- assert.equal(app.shopBots.menu(bot).reply_markup.inline_keyboard[0][0].text,'Вериф Claude');
+ assert.equal(app.shopBots.menu(bot).reply_markup.inline_keyboard[0][0].text,'Верификация Claude');
  for(const b of m.reply_markup.inline_keyboard.flat())assert.ok(!b.style||b.style==='success');
  assert.match(app.shopBots.menu(bot,999).caption,/4 \/ 4$/);
 });

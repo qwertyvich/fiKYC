@@ -75,7 +75,7 @@ export function createShopBots({ db, env, state, botCall, now = Date.now, assets
     const {catalog} = state();
     const visible = catalog.products.filter(p => p.visible && catalog.groups.some(g => g.id === p.groupId && g.visible));
     const result = [
-      ...['claude-kyc'].flatMap(id => visible.some(p=>p.id===id) ? [{key:'product:'+id,label:'Вериф Claude',kind:'product',id,icon:'claude',fallback:'🟠'}] : []),
+      ...['claude-kyc'].flatMap(id => visible.some(p=>p.id===id) ? [{key:'product:'+id,label:'Верификация Claude',kind:'product',id,icon:'claude',fallback:'🟠'}] : []),
       ...catalog.groups.filter(g=>g.visible).map(g=>({key:'group:'+g.id, label:g.id==='ai'?'Аккаунты нейросетей':g.id==='mail'?'Аккаунты почтовых сервисов':g.id==='claude'?'Аккаунты Claude':g.title,kind:'group',id:g.id,icon:g.id,fallback:g.id==='mail'?'✉️':g.id==='ai'?'✨':g.id==='claude'?'🟠':'▸'})),
     ];
     const first = ['product:claude-kyc','group:claude','group:ai','group:mail'];
