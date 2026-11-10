@@ -8,12 +8,13 @@ revision=${2:?Commit required}
 test -f "$release/dist/index.html"
 test -f /opt/fikus-miniapp/shared/.env
 shared=/opt/fikus-miniapp/shared
+source "$release/deploy/site-host.sh"
 backup="$shared/backups/$(date -u +%Y%m%dT%H%M%SZ)-$revision"
 install -d -m 700 "$backup"
-cp -a /etc/nginx/sites-available/kyc.kraken892.rest "$backup/kyc.nginx.conf"
+cp -a "/etc/nginx/sites-available/$fikus_host" "$backup/kyc.nginx.conf"
 readlink -f /opt/fikus-miniapp/current > "$backup/previous-release"
 docker inspect --format '{{.Name}} {{.Id}} {{.State.StartedAt}}' $(docker ps -q) | awk '$1 != "/fikus-app-1"' | sort > "$backup/containers.before"
-find /etc/nginx/sites-available /etc/nginx/conf.d -maxdepth 1 -type f ! -name kyc.kraken892.rest -exec sha256sum {} + | sort > "$backup/nginx-others.before"
+find /etc/nginx/sites-available /etc/nginx/conf.d -maxdepth 1 -type f ! -name "$fikus_host" -exec sha256sum {} + | sort > "$backup/nginx-others.before"
 export FIKUS_RELEASE="$revision" FIKUS_RELEASE_DIR="$release"
 compose=(docker compose -p fikus -f "$release/deploy/compose.production.yml")
 # Build before switching the site; other projects stay running.
@@ -37,9 +38,10 @@ curl --fail --silent --show-error --max-time 10 http://127.0.0.1:8787/api/health
 previous=$(cat "$backup/previous-release")
 # Preserve old hashed assets for browser tabs already open at deployment time.
 if test -d "$previous/dist/assets"; then cp -an "$previous/dist/assets/." "$release/dist/assets/"; fi
-install -m 644 "$release/deploy/kyc.nginx.conf" /etc/nginx/sites-available/kyc.kraken892.rest
+sed "s/__FIKUS_HOST__/$fikus_host/g" "$release/deploy/kyc.nginx.conf" > "$backup/next.nginx.conf"
+install -m 644 "$backup/next.nginx.conf" "/etc/nginx/sites-available/$fikus_host"
 if ! nginx -t; then
-  cp -a "$backup/kyc.nginx.conf" /etc/nginx/sites-available/kyc.kraken892.rest
+  cp -a "$backup/kyc.nginx.conf" "/etc/nginx/sites-available/$fikus_host"
   echo "Nginx validation failed; prior vhost restored. Backup: $backup"
   exit 1
 fi
@@ -48,13 +50,13 @@ mv -Tf /opt/fikus-miniapp/current.next /opt/fikus-miniapp/current
 if ! systemctl reload nginx; then
   ln -s "$previous" /opt/fikus-miniapp/current.rollback
   mv -Tf /opt/fikus-miniapp/current.rollback /opt/fikus-miniapp/current
-  cp -a "$backup/kyc.nginx.conf" /etc/nginx/sites-available/kyc.kraken892.rest
+  cp -a "$backup/kyc.nginx.conf" "/etc/nginx/sites-available/$fikus_host"
   nginx -t && systemctl reload nginx
   echo 'Previous frontend and vhost restored'; exit 1
 fi
 probe_https() {
   for attempt in $(seq 1 15); do
-    if curl --resolve kyc.kraken892.rest:443:127.0.0.1 --fail --silent --show-error --max-time 10 https://kyc.kraken892.rest/api/health | python3 -c 'import json,sys;sys.exit(0 if json.load(sys.stdin).get("ok") is True else 1)' 2>/dev/null; then return 0; fi
+    if curl --resolve "$fikus_host:443:127.0.0.1" --fail --silent --show-error --max-time 10 "https://$fikus_host/api/health" | python3 -c 'import json,sys;sys.exit(0 if json.load(sys.stdin).get("ok") is True else 1)' 2>/dev/null; then return 0; fi
     sleep 1
   done
   return 1
@@ -62,15 +64,15 @@ probe_https() {
 if ! probe_https; then
   ln -s "$previous" /opt/fikus-miniapp/current.rollback
   mv -Tf /opt/fikus-miniapp/current.rollback /opt/fikus-miniapp/current
-  cp -a "$backup/kyc.nginx.conf" /etc/nginx/sites-available/kyc.kraken892.rest
+  cp -a "$backup/kyc.nginx.conf" "/etc/nginx/sites-available/$fikus_host"
   nginx -t && systemctl reload nginx
   echo 'HTTPS health check failed; previous frontend and vhost restored'; exit 1
 fi
 # Make the active service manageable without typing release variables each time.
-printf 'FIKUS_RELEASE=%s\nFIKUS_RELEASE_DIR=%s\n' "$revision" "$release" > "$shared/release.env"
+printf 'FIKUS_RELEASE=%s\nFIKUS_RELEASE_DIR=%s\nFIKUS_HOST=%s\n' "$revision" "$release" "$fikus_host" > "$shared/release.env"
 chmod 600 "$shared/release.env"
 cp "$release/deploy/compose.production.yml" "$shared/compose.production.yml"
-find /etc/nginx/sites-available /etc/nginx/conf.d -maxdepth 1 -type f ! -name kyc.kraken892.rest -exec sha256sum {} + | sort > "$backup/nginx-others.after"
+find /etc/nginx/sites-available /etc/nginx/conf.d -maxdepth 1 -type f ! -name "$fikus_host" -exec sha256sum {} + | sort > "$backup/nginx-others.after"
 diff -u "$backup/nginx-others.before" "$backup/nginx-others.after"
 while read -r name id started; do
   actual=$(docker inspect --format '{{.Name}} {{.Id}} {{.State.StartedAt}}' "$id")

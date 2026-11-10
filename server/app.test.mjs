@@ -289,6 +289,12 @@ test('SQLite retains catalog across server restarts', async (t) => {
   assert.equal(second.db.prepare('SELECT revision FROM state').get().revision, 42);
   second.db.close();
 });
+test('only explicitly configured legacy origins retain access after a domain migration',async t=>{
+ const {admin}=await fixture(t,':memory:',{NODE_ENV:'production',PUBLIC_ORIGIN:'https://kyc.example.test',PUBLIC_ORIGIN_ALIASES:'https://old.example.test'});
+ assert.equal((await admin('/admin/login','POST',{initData:signed()},{Origin:'https://old.example.test'})).status,200);
+ assert.equal((await admin('/admin/login','POST',{initData:signed()},{Origin:'https://kyc.example.test'})).status,200);
+ for(const origin of ['https://untrusted.test','https://old.example.test.attacker.test','http://old.example.test'])assert.equal((await admin('/admin/login','POST',{initData:signed()},{Origin:origin})).status,403);
+});
 
 test('long activity histories expose older events and sessions through pagination', async (t) => {
   const { admin, client } = await fixture(t),

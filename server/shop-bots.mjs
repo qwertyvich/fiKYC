@@ -195,7 +195,8 @@ export function createShopBots({ db, env, state, botCall, now = Date.now, assets
     if(page<pages-1)nav.push(decorate({text:'Далее',callback_data:'menu:'+(page+1),style:'success'},'next','→'));
     if(nav.length)keyboard.push(nav);
     keyboard.push([decorate({text:'Весь каталог',web_app:{url:origin()},style:'success'},'catalog','🟢')]);
-    const support=state().settings.sellerUsername || 'tcmai';
+    const current=state();
+    const support=current.shop?.supportTelegram || current.settings.sellerUsername || 'tcmai';
     keyboard.push([decorate({text:'Помощь менеджера',url:'https://t.me/'+support.replace(/^@/,'')},'support','💬')]);
     const caption = r.theme==='claude'
       ? '<b>Claude в фиКУС</b>\nВерификация на ваш аккаунт, готовые аккаунты и другие цифровые сервисы.\n\nВыберите услугу кнопкой ниже ↓'

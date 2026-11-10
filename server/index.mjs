@@ -214,6 +214,7 @@ export async function createApp(options = {}) {
           `${env.NODE_ENV === 'production' ? 'https' : 'http'}://${req.headers.host}`;
         const allowedOrigins = [
           allowed,
+          ...(env.PUBLIC_ORIGIN_ALIASES ?? '').split(',').map(s=>s.trim()).filter(Boolean),
           ...(env.NODE_ENV !== 'production'
             ? [env.DEV_ORIGIN ?? 'http://127.0.0.1:5174', 'http://localhost:5174']
             : []),

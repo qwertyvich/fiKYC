@@ -1,6 +1,6 @@
 # Telegram: оформление и воронки
 
-Админка: `https://kyc.kraken892.rest/#/admin/bots`, вход подтверждённого продавца через Telegram.
+Админка: `https://kyc.ggsellik.click/#/admin/bots`, вход подтверждённого продавца через Telegram.
 
 Для каждого бота задаются тема (фиКУС / Claude), название, описание, краткое описание и первый раздел меню. Сначала сохраните настройки, затем нажмите «Применить оформление»: это установит анимированную аватарку, тексты, команды и кнопку «Каталог». Сообщения пользователям при применении оформления не отправляются.
 
@@ -18,7 +18,7 @@
 
 Комплект: `/branding/telegram/fikus-telegram-branding.zip`. Исходные PNG, готовые JPG и MP4 аватары бота/оператора в обеих темах; GIF/MP4 описания 640×360; MP4 меню. Ролики H.264, yuv420p, 6 секунд, 15 кадров/с, без звука; GIF 12 кадров/с. Исходники генерации изображений и спецификации: `docs/TELEGRAM_BRANDING_PROMPTS.md`. Сборка анимации: `FFMPEG_PATH=/path/to/ffmpeg PLAYWRIGHT_CHROMIUM_EXECUTABLE=/path/to/chromium node scripts/render-telegram-branding.mjs`.
 
-Картинку/анимацию блока описания Bot API устанавливать не умеет: загрузите `<theme>-description.gif` через **BotFather → /mybots → бот → Edit Bot → Edit Description Picture**. Аватарку личного аккаунта оператора установите в его профиле вручную; для неё есть JPG и MP4. Основное Mini App новых ботов включается в BotFather с URL `https://kyc.kraken892.rest/`; кнопки меню открывают Mini App и без этой настройки.
+Картинку/анимацию блока описания Bot API устанавливать не умеет: загрузите `<theme>-description.gif` через **BotFather → /mybots → бот → Edit Bot → Edit Description Picture**. Аватарку личного аккаунта оператора установите в его профиле вручную; для неё есть JPG и MP4. Основное Mini App новых ботов включается в BotFather с URL текущего магазина `https://kyc.ggsellik.click/`; кнопки меню открывают Mini App и без этой настройки.
 
 ## Значки и цвета
 

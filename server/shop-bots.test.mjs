@@ -57,6 +57,12 @@ test('profile apply changes bot settings only and is protected by seller login',
  await app.shopBots.apply('123456789');assert.deepEqual(app.calls.map(c=>c.method),['setMyProfilePhoto','setMyName','setMyDescription','setMyShortDescription','setMyCommands','setChatMenuButton']);
  assert.ok(app.calls.every(c=>!('chat_id' in c.payload)));assert.equal(app.shopBots.getRow('123456789').applied_at>0,true);
 });
+test('manager button follows the public support contact without changing the seller identity',async t=>{
+ const app=await fixture(t);const s=app.db.prepare('SELECT shop,settings FROM state').get();
+ const shop={...JSON.parse(s.shop),supportTelegram:'phiKYC'},settings={...JSON.parse(s.settings),sellerUsername:'original_seller'};
+ app.db.prepare('UPDATE state SET shop=?,settings=?').run(JSON.stringify(shop),JSON.stringify(settings));
+ const menu=app.shopBots.menu(app.shopBots.getRow('123456789'));assert.equal(menu.reply_markup.inline_keyboard.at(-1)[0].url,'https://t.me/phiKYC');assert.equal(JSON.parse(app.db.prepare('SELECT settings FROM state').get().settings).sellerUsername,'original_seller');
+});
 test('a blocked recipient does not block another private menu and custom avatars remain private',async t=>{
  const app=await fixture(t,{call:async(_,method,payload)=>{if(method==='sendAnimation'&&payload.chat_id===777)throw Object.assign(new Error('Forbidden: bot was blocked'),{telegramCode:403});}});
  const r=app.shopBots.getRow('123456789'),date=Math.floor(Date.now()/1000);
