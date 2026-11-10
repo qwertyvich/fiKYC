@@ -1,5 +1,6 @@
 import { GatewayPage } from './GatewayPage';
 import { ChannelImportPage } from './ChannelImportPage';
+import { BotsPage } from './BotsPage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard,
@@ -69,6 +70,7 @@ const pages = [
   },
   { id: 'blacklist', label: 'Чёрный список', icon: Ban, caption: 'Кому доступен ваш магазин' },
   { id: 'gateway', label: 'Оплаты', icon: ShieldCheck, caption: 'Реквизиты, квитанции и проверка оплат' },
+  { id: 'bots', label: 'Боты и оформление', icon: MessageSquare, caption: 'Воронки, меню и оформление Telegram' },
   { id: 'settings', label: 'Настройки', icon: Settings2, caption: 'Общие настройки в одном месте' },
 ];
 export function AdminPanel({
@@ -605,6 +607,7 @@ export function AdminPanel({
           )}
           {current.id === 'blacklist' && <BlacklistManager notify={notify} />}
           {current.id === 'gateway' && <GatewayPage/>}
+          {current.id === 'bots' && <BotsPage/>}
           {current.id === 'channel-import' && <ChannelImportPage state={state}/>}
           {current.id === 'settings' && <SettingsPage state={state} busy={busy} save={save} />}
           <footer className="a-page-footer">

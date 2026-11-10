@@ -15,7 +15,7 @@ export function blacklistValue(value) {
     throw new Error('Укажите @username или числовой Telegram ID');
   return { type: 'username', value: username };
 }
-export function createAccess({ db, env, state, cookies, setCookie }) {
+export function createAccess({ db, env, state, cookies, setCookie, botTokens = () => env.BOT_TOKEN }) {
   const addColumns = (table, columns) => {
     const existing = db
       .prepare(`PRAGMA table_info(${table})`)
@@ -39,7 +39,7 @@ export function createAccess({ db, env, state, cookies, setCookie }) {
   const proofKey = Symbol('telegram-proof');
   function proof(req) {
     if (!(proofKey in req))
-      req[proofKey] = telegramUser(req.headers['x-telegram-init-data'], env.BOT_TOKEN);
+      req[proofKey] = telegramUser(req.headers['x-telegram-init-data'], botTokens());
     return req[proofKey];
   }
   const visitorRow = (req) => {

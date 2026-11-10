@@ -3087,3 +3087,4 @@ body:has(.admin-app) {
 .a-cover-preview>.product-cover,.a-cover-preview>.clawd-product{width:100%;height:100%}
 .a-image-upload{display:flex!important;gap:10px;flex-wrap:wrap;align-items:center;padding:14px;border:1px dashed var(--border);border-radius:12px}
 .a-image-upload input{width:100%;min-width:0}
+.a-bots-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0}.a-bot-identity{display:flex;gap:14px;align-items:center}.a-bot-identity img{width:76px;height:76px;border-radius:50%;object-fit:cover;flex:none}.a-bot-identity h3{margin:0 0 5px}.a-bot-identity a{display:inline-flex;gap:6px;align-items:center}.a-bot-identity small{display:block;margin-top:6px}.a-bot-status{font-size:12px;opacity:.65}.a-bot-assets video{width:100%;aspect-ratio:16/9;border-radius:18px;background:#f4f2ea}.a-bot-assets .a-bots-toolbar a{font-size:12px}.a-bot-card small{font-size:12px;opacity:.7}

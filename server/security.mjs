@@ -5,6 +5,13 @@ export function equal(a, b) {
   return timingSafeEqual(Buffer.from(digest(a)), Buffer.from(digest(b)));
 }
 export function telegramUser(initData, botToken, now = Date.now()) {
+  if (Array.isArray(botToken)) {
+    for (const candidate of botToken) {
+      const user = telegramUser(initData, candidate, now);
+      if (user) return user;
+    }
+    return null;
+  }
   if (!botToken || typeof initData !== 'string' || initData.length > 16000) return null;
   try {
     const params = new URLSearchParams(initData);

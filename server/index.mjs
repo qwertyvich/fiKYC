@@ -14,6 +14,7 @@ import { analytics } from './analytics.mjs';
 import { createGateway } from './gateway/gateway.mjs';
 import { createChannelImport } from './channel-import.mjs';
 import { createProductImages, MAX_IMAGE_BYTES } from './product-images.mjs';
+import { createShopBots } from './shop-bots.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export async function createApp(options = {}) {
@@ -129,7 +130,8 @@ export async function createApp(options = {}) {
     const old = res.getHeader('set-cookie') ?? [];
     res.setHeader('set-cookie', [...(Array.isArray(old) ? old : [old]), cookie]);
   }
-  const access = createAccess({ db, env, state, cookies, setCookie });
+  const shopBots = createShopBots({db,env,state,botCall:options.shopBotCall,now:options.shopBotNow,assetsRoot:options.botAssetsRoot ?? resolve(root,'dist/branding/telegram')});
+  const access = createAccess({ db, env, state, cookies, setCookie, botTokens:shopBots.tokens });
   const isAdmin = access.admin;
   const visitor = access.visitor;
   async function body(req) {
@@ -251,12 +253,12 @@ export async function createApp(options = {}) {
           authenticated: isAdmin(req),
           seller: access.seller(access.proof(req)),
           localAdminLogin: access.localAdminAllowed(req),
-          telegramAvailable: !!env.BOT_TOKEN,
+          telegramAvailable: shopBots.tokens().length > 0,
         });
       if (path === '/api/admin/login' && method === 'POST') {
         limit('login:' + (req.socket.remoteAddress ?? ''), 10, 15 * 60000);
         const b = await body(req);
-        const user = telegramUser(b.initData ?? req.headers['x-telegram-init-data'], env.BOT_TOKEN);
+        const user = telegramUser(b.initData ?? req.headers['x-telegram-init-data'], shopBots.tokens());
         const passwordOk =
           access.localAdminAllowed(req) &&
           !!env.ADMIN_PASSWORD &&
@@ -288,6 +290,24 @@ export async function createApp(options = {}) {
       }
       if (path.startsWith('/api/admin/')) {
         if (!isAdmin(req)) fail('Войдите в панель администратора', 401);
+        if (path === '/api/admin/bots' && method === 'GET') return send(res,shopBots.list());
+        if (path === '/api/admin/bots' && method === 'POST') {
+          limit('bot-connect',15,3600000);const result=await shopBots.save(await body(req));audit('shop-bot.add:'+result.id);return send(res,result,201);
+        }
+        const botAvatarRoute=path.match(/^\/api\/admin\/bots\/(\d+)\/avatar$/);
+        if(botAvatarRoute){
+          const id=botAvatarRoute[1];
+          if(method==='GET'){const a=shopBots.avatar(id);if(!a)fail('Аватар не найден',404);res.writeHead(200,{'Content-Type':'image/jpeg','Cache-Control':'private, no-store'});return res.end(a.data);}
+          if(method==='DELETE'){await body(req);audit('shop-bot.avatar-reset:'+id);return send(res,shopBots.resetAvatar(id));}
+          if(method==='POST'){limit('bot-avatar',30,3600000);let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>MAX_IMAGE_BYTES)fail('Аватар — до 2 МБ',413);chunks.push(chunk);}const result=shopBots.saveAvatar(id,Buffer.concat(chunks));audit('shop-bot.avatar:'+id);return send(res,result);}
+        }
+        const shopBotRoute=path.match(/^\/api\/admin\/bots\/(\d+)(\/branding)?$/);
+        if(shopBotRoute) {
+          const id=shopBotRoute[1];
+          if(shopBotRoute[2] && method==='POST'){await body(req);const result=await shopBots.apply(id);audit('shop-bot.branding:'+id);return send(res,result);}
+          if(!shopBotRoute[2] && method==='PATCH'){const result=await shopBots.save(await body(req),id);audit('shop-bot.update:'+id);return send(res,result);}
+          if(!shopBotRoute[2] && method==='DELETE'){await body(req);const result=shopBots.remove(id);audit('shop-bot.remove:'+id);return send(res,result);}
+        }
         if (path === '/api/admin/product-images' && method === 'POST') {
           limit('product-image-upload',80,3600000);
           if(Number(req.headers['content-length'])>MAX_IMAGE_BYTES)fail('Изображение — до 2 МБ',413);
@@ -683,6 +703,9 @@ export async function createApp(options = {}) {
         '.webp': 'image/webp',
         '.woff2': 'font/woff2',
         '.gif': 'image/gif',
+        '.jpg': 'image/jpeg',
+        '.mp4': 'video/mp4',
+        '.zip': 'application/zip',
         '.avif': 'image/avif',
       };
       res.writeHead(200, {
@@ -715,10 +738,12 @@ export async function createApp(options = {}) {
     clearInterval(cleanup);
     clearInterval(importTimer);
     gateway.stop();
+    shopBots.stop();
     db.close();
   });
   if (options.gatewayWorker !== false && env.NODE_ENV !== 'test') gateway.start();
-  return { server, db, gateway, channelImport };
+  if (options.shopBotWorker !== false && env.NODE_ENV !== 'test') server.once('listening',()=>void shopBots.start());
+  return { server, db, gateway, channelImport, shopBots };
 }
 export async function startServer() {
   const { server } = await createApp();

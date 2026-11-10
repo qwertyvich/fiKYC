@@ -1,0 +1,98 @@
+{
+  "claude": {
+    "id": "5208665212483310136",
+    "pack": "DCMoji",
+    "index": 6,
+    "label": "Логотип Claude / Anthropic"
+  },
+  "ai": {
+    "id": "5357314052072692864",
+    "pack": "SberCX_emoji",
+    "index": 29,
+    "label": "Нейросети"
+  },
+  "mail": {
+    "id": "5357050826412018659",
+    "pack": "SberCX_emoji",
+    "index": 41,
+    "label": "Почтовые сервисы"
+  },
+  "next": {
+    "id": "5354815888639942120",
+    "pack": "SberCX_emoji",
+    "index": 51,
+    "label": "Далее"
+  },
+  "back": {
+    "id": "5357165441909279397",
+    "pack": "SberCX_emoji",
+    "index": 53,
+    "label": "Назад"
+  },
+  "catalog": {
+    "id": "5400216914184133759",
+    "pack": "SberCX_emoji",
+    "index": 108,
+    "label": "Каталог"
+  },
+  "support": {
+    "id": "5440513044679516533",
+    "pack": "SberCX_emoji",
+    "index": 11,
+    "label": "Поддержка"
+  },
+  "verification": {
+    "id": "5355268603962743353",
+    "pack": "SberCX_emoji",
+    "index": 45,
+    "label": "Верификация"
+  },
+  "gifts": {
+    "id": "5368516976048104432",
+    "pack": "SberCX_emoji",
+    "index": 60,
+    "label": "Подарки"
+  },
+  "topups": {
+    "id": "5402507012221195537",
+    "pack": "SberCX_emoji",
+    "index": 130,
+    "label": "Пополнения"
+  },
+  "wallets": {
+    "id": "5397586104981403273",
+    "pack": "DCMoji",
+    "index": 27,
+    "label": "Кошельки"
+  },
+  "exchanges": {
+    "id": "5465368548702446780",
+    "pack": "DCMoji",
+    "index": 107,
+    "label": "Обмен"
+  },
+  "identity": {
+    "id": "5393540894328643995",
+    "pack": "SberCX_emoji",
+    "index": 85,
+    "label": "Идентификация"
+  },
+  "rental": {
+    "id": "5305772219727642933",
+    "pack": "SberCX_emoji",
+    "index": 117,
+    "label": "Аренда"
+  },
+  "travel": {
+    "id": "5400041219956955829",
+    "pack": "SberCX_emoji",
+    "index": 105,
+    "label": "Путешествия"
+  },
+  "gaming": {
+    "id": "5395830141962179635",
+    "pack": "SberCX_emoji",
+    "index": 64,
+    "label": "Игры"
+  }
+}
