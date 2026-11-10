@@ -251,7 +251,7 @@ export function AdminPanel({
       <div className="admin-app a-login-wrap">
         <div className="a-login-card">
           <div className="a-login-logo">
-            <img src={`${import.meta.env.BASE_URL}ficus-mascot.png`} alt="" />
+            <img className="ficus-mark" src={`${import.meta.env.BASE_URL}ficus-mascot.png`} alt="" />
             <b>
               фиКУС<span>ПАНЕЛЬ ВЛАДЕЛЬЦА</span>
             </b>
@@ -339,7 +339,7 @@ export function AdminPanel({
     <div className="admin-app">
       <aside className="a-sidebar">
         <a className="a-admin-logo" href="#/admin/overview">
-          <img src={`${import.meta.env.BASE_URL}ficus-mascot.png`} alt="" />
+          <img className="ficus-mark" src={`${import.meta.env.BASE_URL}ficus-mascot.png`} alt="" />
           <span>
             фиКУС<small>ПАНЕЛЬ ВЛАДЕЛЬЦА</small>
           </span>
@@ -383,7 +383,7 @@ export function AdminPanel({
               <br />
               <b>Большие возможности.</b>
             </span>
-            <img src={`${import.meta.env.BASE_URL}ficus-mascot.png`} alt="" />
+            <img className="ficus-mark" src={`${import.meta.env.BASE_URL}ficus-mascot.png`} alt="" />
           </div>
           <button className="a-open-store" onClick={onExit}>
             Открыть магазин <ArrowUpRight size={17} />

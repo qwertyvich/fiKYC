@@ -179,7 +179,7 @@ export function Overview({
         <div className="a-welcome-art">
           <span className="a-orbit o1" />
           <span className="a-orbit o2" />
-          <img src={`${import.meta.env.BASE_URL}ficus-mascot.png`} alt="" />
+          <img className="ficus-mark" src={`${import.meta.env.BASE_URL}ficus-mascot.png`} alt="" />
           <span className="a-art-tag">
             <span />
             Магазин растёт

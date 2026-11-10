@@ -70,6 +70,7 @@ function CoverScene({ scene }: { scene: Scene }) {
 }
 
 export function ProductCover({ product }: { product: Product }) {
+  if (product.imageId) return <div className="product-cover cover-custom" aria-hidden="true"><img className="cover-image" src={`${import.meta.env.BASE_URL}api/product-images/${product.imageId}`} style={{objectFit:product.imageFit??'cover'}} alt="" loading="lazy" decoding="async"/></div>;
   const cover = coverFor(product);
   const tier = product.id.startsWith('higgs-') ? product.subtitle : product.id === 'chatgpt-pro-x20' ? 'PRO ×20' : product.id === 'chatgpt-plus-cdk' ? 'PLUS' : '';
   return <div className={`product-cover ${cover.image ? 'cover-photo' : 'cover-graphic'} cover-${product.id} ${cover.invert ? 'cover-invert' : ''}`} style={{ '--cover-bg': cover.bg ?? '#17191e', '--cover-ink': cover.ink ?? '#fff', '--cover-position': cover.position ?? '50% 50%' } as CSSProperties} aria-hidden="true">

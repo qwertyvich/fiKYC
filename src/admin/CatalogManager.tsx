@@ -14,11 +14,15 @@ import {
   ExternalLink,
   Package,
   X,
+  ImagePlus,
 } from 'lucide-react';
 import { brands, isRequest, parseCatalog, type Catalog, type Product, type Group } from '../domain';
 import { offerFor } from '../commerce';
 import { BrandArt } from '../visuals';
 import type { AdminState } from '../api';
+import { ProductCover } from '../ProductCover';
+import { ClawdProductArt } from '../ClaudeSection';
+import { uploadProductImage } from './image-upload';
 import { StatisticsPreview } from './StatisticsPreview';
 import { Drawer, SearchBox, Toggle, Badge, EmptyState, number } from './shared';
 export type SaveState = (
@@ -52,14 +56,17 @@ export function ProductEditor({
 }) {
   const [draft, setDraft] = useState(() => structuredClone(product));
   const [error, setError] = useState('');
+  const [imageBusy, setImageBusy] = useState(false);
   const dirty = JSON.stringify(product) !== JSON.stringify(draft);
   const close = () => {
+    if (imageBusy) {setError('Дождитесь загрузки изображения');return;}
     if (!dirty || confirm('Есть несохранённые изменения. Закрыть карточку?')) onClose();
   };
   const set = <K extends keyof Product>(key: K, value: Product[K]) =>
     setDraft((p) => ({ ...p, [key]: value }));
   const offer = offerFor(draft);
   async function submit() {
+    if (imageBusy || busy) return;
     setError('');
     try {
       const updated = { ...draft, title: draft.title.trim() };
@@ -106,6 +113,13 @@ export function ProductEditor({
                 : `${number(draft.price)} ${draft.currency === 'USD' ? '$' : '₽'}`}
             </p>
           </section>
+        </div>
+        <div className="a-form-section">
+          <h3>Изображение товара</h3>
+          <div className="a-cover-preview">{draft.brand === 'claude' && !draft.imageId ? <ClawdProductArt product={draft}/> : <ProductCover product={draft}/>}</div>
+          <label className="a-image-upload"><ImagePlus size={18}/>{imageBusy ? 'Загружаем изображение…' : draft.imageId ? 'Заменить изображение' : 'Загрузить изображение'}<input type="file" aria-label="Файл изображения товара" accept="image/png,image/jpeg,image/webp" disabled={busy||imageBusy} onChange={async e=>{const file=e.target.files?.[0];if(!file)return;setImageBusy(true);setError('');try{const id=await uploadProductImage(file);setDraft(p=>({...p,imageId:id,imageFit:p.imageFit??'cover'}));}catch(err){setError((err as Error).message);}finally{setImageBusy(false);e.target.value='';}}}/></label>
+          <small>PNG, JPG или WebP до 12 МБ. Изображение автоматически уменьшается. Для публикации нажмите «Сохранить товар».</small>
+          {draft.imageId && <><label>Положение изображения<select value={draft.imageFit??'cover'} onChange={e=>set('imageFit',e.target.value as 'cover'|'contain')}><option value="cover">Заполнить карточку</option><option value="contain">Показать целиком</option></select></label><button type="button" className="a-btn secondary" disabled={busy||imageBusy} onClick={()=>setDraft(p=>({...p,imageId:undefined,imageFit:undefined}))}>Вернуть стандартную обложку</button></>}
         </div>
         <div className="a-form-section">
           <h3>Основное</h3>
@@ -352,10 +366,10 @@ export function ProductEditor({
           </p>
         )}
         <footer className="a-drawer-footer">
-          <button type="button" className="a-btn secondary" disabled={busy} onClick={close}>
+          <button type="button" className="a-btn secondary" disabled={busy || imageBusy} onClick={close}>
             Отмена
           </button>
-          <button type="submit" className="a-btn" disabled={busy || !draft.title.trim()}>
+          <button type="submit" className="a-btn" disabled={busy || imageBusy || !draft.title.trim()}>
             <Save size={16} />
             {busy ? 'Сохраняем…' : 'Сохранить товар'}
           </button>

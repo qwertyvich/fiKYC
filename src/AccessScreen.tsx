@@ -13,13 +13,13 @@ export function AccessScreen({
     <div className="app-frame">
       <div className="app-scroll access-screen">
         <header>
-          <img src={`${import.meta.env.BASE_URL}ficus-mascot.png`} alt="" />
+          <img className="ficus-mark" src={`${import.meta.env.BASE_URL}ficus-mascot.png`} alt="" />
           <b>фиКУС</b>
         </header>
         <main>
           <div className="access-art">
             <span />
-            <img src={`${import.meta.env.BASE_URL}ficus-mascot.png`} alt="" />
+            <img className="ficus-mark" src={`${import.meta.env.BASE_URL}ficus-mascot.png`} alt="" />
             <i>{telegram ? <Send size={24} /> : <Wrench size={24} />}</i>
           </div>
           <small>

@@ -87,3 +87,8 @@ body{color:var(--ink);background:var(--backdrop)}
 .appearance-toggle{color:var(--theme-graphic)}
 @media(min-width:600px){body{background:var(--backdrop)}}
 @media(max-width:370px){.topbar-actions{gap:5px}.topbar-actions>.icon-button{width:32px;height:32px}.logo{width:35px;height:38px}.wordmark{gap:7px}}
+
+/* A muted lime and crisp contour keep the small character legible. */
+:root{--ficus-mark-filter:saturate(.62) brightness(.91) contrast(1.06) drop-shadow(.65px 0 0 #294323) drop-shadow(-.65px 0 0 #294323) drop-shadow(0 .65px 0 #294323) drop-shadow(0 -.65px 0 #294323)}
+.ficus-mark{filter:var(--ficus-mark-filter)}
+.hero-visual>.ficus-mark{filter:var(--ficus-mark-filter) drop-shadow(0 7px 5px #35452a12)}

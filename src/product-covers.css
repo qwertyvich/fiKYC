@@ -30,3 +30,5 @@
 .products-list .cover-label{inset-inline:9%;bottom:9%}.products-list .cover-label b{font-size:12px}.products-list .cover-label small{font-size:8px}
 .products-list .cover-mark{width:82%;left:9%;top:10%;height:60%}
 @media(max-width:370px){.cover-label b{font-size:clamp(11px,10cqw,30px)}}
+
+.cover-custom{background:var(--soft)}

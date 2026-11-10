@@ -25,7 +25,8 @@
     "test:gateway": "node scripts/qa-gateway.mjs",
     "test:startup": "node scripts/qa-startup.mjs",
     "test:channel-import": "node scripts/qa-channel-import.mjs",
-    "test:links": "node scripts/qa-section-links.mjs"
+    "test:links": "node scripts/qa-section-links.mjs",
+    "test:product-images": "node scripts/qa-product-images.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

@@ -13,6 +13,7 @@ import { createAccess, blacklistValue } from './access.mjs';
 import { analytics } from './analytics.mjs';
 import { createGateway } from './gateway/gateway.mjs';
 import { createChannelImport } from './channel-import.mjs';
+import { createProductImages, MAX_IMAGE_BYTES } from './product-images.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export async function createApp(options = {}) {
@@ -56,6 +57,7 @@ export async function createApp(options = {}) {
       settings: { ...defaultSettings, ...JSON.parse(s.settings) },
     };
   };
+  const productImages = createProductImages(db);
   const linkColumns = db.prepare('PRAGMA table_info(links)').all().map(c => c.name);
   if (!linkColumns.includes('target_kind')) db.exec("ALTER TABLE links ADD COLUMN target_kind TEXT NOT NULL DEFAULT 'product'");
   if (!linkColumns.includes('group_id')) db.exec("ALTER TABLE links ADD COLUMN group_id TEXT NOT NULL DEFAULT ''");
@@ -158,6 +160,8 @@ export async function createApp(options = {}) {
     if (input.revision !== current.revision)
       fail('Данные изменились в другой вкладке. Обновите панель и повторите изменение.', 409);
     const catalog = input.catalog ? parseCatalog(input.catalog) : current.catalog;
+    if (catalog.products.some(p=>p.imageId && !productImages.exists(p.imageId)))
+      fail('Обложка не найдена на сервере. Загрузите изображение заново.');
     if (
       catalog.products.some((p) => p.id.length > 100 || !/^[-a-zA-Z0-9_]+$/.test(p.id)) ||
       catalog.groups.some((g) => g.id.length > 100 || !/^[-a-zA-Z0-9_]+$/.test(g.id))
@@ -223,6 +227,13 @@ export async function createApp(options = {}) {
       }
       if (path.startsWith('/api/') && !path.startsWith('/api/admin/') && path !== '/api/access')
         access.guard(req);
+      const productImageRoute = path.match(/^\/api\/product-images\/([a-f0-9]{64})$/);
+      if (productImageRoute && method === 'GET') {
+        const id=productImageRoute[1],s=state();
+        if (!isAdmin(req) && !s.catalog.products.some(p=>p.imageId===id && available(s,p.id))) fail('Изображение не найдено',404);
+        const image=productImages.get(id);if(!image)fail('Изображение не найдено',404);
+        res.writeHead(200,{'Content-Type':image.mime,'Content-Length':image.data.length,'Cache-Control':'private, max-age=86400, immutable','Content-Security-Policy':"default-src 'none'; sandbox"});return res.end(image.data);
+      }
       if (path === '/api/public' && method === 'GET') {
         visitor(req, res);
         const s = state();
@@ -277,6 +288,12 @@ export async function createApp(options = {}) {
       }
       if (path.startsWith('/api/admin/')) {
         if (!isAdmin(req)) fail('Войдите в панель администратора', 401);
+        if (path === '/api/admin/product-images' && method === 'POST') {
+          limit('product-image-upload',80,3600000);
+          if(Number(req.headers['content-length'])>MAX_IMAGE_BYTES)fail('Изображение — до 2 МБ',413);
+          let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>MAX_IMAGE_BYTES)fail('Изображение — до 2 МБ',413);chunks.push(chunk);}
+          const result=productImages.save(Buffer.concat(chunks),(req.headers['content-type']??'').split(';')[0]);audit('product-image.upload:'+result.id.slice(0,12));return send(res,result,201);
+        }
         if (path === '/api/admin/channel-import' && method === 'GET') return send(res, channelImport.status());
         if (path === '/api/admin/channel-import/preview' && method === 'POST') {
           const b = await body(req); const data = channelImport.inspect(b.text);
