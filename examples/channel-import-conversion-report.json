@@ -1,0 +1,110 @@
+{
+  "checkedAt": "2026-11-10T14:35:00.185Z",
+  "applyAt": "2026-11-10T21:00:00.000Z",
+  "summaryAtApply": {
+    "products": 50,
+    "reviews": 1359,
+    "scheduled": 311,
+    "placeholders": 128,
+    "draftProducts": 3
+  },
+  "sourceRows": 1491,
+  "duplicatesRemoved": 132,
+  "summary": {
+    "products": 50,
+    "reviews": 1359,
+    "scheduled": 312,
+    "placeholders": 128,
+    "draftProducts": 3
+  },
+  "missingProducts": [
+    {
+      "id": "claude-pro-cdk",
+      "name": "Claude Pro CDK"
+    },
+    {
+      "id": "mail-setup",
+      "name": "Почта России"
+    },
+    {
+      "id": "mail-business",
+      "name": "Почта для бизнеса"
+    }
+  ],
+  "corrections": [
+    {
+      "line": 567,
+      "kind": "date_rating_swap"
+    },
+    {
+      "line": 1472,
+      "kind": "review_id",
+      "from": "yandex-drive-006",
+      "to": "yandex-drive-review-006"
+    },
+    {
+      "line": 1473,
+      "kind": "review_id",
+      "from": "yandex-drive-007",
+      "to": "yandex-drive-review-007"
+    },
+    {
+      "line": 1474,
+      "kind": "review_id",
+      "from": "yandex-drive-008",
+      "to": "yandex-drive-review-008"
+    },
+    {
+      "line": 1475,
+      "kind": "review_id",
+      "from": "yandex-drive-009",
+      "to": "yandex-drive-review-009"
+    },
+    {
+      "line": 1476,
+      "kind": "review_id",
+      "from": "yandex-drive-010",
+      "to": "yandex-drive-review-010"
+    },
+    {
+      "line": 1477,
+      "kind": "review_id",
+      "from": "yandex-drive-011",
+      "to": "yandex-drive-review-011"
+    },
+    {
+      "line": 1478,
+      "kind": "review_id",
+      "from": "yandex-drive-012",
+      "to": "yandex-drive-review-012"
+    },
+    {
+      "line": 1479,
+      "kind": "review_id",
+      "from": "yandex-drive-013",
+      "to": "yandex-drive-review-013"
+    },
+    {
+      "line": 1480,
+      "kind": "review_id",
+      "from": "yandex-drive-014",
+      "to": "yandex-drive-review-014"
+    },
+    {
+      "line": 1481,
+      "kind": "review_id",
+      "from": "yandex-drive-015",
+      "to": "yandex-drive-review-015"
+    }
+  ],
+  "ignored": [
+    {
+      "line": 1482,
+      "kind": "note"
+    }
+  ],
+  "dateRange": {
+    "first": "2026-07-01T09:50:00.000Z",
+    "last": "2026-12-31T16:35:00.000Z"
+  }
+}
