@@ -345,7 +345,7 @@ export function ReviewsManager({
               <span className="a-client-avatar">{Array.from(review.author)[0]}</span>
               <div>
                 <b>{review.author}</b>
-                <small>{dateTime(review.createdAt)}{review.source === 'telegram' && ' · Из Telegram'}</small>
+                <small>{dateTime(review.createdAt)}</small>
               </div>
               <Badge
                 tone={
