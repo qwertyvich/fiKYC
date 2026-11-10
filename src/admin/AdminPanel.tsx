@@ -53,7 +53,7 @@ const pages = [
     icon: MessageSquare,
     caption: 'Обратная связь под вашим контролем',
   },
-  { id: 'links', label: 'Прямые ссылки', icon: Link2, caption: 'Из сообщения — прямо к товару' },
+  { id: 'links', label: 'Прямые ссылки', icon: Link2, caption: 'Из сообщения — к товару или разделу' },
   { id: 'channel-import', label: 'Импорт из Telegram', icon: FileUp, caption: 'Отзывы и покупки из вашего канала' },
   {
     id: 'analytics',

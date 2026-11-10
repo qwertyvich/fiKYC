@@ -56,6 +56,30 @@ export async function createApp(options = {}) {
       settings: { ...defaultSettings, ...JSON.parse(s.settings) },
     };
   };
+  const linkColumns = db.prepare('PRAGMA table_info(links)').all().map(c => c.name);
+  if (!linkColumns.includes('target_kind')) db.exec("ALTER TABLE links ADD COLUMN target_kind TEXT NOT NULL DEFAULT 'product'");
+  if (!linkColumns.includes('group_id')) db.exec("ALTER TABLE links ADD COLUMN group_id TEXT NOT NULL DEFAULT ''");
+  // One-time catalog change; keep seller edits to names and other assignments.
+  if (!db.prepare('SELECT value FROM secrets WHERE key=?').get('migration.postal-section-v1')) {
+    const catalog = state().catalog; let changed = false;
+    const mail = catalog.groups.find(g => g.id === 'mail');
+    if (mail) {
+      if (mail.title === 'Почта') {mail.title = 'Почтовые сервисы';changed = true;}
+      for (const p of catalog.products) if (['cdek-id','cdek-business'].includes(p.id) && p.groupId === 'identity') {p.groupId = 'mail';changed = true;}
+    }
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      if (changed) {db.prepare('UPDATE state SET revision=revision+1,catalog=? WHERE id=1').run(JSON.stringify(catalog));db.prepare('INSERT INTO audit(action,at) VALUES(?,?)').run('catalog.postal-section',Date.now());}
+      db.prepare('INSERT INTO secrets VALUES(?,?)').run('migration.postal-section-v1','done');db.exec('COMMIT');
+    } catch (e) {db.exec('ROLLBACK');throw e;}
+  }
+  function ensureGroupLinks() {
+    const s = state(); if (!s.settings.botUsername) return;
+    const insert = db.prepare("INSERT INTO links(id,token,product_id,label,active,created_at,target_kind,group_id) VALUES(?,?,'',?,1,?,'group',?)");
+    for (const g of s.catalog.groups) if (!db.prepare("SELECT id FROM links WHERE target_kind='group' AND group_id=? LIMIT 1").get(g.id))
+      insert.run(token().slice(0,16),token(),g.title,Date.now(),g.id);
+  }
+  ensureGroupLinks();
   const publicCatalog = (catalog) => {
     const groups = catalog.groups.filter((g) => g.visible);
     const products = catalog.products.filter(
@@ -147,6 +171,7 @@ export async function createApp(options = {}) {
       JSON.stringify(settings),
     );
     audit(input.catalog ? 'catalog.save' : 'settings.save');
+    ensureGroupLinks();
     send(res, state());
   }
   const reviewRow = (r) => ({
@@ -358,11 +383,13 @@ export async function createApp(options = {}) {
               .map((l) => ({
                 id: l.id,
                 productId: l.product_id,
+                kind: l.target_kind,
+                groupId: l.group_id,
                 label: l.label,
                 active: !!l.active,
                 createdAt: l.created_at,
-                url: directLink(s.settings, l.token),
-                startParam: 'p_' + l.token,
+                url: directLink(s.settings, l.token, l.target_kind),
+                startParam: (l.target_kind === 'group' ? 'g_' : 'p_') + l.token,
                 opens: db
                   .prepare("SELECT count(*) AS n FROM events WHERE type='link_open' AND link_id=?")
                   .get(l.id).n,
@@ -372,21 +399,26 @@ export async function createApp(options = {}) {
         if (path === '/api/admin/links' && method === 'POST') {
           const b = await body(req),
             s = state();
-          if (!s.catalog.products.some((p) => p.id === b.productId)) fail('Товар не найден', 404);
+          const kind = b.kind ?? 'product';
+          if (!['product','group'].includes(kind) || (kind === 'product' && b.groupId) || (kind === 'group' && b.productId)) fail('Выберите товар или раздел для ссылки');
+          if (kind === 'product' && !s.catalog.products.some((p) => p.id === b.productId)) fail('Товар не найден', 404);
+          if (kind === 'group' && !s.catalog.groups.some((g) => g.id === b.groupId)) fail('Раздел не найден', 404);
           if (!s.settings.botUsername) fail('Сначала укажите username бота в настройках');
           if (typeof b.label !== 'string' || b.label.length > 100)
             fail('Название ссылки — до 100 символов');
           const id = token().slice(0, 16),
             code = token();
-          db.prepare('INSERT INTO links VALUES(?,?,?,?,1,?)').run(
+          db.prepare('INSERT INTO links(id,token,product_id,label,active,created_at,target_kind,group_id) VALUES(?,?,?,?,1,?,?,?)').run(
             id,
             code,
-            b.productId,
+            kind === 'product' ? b.productId : '',
             b.label.trim() || 'Прямая ссылка',
             Date.now(),
+            kind,
+            kind === 'group' ? b.groupId : '',
           );
           audit('link.create');
-          return send(res, { id, url: directLink(s.settings, code), startParam: 'p_' + code }, 201);
+          return send(res, { id, url: directLink(s.settings, code, kind), startParam: (kind === 'group' ? 'g_' : 'p_') + code }, 201);
         }
         if (/^\/api\/admin\/links\/[\w-]+$/.test(path) && method === 'PATCH') {
           const b = await body(req);
@@ -461,8 +493,13 @@ export async function createApp(options = {}) {
         const code = path.split('/').at(-1);
         const link = db.prepare('SELECT * FROM links WHERE token=? AND active=1').get(code);
         const s = state();
-        if (!link || !available(s, link.product_id)) fail('Ссылка отключена или товар скрыт', 404);
-        return send(res, { productId: link.product_id, linkId: link.id });
+        if (!link) fail('Ссылка отключена или предложение скрыто', 404);
+        if (link.target_kind === 'group') {
+          if (!s.catalog.groups.some(g=>g.id===link.group_id && g.visible)) fail('Ссылка отключена или раздел скрыт',404);
+          return send(res, {kind:'group',groupId:link.group_id,linkId:link.id});
+        }
+        if (!available(s, link.product_id)) fail('Ссылка отключена или товар скрыт', 404);
+        return send(res, {kind:'product', productId: link.product_id, linkId: link.id });
       }
       if (path === '/api/reviews' && method === 'GET') {
         const v = visitor(req, res),
@@ -571,9 +608,11 @@ export async function createApp(options = {}) {
             let linkId = '';
             if (e.linkId) {
               const l = db
-                .prepare('SELECT id FROM links WHERE id=? AND active=1 AND product_id=?')
-                .get(String(e.linkId), e.productId ?? '');
-              if (l) linkId = l.id;
+                .prepare('SELECT * FROM links WHERE id=? AND active=1')
+                .get(String(e.linkId));
+              if (l && (l.target_kind === 'group'
+                ? !e.productId && s.catalog.groups.some(g=>g.id===l.group_id && g.visible)
+                : l.product_id === (e.productId ?? ''))) linkId = l.id;
             }
             const productIds = Array.isArray(e.productIds)
               ? [

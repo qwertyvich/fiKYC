@@ -10,7 +10,7 @@ function proof(user, startParam = '') {
   p.set('hash', createHmac('sha256', secret).update([...p].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join('\n')).digest('hex'));
   return p.toString();
 }
-const {server} = await createApp({ dbPath: ':memory:', gatewayWorker: false, env: { NODE_ENV: 'production', BOT_TOKEN: botToken, GATEWAY_BOT_TOKEN: '', SELLER_TELEGRAM_USERNAME: '', ADMIN_TELEGRAM_IDS: '' } });
+const {server,db} = await createApp({ dbPath: ':memory:', gatewayWorker: false, env: { NODE_ENV: 'production', BOT_TOKEN: botToken, GATEWAY_BOT_TOKEN: '', SELLER_TELEGRAM_USERNAME: '', ADMIN_TELEGRAM_IDS: '' } });
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const base = 'http://127.0.0.1:' + server.address().port;
 const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? {executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE} : {}) });
@@ -75,6 +75,13 @@ try {
   await expect(product.page.locator('html')).toHaveAttribute('data-mode', 'light');
   checks.push('product referral is preserved with Telegram launch fragment');
   await product.context.close();
+  db.prepare("INSERT INTO links(id,token,product_id,label,active,created_at,target_kind,group_id) VALUES('section-fixture','section-code','','Почтовые сервисы',1,?,'group','mail')").run(Date.now());
+  db.prepare("INSERT INTO links(id,token,product_id,label,active,created_at) VALUES('product-fixture','product-code','claude-pro','Товар',1,?)").run(Date.now());
+  const section = await buyer({}, 'g_section-code');await section.page.goto(section.url);
+  await expect(section.page.getByRole('heading',{name:'Почтовые сервисы',exact:true})).toBeVisible();await expect(section.page.locator('.product-card')).toHaveCount(4);await expect(section.page.getByRole('button',{name:'Подробнее: СДЭК ID',exact:true})).toBeVisible();await expect(section.page.getByRole('button',{name:'Подробнее: Почта России',exact:true})).toBeVisible();await expect(section.page.locator('html')).toHaveAttribute('data-mode','light');
+  await section.page.screenshot({path:'qa/startup/section-link.png',fullPage:true});await section.context.close();checks.push('opaque section link opens postal services through signed Telegram launch');
+  const opaque = await buyer({}, 'p_product-code');await opaque.page.goto(opaque.url);await expect(opaque.page.getByRole('heading',{name:'Claude Pro',exact:true})).toBeVisible();await opaque.context.close();checks.push('existing opaque product links still open products');
+  db.prepare("UPDATE links SET active=0 WHERE id='section-fixture'").run();const revoked=await buyer({}, 'g_section-code');await revoked.page.goto(revoked.url);await expect(revoked.page.getByRole('heading',{name:'Ссылка недоступна',exact:true})).toBeVisible();await expect(revoked.page.locator('.product-card')).toHaveCount(0);await revoked.context.close();checks.push('disabled section link does not expose the category');
   const root = await buyer(); await root.page.goto(base + '/#/'); await catalog(root.page); await root.context.close();
   checks.push('empty root route opens catalog');
   assert.deepEqual(errors, []);

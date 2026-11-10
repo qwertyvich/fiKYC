@@ -69,7 +69,7 @@ export function App() {
   const setAppearance = (value: Appearance) => { setAppearanceState(value); try { writeLocal(APPEARANCE_STORAGE_KEY, value); } catch {} };
   const [siteSettings, setSiteSettings] = useState<PublicState['settings'] | null>(null);
   const startParam = new URLSearchParams(location.search).get('tgWebAppStartParam') ?? new URLSearchParams(location.search).get('ref') ?? telegram?.initDataUnsafe?.start_param ?? '';
-  const [resolvingLink, setResolvingLink] = useState(startParam.startsWith('p_') && !location.hash.startsWith('#/admin'));
+  const [resolvingLink, setResolvingLink] = useState(/^[pg]_/.test(startParam) && !location.hash.startsWith('#/admin'));
   const analyticsStarted = useRef(false);
   const [systemMode, setSystemMode] = useState<ColorMode>(systemColorMode);
   const mode = resolveMode(appearance, systemMode);
@@ -120,11 +120,11 @@ export function App() {
   useEffect(() => {
     if (!resolvingLink) return;
     let live = true;
-    api<{ productId: string; linkId: string }>('/links/' + encodeURIComponent(startParam.slice(2))).then(data => {
+    api<{ productId?: string; groupId?: string; linkId: string }>('/links/' + encodeURIComponent(startParam.slice(2))).then(data => {
       if (!live) return;
-      location.hash = '/product/' + data.productId;
-      track('link_open', { productId: data.productId, linkId: data.linkId });
-    }).catch(() => { if (live) location.hash = '/product/_unavailable'; }).finally(() => { if (live) setResolvingLink(false); });
+      location.hash = data.groupId ? '/group/' + data.groupId : '/product/' + data.productId;
+      track('link_open', { ...(data.productId ? {productId:data.productId} : {}), linkId: data.linkId });
+    }).catch(() => { if (live) location.hash = '/link-unavailable'; }).finally(() => { if (live) setResolvingLink(false); });
     return () => { live = false; };
   }, []);
   useEffect(() => {
@@ -269,7 +269,8 @@ export function App() {
         ].map(([q, a]) => <details key={q}><summary>{t(q)}<Plus size={17}/></summary><p>{t(a)}</p></details>)}</div></>}
 
 
-        {!['catalog', 'group', 'favorites', 'product', 'cart', 'orders', 'profile', 'help', 'admin', 'checkout', 'order', 'order-preview', 'support', 'request-checkout', 'payment'].includes(kind) && <Empty icon={<Search/>} title={t("Эта страница потерялась")} text={t("В каталоге всё на своих местах.")} action={t("В каталог")} onAction={() => go('/catalog')}/>}
+        {kind === 'link-unavailable' && <Empty icon={<Search/>} title={t("Ссылка недоступна")} text={t("Попробуйте открыть её ещё раз или выберите предложение в каталоге.")} action={t("В каталог")} onAction={() => go('/catalog')}/>}
+        {!['catalog', 'group', 'favorites', 'product', 'cart', 'orders', 'profile', 'help', 'admin', 'checkout', 'order', 'order-preview', 'support', 'request-checkout', 'payment', 'link-unavailable'].includes(kind) && <Empty icon={<Search/>} title={t("Эта страница потерялась")} text={t("В каталоге всё на своих местах.")} action={t("В каталог")} onAction={() => go('/catalog')}/>}
       </>}
     </main>
     <nav className="bottom-nav" aria-label={t("Главная навигация")}><div className="nav-main">{[

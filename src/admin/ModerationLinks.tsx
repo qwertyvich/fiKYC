@@ -27,6 +27,8 @@ import {
 export interface ProductLink {
   id: string;
   productId: string;
+  kind: 'product' | 'group';
+  groupId: string;
   label: string;
   active: boolean;
   createdAt: number;
@@ -53,12 +55,16 @@ export function LinksManager({
     [query, setQuery] = useState(''),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
-  const selected = state.catalog.products.find((p) => p.id === productId);
+  const [kind, setKind] = useState<'product' | 'group'>('product');
+  const [groupId, setGroupId] = useState('');
+  const selectedProduct = state.catalog.products.find(p => p.id === productId);
+  const selected = kind === 'group' ? state.catalog.groups.find(g => g.id === groupId) : selectedProduct;
+  const titleFor = (link: ProductLink) => link.kind === 'group' ? state.catalog.groups.find(g=>g.id===link.groupId)?.title ?? 'Раздел удалён' : state.catalog.products.find(p=>p.id===link.productId)?.title ?? 'Товар удалён';
   async function create() {
     setBusy(true);
     setError('');
     try {
-      await mutation('/admin/links', 'POST', { productId, label });
+      await mutation('/admin/links', 'POST', kind === 'group' ? {kind,groupId,label} : {kind,productId,label});
       await reload();
       setLabel('');
       notify('Ссылка создана — можно копировать и отправлять');
@@ -82,8 +88,9 @@ export function LinksManager({
   }
   const filtered = links.filter(
     (l) =>
-      (!productId || l.productId === productId) &&
-      `${l.label} ${state.catalog.products.find((p) => p.id === l.productId)?.title}`
+      l.kind === kind &&
+      (kind === 'group' ? (!groupId || l.groupId === groupId) : (!productId || l.productId === productId)) &&
+      `${l.label} ${titleFor(l)}`
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
@@ -94,18 +101,21 @@ export function LinksManager({
           <Link2 size={26} />
         </span>
         <div>
-          <h2>Короткий путь к нужному товару</h2>
+          <h2>Ссылки на товары и разделы</h2>
           <p>
-            Создайте ссылку, отправьте клиенту или разместите в своём канале. Она откроет карточку
-            прямо в боте. Ссылки не отображаются в магазине.
+            Создайте ссылку, отправьте клиенту или разместите в своём канале. Она откроет товар или выбранный раздел прямо в боте. Ссылки не отображаются в магазине.
           </p>
         </div>
       </section>
       <section className="a-card">
         <SectionHeading
           title="Создать прямую ссылку"
-          description="Можно сделать несколько ссылок на один товар и сравнить источники"
+          description="Для разделов ссылки уже подготовлены. Дополнительные ссылки помогут сравнить разные посты."
         />
+          <div className="a-tabs" role="group" aria-label="Назначение ссылки">
+            <button type="button" aria-pressed={kind === 'product'} className={kind==='product'?'active':''} onClick={()=>setKind('product')}>Товар</button>
+            <button type="button" aria-pressed={kind === 'group'} className={kind==='group'?'active':''} onClick={()=>setKind('group')}>Раздел</button>
+          </div>
         <form
           className="a-link-form"
           onSubmit={(e) => {
@@ -113,23 +123,10 @@ export function LinksManager({
             void create();
           }}
         >
-          <label>
+          {kind === 'group' ? <label>Раздел<select required aria-label="Раздел для ссылки" value={groupId} onChange={e=>setGroupId(e.target.value)}><option value="">Выберите раздел</option>{state.catalog.groups.map(g=><option key={g.id} value={g.id}>{g.title}{!g.visible?' · скрыт':''}</option>)}</select></label> : <label>
             Товар
-            <select
-              required
-              aria-label="Товар для ссылки"
-              value={productId}
-              onChange={(e) => onProduct(e.target.value)}
-            >
-              <option value="">Выберите товар</option>
-              {state.catalog.products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.title}
-                  {!p.visible ? ' · скрыт' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
+            <select required aria-label="Товар для ссылки" value={productId} onChange={e=>onProduct(e.target.value)}><option value="">Выберите товар</option>{state.catalog.products.map(p=><option key={p.id} value={p.id}>{p.title}{!p.visible?' · скрыт':''}</option>)}</select>
+          </label>}
           <label>
             Название / источник
             <input
@@ -139,7 +136,7 @@ export function LinksManager({
               onChange={(e) => setLabel(e.target.value)}
             />
           </label>
-          <button className="a-btn" disabled={busy || !productId || !state.settings.botUsername}>
+          <button className="a-btn" disabled={busy || !(kind === 'group' ? groupId : productId) || !state.settings.botUsername}>
             <Plus size={17} />
             Создать ссылку
           </button>
@@ -152,10 +149,9 @@ export function LinksManager({
         )}
         {selected &&
           (!selected.visible ||
-            !state.catalog.groups.find((g) => g.id === selected.groupId)?.visible) && (
+            (kind === 'product' && !state.catalog.groups.find(g=>g.id===selectedProduct?.groupId)?.visible)) && (
             <p className="a-warning">
-              Этот товар скрыт. Ссылка начнёт открывать карточку после включения товара и его
-              категории.
+              {kind === 'group' ? 'Этот раздел скрыт. Ссылка начнёт открывать его после включения раздела.' : 'Этот товар скрыт. Ссылка начнёт открывать карточку после включения товара и его категории.'}
             </p>
           )}
         {error && (
@@ -166,9 +162,9 @@ export function LinksManager({
       </section>
       <div className="a-toolbar">
         <SearchBox value={query} onChange={setQuery} placeholder="Поиск по ссылкам…" />
-        {productId && (
-          <button className="a-btn secondary" onClick={() => onProduct('')}>
-            Показать все товары
+        {(kind === 'group' ? groupId : productId) && (
+          <button className="a-btn secondary" onClick={() => kind === 'group' ? setGroupId('') : onProduct('')}>
+            {kind === 'group' ? 'Показать все разделы' : 'Показать все товары'}
           </button>
         )}
         <span className="a-note">{filtered.length} ссылок</span>
@@ -186,8 +182,7 @@ export function LinksManager({
               <div>
                 <h3>{link.label}</h3>
                 <p>
-                  {state.catalog.products.find((p) => p.id === link.productId)?.title ??
-                    'Товар удалён'}
+                  {link.kind === 'group' ? 'Раздел · ' : ''}{titleFor(link)}
                 </p>
               </div>
               <Toggle
@@ -228,14 +223,14 @@ export function LinksManager({
       {!filtered.length && (
         <section className="a-card">
           <EmptyState title="Ссылок пока нет">
-            Выберите товар выше и создайте первую ссылку. У каждой будет свой случайный код и
+            Выберите товар или раздел выше и создайте ссылку. У каждой будет свой случайный код и
             счётчик переходов.
           </EmptyState>
         </section>
       )}
       <p className="a-note">
         Ссылка работает для любого, кому её передали. Отключение сразу закрывает переход по этому
-        коду. Mini App должен быть настроен в BotFather.
+        коду. Для ссылок без короткого имени приложения включите Main Mini App в BotFather и укажите адрес магазина. Если приложение имеет короткое имя, задайте его в настройках Telegram.
       </p>
     </>
   );

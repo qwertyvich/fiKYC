@@ -45,9 +45,9 @@ export function parseSettings(value) {
     throw new Error('Проверьте настройки');
   return Object.fromEntries(Object.keys(defaultSettings).map((k) => [k, s[k]]));
 }
-export function directLink(settings, code) {
+export function directLink(settings, code, kind = 'product') {
   if (!settings.botUsername) return null;
-  return `https://t.me/${settings.botUsername}${settings.appShortName ? '/' + settings.appShortName : ''}?startapp=p_${code}`;
+  return `https://t.me/${settings.botUsername}${settings.appShortName ? '/' + settings.appShortName : ''}?startapp=${kind === 'group' ? 'g' : 'p'}_${code}`;
 }
 export const eventTypes = [
   'session_start',

@@ -403,3 +403,36 @@ test('blacklist enforces ID and case-insensitive username across APIs and cached
   );
   assert.equal((await client()('/admin/blacklist')).status, 401);
 });
+
+test('section links are ready for every category, resolve safely, count visits and remain disabled after settings saves',async t=>{
+  const {admin,client,db}=await fixture(t);const guest=client();let s=(await admin('/admin/state')).data;
+  s=(await admin('/admin/state','PUT',{revision:s.revision,settings:{...s.settings,botUsername:'fixture_shop_bot'}})).data;
+  let links=(await admin('/admin/links')).data;assert.equal(links.filter(l=>l.kind==='group').length,s.catalog.groups.length);
+  const seeded=links.find(l=>l.groupId==='mail');assert.match(seeded.url,/startapp=g_/);
+  const created=await admin('/admin/links','POST',{kind:'group',groupId:'mail',label:'Поставка почтовых сервисов'});assert.equal(created.status,201);assert.notEqual(created.data.url,seeded.url);
+  const code=created.data.startParam.slice(2);assert.deepEqual((await guest('/links/'+code)).data,{kind:'group',groupId:'mail',linkId:created.data.id});
+  const catalog=(await guest('/public')).data.catalog;assert.ok(catalog.products.some(p=>p.id==='cdek-id'&&p.groupId==='mail'));assert.ok(catalog.products.some(p=>p.id==='mail-setup'&&p.groupId==='mail'));
+  assert.equal((await guest('/admin/links','POST',{kind:'group',groupId:'mail',label:''})).status,401);
+  for(const body of [{kind:'group',groupId:'missing',label:''},{kind:'other',groupId:'mail',label:''},{kind:'group',groupId:'mail',productId:'cdek-id',label:''}]) assert.ok((await admin('/admin/links','POST',body)).status>=400);
+  const event={id:randomUUID(),sessionId:randomUUID(),type:'link_open',at:Date.now(),linkId:created.data.id};assert.equal((await guest('/events','POST',{events:[event]})).status,200);assert.equal(db.prepare("SELECT count(*) n FROM events WHERE link_id=? AND product_id='' AND type='link_open'").get(created.data.id).n,1);
+  assert.equal((await admin('/admin/links')).data.find(l=>l.id===created.data.id).opens,1);
+  await guest('/events','POST',{events:[{...event,id:randomUUID(),productId:'cdek-id'}]});assert.equal(db.prepare("SELECT count(*) n FROM events WHERE link_id=?").get(created.data.id).n,1);
+  s.catalog.groups.find(g=>g.id==='mail').visible=false;s=(await admin('/admin/state','PUT',{revision:s.revision,catalog:s.catalog})).data;assert.equal((await guest('/links/'+code)).status,404);
+  s.catalog.groups.find(g=>g.id==='mail').visible=true;s=(await admin('/admin/state','PUT',{revision:s.revision,catalog:s.catalog})).data;assert.equal((await guest('/links/'+code)).status,200);
+  await admin('/admin/links/'+seeded.id,'PATCH',{active:false});await admin('/admin/links/'+created.data.id,'PATCH',{active:false});
+  await admin('/admin/state','PUT',{revision:s.revision,settings:s.settings});links=(await admin('/admin/links')).data;assert.equal(links.filter(l=>l.kind==='group'&&l.groupId==='mail').length,2);assert.ok(links.filter(l=>l.kind==='group'&&l.groupId==='mail').every(l=>!l.active));assert.equal((await guest('/links/'+code)).status,404);
+});
+
+test('legacy links and seller catalog edits survive postal migration and restarts without recreating section links',async t=>{
+  const {DatabaseSync}=await import('node:sqlite');const dir=await mkdtemp(join(tmpdir(),'fikus-group-migration-'));t.after(()=>rm(dir,{recursive:true,force:true}));const path=join(dir,'state.sqlite');
+  const first=await createApp({dbPath:path,gatewayWorker:false,env:{NODE_ENV:'test',BOT_TOKEN:'',GATEWAY_BOT_TOKEN:''}});await new Promise(r=>first.server.listen(0,'127.0.0.1',r));
+  const row=first.db.prepare('SELECT * FROM state').get(),catalog=JSON.parse(row.catalog),settings=JSON.parse(row.settings);catalog.groups.find(g=>g.id==='mail').title='Почта';catalog.products.find(p=>p.id==='cdek-id').groupId='identity';catalog.products.find(p=>p.id==='cdek-id').price=1234;settings.botUsername='fixture_shop_bot';
+  first.db.prepare('UPDATE state SET catalog=?,settings=? WHERE id=1').run(JSON.stringify(catalog),JSON.stringify(settings));first.db.prepare('DELETE FROM secrets WHERE key=?').run('migration.postal-section-v1');
+  first.db.prepare("INSERT INTO links(id,token,product_id,label,active,created_at) VALUES('legacy','legacy-token','cdek-id','Old link',1,1)").run();await new Promise(r=>first.server.close(r));
+  const legacy=new DatabaseSync(path);legacy.exec('ALTER TABLE links DROP COLUMN target_kind; ALTER TABLE links DROP COLUMN group_id');legacy.close();
+  const second=await createApp({dbPath:path,gatewayWorker:false,env:{NODE_ENV:'test',BOT_TOKEN:'',GATEWAY_BOT_TOKEN:''}});await new Promise(r=>second.server.listen(0,'127.0.0.1',r));
+  const updated=JSON.parse(second.db.prepare('SELECT catalog FROM state').get().catalog);assert.equal(updated.groups.find(g=>g.id==='mail').title,'Почтовые сервисы');assert.equal(updated.products.find(p=>p.id==='cdek-id').groupId,'mail');assert.equal(updated.products.find(p=>p.id==='cdek-id').price,1234);
+  const response=await fetch('http://127.0.0.1:'+second.server.address().port+'/api/links/legacy-token');assert.equal((await response.json()).productId,'cdek-id');const count=second.db.prepare('SELECT count(*) n FROM links').get().n;
+  second.db.prepare("UPDATE links SET active=0 WHERE target_kind='group' AND group_id='mail'").run();updated.groups.find(g=>g.id==='mail').title='Моё название';updated.products.find(p=>p.id==='cdek-id').groupId='identity';second.db.prepare('UPDATE state SET catalog=? WHERE id=1').run(JSON.stringify(updated));await new Promise(r=>second.server.close(r));
+  const third=await createApp({dbPath:path,gatewayWorker:false,env:{NODE_ENV:'test',BOT_TOKEN:'',GATEWAY_BOT_TOKEN:''}});await new Promise(r=>third.server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>third.server.close(r)));const unchanged=JSON.parse(third.db.prepare('SELECT catalog FROM state').get().catalog);assert.equal(unchanged.groups.find(g=>g.id==='mail').title,'Моё название');assert.equal(unchanged.products.find(p=>p.id==='cdek-id').groupId,'identity');assert.equal(third.db.prepare('SELECT count(*) n FROM links').get().n,count);assert.equal(third.db.prepare("SELECT active FROM links WHERE target_kind='group' AND group_id='mail'").get().active,0);
+});
