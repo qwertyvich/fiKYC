@@ -6,6 +6,7 @@ import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 const root=fileURLToPath(new URL('../',import.meta.url)),out=root+'public/branding/telegram/';
 const ffmpeg=process.env.FFMPEG_PATH;
+const descriptionOnly=process.argv.includes('--description-only');
 if(!ffmpeg)throw new Error('Set FFMPEG_PATH to a local ffmpeg executable');
 await mkdir(out,{recursive:true});
 const font=(await readFile(root+'public/fonts/geologica-cyrillic-wght-normal.woff2')).toString('base64');
@@ -18,10 +19,12 @@ function banner(theme,kind,t){
  const claude=theme==='claude',accent=claude?'#d58058':'#7c9f30',wave=Math.sin(t*Math.PI*2),pulse=(Math.sin(t*Math.PI*2)+1)/2;
  const creature=claude?`<g transform="translate(373 ${145+wave*3})"><path d="M0 26h22V4h89v22h22v32h-22v39H96V75H79v22H61V75H44v22H22V58H0Z" fill="#d58058"/><path d="M37 19h10v10H37zm50 0h10v10H87z" fill="#292d29"/></g>`:`<image href="data:image/png;base64,${mascot}" x="367" y="${113+wave*3}" width="145" height="145" style="mix-blend-mode:multiply"/>`;
  const arrowY=wave*3;
+ const headline=kind==='description'?['Верифицированные','аккаунты']:['Верификация','на ваш аккаунт'];
+ const titleSize=kind==='description'?28:32;
  return `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><rect width="640" height="360" fill="#f4f2ea"/><rect x="16" y="16" width="608" height="328" rx="28" fill="#eeede5"/>
  <circle cx="42" cy="43" r="5" fill="#739d3f"/><text x="57" y="49" font-size="18" font-weight="700" fill="#233225">фиКУС</text><text x="135" y="48" font-size="10" letter-spacing="1.2" fill="#797e71">ЦИФРОВОЙ МАРКЕТ</text>
  <rect x="38" y="83" width="${claude?133:66}" height="27" rx="13.5" fill="${claude?'#ead4c6':'#dfe8c6'}"/><text x="51" y="101" font-size="11" font-weight="600" letter-spacing="1" fill="${claude?'#8b4b2e':'#4a652a'}">${claude?'CLAUDE · KYC':'KYC'}</text>
- <text x="38" y="151" font-size="32" font-weight="600" letter-spacing="-1.5" fill="#20281f">Верификация</text><text x="38" y="190" font-size="32" font-weight="600" letter-spacing="-1.5" fill="#20281f">на ваш аккаунт</text>
+ <text x="38" y="151" font-size="${titleSize}" font-weight="600" letter-spacing="-1.5" fill="#20281f">${headline[0]}</text><text x="38" y="190" font-size="${titleSize}" font-weight="600" letter-spacing="-1.5" fill="#20281f">${headline[1]}</text>
  <text x="40" y="224" font-size="12" fill="#777e70">${claude?'Claude · Условия и заказ в каталоге':'Claude и другие цифровые сервисы'}</text>
  <path d="M376 90h210" stroke="#d7d9cc"/><text x="379" y="79" font-size="9" letter-spacing="1.7" fill="#8b9082">ПРОСТО. ПО ПОРЯДКУ.</text>
  ${creature}<path d="M493 190h28" stroke="#a6ad99" stroke-width="4"/><circle cx="${499+pulse*19}" cy="190" r="3" fill="${accent}"/>
@@ -48,12 +51,12 @@ async function render(name,width,height,svg){
 }
 try{
  for(const theme of ['general','claude']){
-  for(const role of ['bot','operator']){
+  for(const role of descriptionOnly?[]:['bot','operator']){
    const name=theme+'-'+role,data=(await readFile(out+name+'.png')).toString('base64');
    await render(name,512,512,t=>`<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><rect width="512" height="512" fill="#f4f2ea"/><g transform="translate(256 256) scale(${.80+.008*Math.sin(t*2*Math.PI)}) translate(-256 -256)"><image href="data:image/png;base64,${data}" width="512" height="512"/></g></svg>`);
    await command(['-y','-loglevel','error','-i',out+name+'-preview.png','-frames:v','1','-q:v','2',out+name+'.jpg']);
   }
-  for(const kind of ['description','menu'])await render(theme+'-'+kind,640,360,t=>banner(theme,kind,t));
+  for(const kind of descriptionOnly?['description']:['description','menu'])await render(theme+'-'+kind,640,360,t=>banner(theme,kind,t));
   await command(['-y','-loglevel','error','-i',out+theme+'-description.mp4','-filter_complex','fps=12,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=3','-loop','0',out+theme+'-description.gif']);
  }
 }finally{await browser.close();}
