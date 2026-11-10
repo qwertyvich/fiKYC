@@ -7,6 +7,10 @@ import { fileURLToPath } from 'node:url';
 const root=fileURLToPath(new URL('../',import.meta.url)),out=root+'public/branding/telegram/';
 const ffmpeg=process.env.FFMPEG_PATH;
 const descriptionOnly=process.argv.includes('--description-only');
+const assetOption=process.argv.indexOf('--asset');
+const selectedAsset=assetOption<0?null:process.argv[assetOption+1];
+if(assetOption>=0&&!/^(general|claude)-(bot|operator|description|menu)$/.test(selectedAsset??''))throw new Error('Choose a valid branding asset');
+const wantsAsset=name=>!selectedAsset||name===selectedAsset;
 if(!ffmpeg)throw new Error('Set FFMPEG_PATH to a local ffmpeg executable');
 await mkdir(out,{recursive:true});
 const font=(await readFile(root+'public/fonts/geologica-cyrillic-wght-normal.woff2')).toString('base64');
@@ -52,11 +56,14 @@ async function render(name,width,height,svg){
 try{
  for(const theme of ['general','claude']){
   for(const role of descriptionOnly?[]:['bot','operator']){
+   if(!wantsAsset(theme+'-'+role))continue;
    const name=theme+'-'+role,data=(await readFile(out+name+'.png')).toString('base64');
-   await render(name,512,512,t=>`<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><rect width="512" height="512" fill="#f4f2ea"/><g transform="translate(256 256) scale(${.80+.008*Math.sin(t*2*Math.PI)}) translate(-256 -256)"><image href="data:image/png;base64,${data}" width="512" height="512"/></g></svg>`);
+   // The framed operator artwork already includes margins for a circular avatar.
+   const avatarScale=name==='general-operator'?.98:.80;
+   await render(name,512,512,t=>`<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><rect width="512" height="512" fill="#f4f2ea"/><g transform="translate(256 256) scale(${avatarScale+.008*Math.sin(t*2*Math.PI)}) translate(-256 -256)"><image href="data:image/png;base64,${data}" width="512" height="512"/></g></svg>`);
    await command(['-y','-loglevel','error','-i',out+name+'-preview.png','-frames:v','1','-q:v','2',out+name+'.jpg']);
   }
-  for(const kind of descriptionOnly?['description']:['description','menu'])await render(theme+'-'+kind,640,360,t=>banner(theme,kind,t));
-  await command(['-y','-loglevel','error','-i',out+theme+'-description.mp4','-filter_complex','fps=12,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=3','-loop','0',out+theme+'-description.gif']);
+  for(const kind of descriptionOnly?['description']:['description','menu'])if(wantsAsset(theme+'-'+kind))await render(theme+'-'+kind,640,360,t=>banner(theme,kind,t));
+  if(wantsAsset(theme+'-description'))await command(['-y','-loglevel','error','-i',out+theme+'-description.mp4','-filter_complex','fps=12,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=3','-loop','0',out+theme+'-description.gif']);
  }
 }finally{await browser.close();}
