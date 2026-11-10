@@ -197,10 +197,10 @@ export function createShopBots({ db, env, state, botCall, now = Date.now, assets
     keyboard.push([decorate({text:'Весь каталог',web_app:{url:origin()},style:'success'},'catalog','🟢')]);
     const current=state();
     const support=current.shop?.supportTelegram || current.settings.sellerUsername || 'tcmai';
-    keyboard.push([decorate({text:'Помощь менеджера',url:'https://t.me/'+support.replace(/^@/,'')},'support','💬')]);
+    keyboard.push([decorate({text:'Помощь менеджера',url:'https://t.me/'+support.replace(/^@/,'')},'support','👤')]);
     const caption = r.theme==='claude'
-      ? '<b>Claude в фиКУС</b>\nВерификация на ваш аккаунт, готовые аккаунты и другие цифровые сервисы.\n\nВыберите услугу кнопкой ниже ↓'
-      : '<b>Добро пожаловать в фиКУС</b>\nKYC, аккаунты и цифровые сервисы. Условия и оформление заказа — в каталоге, помощь — у менеджера.\n\nВыберите раздел кнопкой ниже ↓';
+      ? '<b>Claude · верификация и аккаунты</b>\n\n<blockquote><b>Всё для вашего Claude</b>\nВерификация на вашем аккаунте или готовый аккаунт — выберите подходящую услугу.</blockquote>\n\nУсловия и стоимость — в каталоге.\n<b>Выберите услугу ниже ↓</b>'
+      : '<b>фиКУС · цифровые сервисы</b>\n\n<blockquote><b>Верификация и готовые аккаунты</b>\nClaude, нейросети и почтовые сервисы — в одном каталоге.</blockquote>\n\nУсловия и стоимость — в карточке услуги.\n<b>Выберите раздел ниже ↓</b>';
     return {caption:caption+`\n${page+1} / ${pages}`,parse_mode:'HTML',reply_markup:{inline_keyboard:keyboard}};
   }
   async function reply(r, update, premium=true) {
