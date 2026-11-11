@@ -15,6 +15,7 @@ import { createGateway } from './gateway/gateway.mjs';
 import { createChannelImport } from './channel-import.mjs';
 import { createProductImages, MAX_IMAGE_BYTES } from './product-images.mjs';
 import { createShopBots } from './shop-bots.mjs';
+import { createRestocks } from './restocks.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export async function createApp(options = {}) {
@@ -132,6 +133,8 @@ export async function createApp(options = {}) {
   }
   const shopBots = createShopBots({db,env,state,botCall:options.shopBotCall,now:options.shopBotNow,assetsRoot:options.botAssetsRoot ?? resolve(root,'dist/branding/telegram')});
   const access = createAccess({ db, env, state, cookies, setCookie, botTokens:shopBots.tokens });
+  const restocks = createRestocks({db,state,bots:shopBots,blocked:access.blocked,assetsRoot:options.restockAssetsRoot ?? resolve(root,'dist'),now:options.restockNow});
+  shopBots.setRestocks(restocks);
   const isAdmin = access.admin;
   const visitor = access.visitor;
   async function body(req) {
@@ -226,6 +229,7 @@ export async function createApp(options = {}) {
       if (path === '/api/access' && method === 'GET') {
         const result = access.status(req);
         if (!result.blocked) visitor(req, res);
+        if (!result.blocked) restocks.observeProof(req.headers['x-telegram-init-data']);
         return send(res, result);
       }
       if (path.startsWith('/api/') && !path.startsWith('/api/admin/') && path !== '/api/access')
@@ -291,6 +295,17 @@ export async function createApp(options = {}) {
       }
       if (path.startsWith('/api/admin/')) {
         if (!isAdmin(req)) fail('Войдите в панель администратора', 401);
+        if (path === '/api/admin/restocks' && method === 'GET') return send(res,restocks.list(url.searchParams.get('productId') ?? ''));
+        if (path === '/api/admin/restocks/preview' && method === 'POST') {
+          limit('restock-preview',60,3600000);return send(res,await restocks.preview(await body(req)),201);
+        }
+        const restockRoute=path.match(/^\/api\/admin\/restocks\/([a-f0-9-]{36})(?:\/(send|cancel|media))?$/);
+        if(restockRoute) {
+          const [,id,action]=restockRoute;
+          if(method==='GET'&&!action)return send(res,restocks.summary(id));
+          if(method==='GET'&&action==='media') {const media=restocks.media(id);if(!media)fail('Обложка не найдена',404);res.writeHead(200,{'Content-Type':media.media_kind==='animation'?'video/mp4':'image/jpeg','Cache-Control':'private, no-store'});return res.end(media.media);}
+          if(method==='POST'&&['send','cancel'].includes(action)) {await body(req);const result=action==='send'?restocks.launch(id):restocks.cancel(id);audit('restock.'+action+':'+id);return send(res,result);}
+        }
         if (path === '/api/admin/bots' && method === 'GET') return send(res,shopBots.list());
         if (path === '/api/admin/bots' && method === 'POST') {
           limit('bot-connect',15,3600000);const result=await shopBots.save(await body(req));audit('shop-bot.add:'+result.id);return send(res,result,201);
@@ -739,12 +754,14 @@ export async function createApp(options = {}) {
     clearInterval(cleanup);
     clearInterval(importTimer);
     gateway.stop();
+    restocks.stop();
     shopBots.stop();
     db.close();
   });
   if (options.gatewayWorker !== false && env.NODE_ENV !== 'test') gateway.start();
   if (options.shopBotWorker !== false && env.NODE_ENV !== 'test') server.once('listening',()=>void shopBots.start());
-  return { server, db, gateway, channelImport, shopBots };
+  if (options.restockWorker !== false && env.NODE_ENV !== 'test') server.once('listening',()=>restocks.start());
+  return { server, db, gateway, channelImport, shopBots, restocks };
 }
 export async function startServer() {
   const { server } = await createApp();

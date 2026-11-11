@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { token } from './security.mjs';
+import { token, telegramUser } from './security.mjs';
 import { imageInfo } from './product-images.mjs';
 
 export const botPresets = {
@@ -40,6 +40,7 @@ export function createShopBots({ db, env, state, botCall, now = Date.now, assets
       next_at INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(bot_id,update_id));
     CREATE TABLE IF NOT EXISTS shop_bot_avatars(bot_id TEXT PRIMARY KEY,data BLOB NOT NULL,updated_at INTEGER NOT NULL);`);
   let stopped = true;
+  let restocks;
   const loops = new Map(), controllers = new Set(), retryTimers = new Map();
   const cipherKey = /^[a-f0-9]{64}$/i.test(env.BOTS_ENCRYPTION_KEY ?? '')
     ? Buffer.from(env.BOTS_ENCRYPTION_KEY, 'hex') : null;
@@ -207,6 +208,7 @@ export function createShopBots({ db, env, state, botCall, now = Date.now, assets
     const cb=update.callback_query,msg=cb?.message ?? update.message;
     if(!msg || msg.chat?.type!=='private' || !Number.isSafeInteger(msg.chat.id) || msg.chat.id<=0 || (cb?.from ?? msg.from)?.is_bot)return;
     if(cb && cb.from?.id!==msg.chat.id)return;
+    if(await restocks?.handle(r,update))return;
     const command=(msg.text ?? '').match(/^\/(start|menu|help)(?:@[a-z0-9_]+)?(?:\s|$)/i);
     if(!cb&&!command)return;
     if(cb&&!/^menu:\d{1,3}$/.test(cb.data ?? ''))return;
@@ -233,10 +235,12 @@ export function createShopBots({ db, env, state, botCall, now = Date.now, assets
     } finally {if(cb)await call(r,'answerCallbackQuery',{callback_query_id:cb.id}).catch(()=>{});}
   }
   function accept(r, update) {
-    const msg=update.message??update.callback_query?.message;
+    const msg=update.message??update.callback_query?.message??update.my_chat_member;
     if(msg?.chat?.type!=='private'||msg.chat.id<=0)return;
     const at=(update.callback_query?now():Number(msg.date)*1000);
     if(!Number.isFinite(at)||at+1000<r.enabled_at)return;
+    restocks?.observe(r,update);
+    if(update.my_chat_member)return;
     db.prepare('INSERT OR IGNORE INTO shop_bot_jobs(bot_id,update_id,payload) VALUES(?,?,?)').run(r.id,update.update_id,JSON.stringify(update));
   }
   async function drain(r) {
@@ -271,7 +275,7 @@ export function createShopBots({ db, env, state, botCall, now = Date.now, assets
             db.prepare('UPDATE shop_bots SET username=?,main_app=? WHERE id=?').run(me.username,Number(!!me.has_main_web_app),id);checked=true;
           }
           await drain(r);if(stopped)return;
-          const updates=await call(r,'getUpdates',{offset:r.offset,timeout:8,limit:30,allowed_updates:['message','callback_query']});
+          const updates=await call(r,'getUpdates',{offset:r.offset,timeout:8,limit:30,allowed_updates:['message','callback_query','my_chat_member']});
           if(stopped)return;
           const current=row(id);if(!current?.enabled)return;
           db.exec('BEGIN IMMEDIATE');
@@ -302,5 +306,13 @@ export function createShopBots({ db, env, state, botCall, now = Date.now, assets
   function avatar(id){return db.prepare('SELECT data,updated_at FROM shop_bot_avatars WHERE bot_id=?').get(id);}
   function saveAvatar(id,data){if(!row(id))bad('Бот не найден',404);const info=imageInfo(data);if(info.mime!=='image/jpeg'||info.width!==info.height)bad('Аватар должен быть квадратным JPG');db.prepare('INSERT INTO shop_bot_avatars VALUES(?,?,?) ON CONFLICT(bot_id) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at').run(id,data,now());return safe(row(id));}
   function resetAvatar(id){if(!row(id))bad('Бот не найден',404);db.prepare('DELETE FROM shop_bot_avatars WHERE bot_id=?').run(id);return safe(row(id));}
-  return {list,save,remove,apply,tokens,start,stop,menu,reply,accept,call,drain,avatar,saveAvatar,resetAvatar,setEmojiManifest(value){emojiManifest=value;},getRow:row};
+  function proof(initData) {
+    for(const bot of db.prepare('SELECT * FROM shop_bots WHERE enabled=1').all()) {
+      const user=telegramUser(initData,secret(bot));if(user)return {bot,user};
+    }
+    return null;
+  }
+  return {list,save,remove,apply,tokens,start,stop,menu,reply,accept,call,drain,avatar,saveAvatar,resetAvatar,proof,
+    productUrl(id){return target({kind:'product',id,label:state().catalog.products.find(p=>p.id===id)?.title ?? id});},setRestocks(value){restocks=value;},
+    setEmojiManifest(value){emojiManifest=value;},getRow:row};
 }

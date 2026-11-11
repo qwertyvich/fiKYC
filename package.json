@@ -29,6 +29,7 @@
     "test:product-images": "node scripts/qa-product-images.mjs"
   },
   "dependencies": {
+    "html-to-image": "1.11.13",
     "lucide-react": "^0.468.0",
     "react": "19.1.1",
     "react-dom": "19.1.1"

@@ -24,6 +24,7 @@ import { ProductCover } from '../ProductCover';
 import { ClawdProductArt } from '../ClaudeSection';
 import { uploadProductImage } from './image-upload';
 import { StatisticsPreview } from './StatisticsPreview';
+import { RestockNotice } from './RestockNotice';
 import { Drawer, SearchBox, Toggle, Badge, EmptyState, number } from './shared';
 export type SaveState = (
   patch: Partial<Pick<AdminState, 'catalog' | 'shop' | 'settings'>>,
@@ -57,7 +58,7 @@ export function ProductEditor({
   const [draft, setDraft] = useState(() => structuredClone(product));
   const [error, setError] = useState('');
   const [imageBusy, setImageBusy] = useState(false);
-  const dirty = JSON.stringify(product) !== JSON.stringify(draft);
+  const dirty = JSON.stringify(catalog.products.find(p=>p.id===product.id) ?? product) !== JSON.stringify(draft);
   const close = () => {
     if (imageBusy) {setError('Дождитесь загрузки изображения');return;}
     if (!dirty || confirm('Есть несохранённые изменения. Закрыть карточку?')) onClose();
@@ -65,8 +66,8 @@ export function ProductEditor({
   const set = <K extends keyof Product>(key: K, value: Product[K]) =>
     setDraft((p) => ({ ...p, [key]: value }));
   const offer = offerFor(draft);
-  async function submit() {
-    if (imageBusy || busy) return;
+  async function submit(stayOpen = false):Promise<boolean> {
+    if (imageBusy || busy) return false;
     setError('');
     try {
       const updated = { ...draft, title: draft.title.trim() };
@@ -80,10 +81,11 @@ export function ProductEditor({
           ? { productOrder: exists ? catalog.productOrder : [updated.id, ...catalog.productOrder] }
           : {}),
       });
-      if (await save({ catalog: next })) onClose();
+      if (await save({ catalog: next })) {if(!stayOpen)onClose();return true;}
     } catch (e) {
       setError((e as Error).message);
     }
+    return false;
   }
   return (
     <Drawer
@@ -263,6 +265,7 @@ export function ProductEditor({
             </div>
           )}
         </div>
+        <RestockNotice product={draft} added={draft.stock-product.stock} busy={busy||imageBusy} save={()=>submit(true)}/>
         <div className="a-form-section">
           <h3>Условия предложения</h3>
           {Object.entries({
