@@ -1,12 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { languageStorageKey, telegramLanguage } from './locale.ts';
-import { getLanguage, getLanguageChoice, initLanguage, setLanguageChoice, t } from './i18n.ts';
+import { getLanguage, getLanguageChoice, initLanguage, setLanguageChoice, refreshTelegramLanguage, t } from './i18n.ts';
 import { cartMessage } from './seller.ts';
 
 test('Telegram language variants map to supported languages; unknown and missing codes use Russian', () => {
   for (const [code, expected] of [['en-GB','en'],['zh-Hans','zh'],['zh_Hant','zh'],['FA-ir','fa'],['ru-RU','ru'],['de','ru'],['','ru']] as const) assert.equal(telegramLanguage(code), expected);
   assert.equal(telegramLanguage(), 'ru');
+  assert.equal(telegramLanguage(undefined,'zh-CN'),'zh');
+  assert.equal(telegramLanguage('en','zh-CN'),'en');
+});
+
+test('Telegram language refresh follows automatic mode and preserves an explicit language choice',()=>{
+  initLanguage({id:900,language_code:'zh-Hans'});assert.equal(getLanguage(),'zh');assert.equal(t('Загрузка'),'加载中');
+  refreshTelegramLanguage('fa');assert.equal(getLanguage(),'fa');
+  setLanguageChoice('en');refreshTelegramLanguage('ru');assert.equal(getLanguage(),'en');
+  setLanguageChoice('auto');assert.equal(getLanguage(),'ru');initLanguage();
 });
 
 test('saved choices are account-specific, auto uses Telegram, malformed/blocked storage does not prevent opening', () => {

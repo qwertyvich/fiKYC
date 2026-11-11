@@ -5,7 +5,7 @@ import { api, loadPublic, loadAccess, type AccessState, type PublicState } from 
 import { configureAnalytics, productVisit, track } from './analytics';
 import { refreshReviews } from './review-store';
 const AdminPanel = lazy(() => import('./admin/AdminPanel').then(m => ({ default: m.AdminPanel })));
-import { t, getLanguage, subscribeLanguage } from './i18n';
+import { t, getLanguage, subscribeLanguage, refreshTelegramLanguage } from './i18n';
 import { LanguageSettings } from './LanguageSettings';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronRight, CircleHelp, Download, Grid2X2, Heart, Leaf, List, LoaderCircle, Minus, Moon, Package, Plus, Search, Settings2, ShieldCheck, ShoppingBag, SlidersHorizontal, Sparkles, Sun, Trash2, Upload, UserRound, X } from 'lucide-react';
@@ -65,7 +65,7 @@ export function App() {
   const [shopEditor, setShopEditor] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const routeRef = useRef(routeNow());
-  const [appearance, setAppearanceState] = useState<Appearance>(() => safeSaved(APPEARANCE_STORAGE_KEY, 'light', isAppearance));
+  const [appearance, setAppearanceState] = useState<Appearance>(() => safeSaved(APPEARANCE_STORAGE_KEY, 'auto', isAppearance));
   const setAppearance = (value: Appearance) => { setAppearanceState(value); try { writeLocal(APPEARANCE_STORAGE_KEY, value); } catch {} };
   const [siteSettings, setSiteSettings] = useState<PublicState['settings'] | null>(null);
   const startParam = new URLSearchParams(location.search).get('tgWebAppStartParam') ?? new URLSearchParams(location.search).get('ref') ?? telegram?.initDataUnsafe?.start_param ?? '';
@@ -99,7 +99,6 @@ export function App() {
     Promise.all([store.loadCatalog(), store.loadOrders(), store.loadRequests(), store.loadShop(), loadPublic()]).then(([c, o, r, info, data]) => { if (live) {
       setCatalog(c); setOrders(o); setRequests(r); setShop(info); setSiteSettings(data.settings); setLoadError(false);
       configureAnalytics(data.settings.analyticsEnabled);
-      if (!isAppearance(readLocal(APPEARANCE_STORAGE_KEY, null))) setAppearanceState(data.settings.defaultAppearance);
       void refreshReviews().catch(() => {});
     } }).catch(() => { if (live) setLoadError(true); });
     return () => { live = false; };
@@ -152,15 +151,21 @@ export function App() {
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(''), 3200); return () => clearTimeout(timer); }, [toast]);
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const changed = () => setSystemMode(systemColorMode());
+    const changed = () => {setSystemMode(systemColorMode());refreshTelegramLanguage(telegram?.initDataUnsafe?.user?.language_code);};
+    const visible = () => {if(document.visibilityState==='visible')changed();};
     media.addEventListener('change', changed);
     telegram?.onEvent('themeChanged', changed);
-    return () => { media.removeEventListener('change', changed); telegram?.offEvent('themeChanged', changed); };
+    telegram?.onEvent('activated', changed);
+    window.addEventListener('focus',changed);
+    document.addEventListener('visibilitychange',visible);
+    return () => { media.removeEventListener('change', changed); telegram?.offEvent('themeChanged', changed);telegram?.offEvent('activated',changed);window.removeEventListener('focus',changed);document.removeEventListener('visibilitychange',visible); };
   }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.dataset.mode = mode;
     const color = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    document.documentElement.style.backgroundColor = color;
+    document.documentElement.style.colorScheme = mode;
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color);
     if (telegram?.initData) { telegram.setHeaderColor(color); telegram.setBackgroundColor(color); }
   }, [theme, mode]);
@@ -258,7 +263,7 @@ export function App() {
 
         {kind === 'orders' && <><PaymentHistory navigate={go}/>{(orders.length > 0 || requests.length > 0) && <OrdersPage orders={orders} requests={requests} navigate={go}/>}</>}
 
-        {kind === 'profile' && <><PageTitle title={t("Профиль")}/><section className="profile-card"><div className="profile-avatar">{(telegram?.initDataUnsafe?.user?.first_name ?? t('Гость'))[0]}</div><h2>{telegram?.initDataUnsafe?.user?.first_name ?? t('Привет, гость!')}</h2><p>{t(telegram?.initData ? 'Рады видеть тебя в фиКУСе' : 'Осматривайся — здесь всё для тебя')}</p><span className="demo-badge">{t(telegram?.initData ? 'Telegram Mini App' : 'фиКУС')}</span></section><Wallet shop={shop} navigate={go}/><div className="menu-list"><MenuRow icon={<Package/>} title={t("Мои заказы")} onClick={() => go('/orders')}/><MenuRow icon={<Heart/>} title={t("Избранное")} extra={t(`${favorites.length}`)} onClick={() => go('/favorites')}/><MenuRow icon={<CircleHelp/>} title={t("Помощь и поддержка")} onClick={() => go('/support/new')}/></div>{kind === 'profile' && <section className="appearance-settings"><h3>{t("Оформление")}</h3><div className="appearance-options" role="group" aria-label={t("Тема оформления")}>{([['light', 'Светлая'], ['dark', 'Тёмная'], ['auto', 'Как в системе']] as const).map(([value, label]) => <button key={value} aria-pressed={appearance === value} className={appearance === value ? 'selected' : ''} onClick={() => { setAppearance(value); haptic(); }}>{t(label)}</button>)}</div></section>}<LanguageSettings/>{access.isSeller && <><p className="section-caption">Управление магазином</p><div className="menu-list"><MenuRow icon={<Settings2/>} title="Панель администратора" onClick={() => go('/admin/overview')}/></div></>}<div className="profile-mascot"><Mascot theme={theme}/><p>{t("Сервисы для ваших задач. Поддержка до результата.")}</p><small>{t("фиКУС · v0.1")}</small></div></>}
+        {kind === 'profile' && <><PageTitle title={t("Профиль")}/><section className="profile-card"><div className="profile-avatar">{(telegram?.initDataUnsafe?.user?.first_name ?? t('Гость'))[0]}</div><h2>{telegram?.initDataUnsafe?.user?.first_name ?? t('Привет, гость!')}</h2><p>{t(telegram?.initData ? 'Рады видеть тебя в фиКУСе' : 'Осматривайся — здесь всё для тебя')}</p><span className="demo-badge">{t(telegram?.initData ? 'Telegram Mini App' : 'фиКУС')}</span></section><Wallet shop={shop} navigate={go}/><div className="menu-list"><MenuRow icon={<Package/>} title={t("Мои заказы")} onClick={() => go('/orders')}/><MenuRow icon={<Heart/>} title={t("Избранное")} extra={t(`${favorites.length}`)} onClick={() => go('/favorites')}/><MenuRow icon={<CircleHelp/>} title={t("Помощь и поддержка")} onClick={() => go('/support/new')}/></div>{kind === 'profile' && <section className="appearance-settings"><h3>{t("Оформление")}</h3><div className="appearance-options" role="group" aria-label={t("Тема оформления")}>{([['light', 'Светлая'], ['dark', 'Тёмная'], ['auto', 'Как в Telegram']] as const).map(([value, label]) => <button key={value} aria-pressed={appearance === value} className={appearance === value ? 'selected' : ''} onClick={() => { setAppearance(value); haptic(); }}>{t(label)}</button>)}</div></section>}<LanguageSettings/>{access.isSeller && <><p className="section-caption">Управление магазином</p><div className="menu-list"><MenuRow icon={<Settings2/>} title="Панель администратора" onClick={() => go('/admin/overview')}/></div></>}<div className="profile-mascot"><Mascot theme={theme}/><p>{t("Сервисы для ваших задач. Поддержка до результата.")}</p><small>{t("фиКУС · v0.1")}</small></div></>}
 
         {kind === 'help' && <><PageTitle title={t("На связи")} subtitle={t("Пара ответов, чтобы всё стало проще")}/><div className="help-hero"><Mascot theme={theme}/><h2>{t("Поможем разобраться")}</h2><p>{t("Выбирай сервис, читай условия и оформляй покупку или заявку.")}</p></div><div className="faq-list">{[
           ['Как оформить заказ?', 'Товары с фиксированной ценой добавляйте в корзину. Для услуг «По запросу» откройте карточку и заполните параметры: стоимость и срок согласуются отдельно. На следующем шаге появится сообщение, которое нужно отправить продавцу в Telegram.'],

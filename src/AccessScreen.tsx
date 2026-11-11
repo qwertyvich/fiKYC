@@ -1,5 +1,6 @@
 import { ArrowRight, RefreshCw, Wrench, Send, ArrowLeft } from 'lucide-react';
 import './access-screen.css';
+import { t } from './i18n';
 export function AccessScreen({
   kind,
   botUrl,
@@ -13,7 +14,7 @@ export function AccessScreen({
         <div className="app-scroll access-screen access-screen--loading">
           <main role="status" aria-live="polite">
             <img className="ficus-mark" src={`${import.meta.env.BASE_URL}ficus-mascot.png`} alt="фиКУС" />
-            <h1>Загрузка</h1>
+            <h1>{t('Загрузка')}</h1>
           </main>
         </div>
       </div>
@@ -35,30 +36,30 @@ export function AccessScreen({
             <i>{telegram ? <Send size={24} /> : <Wrench size={24} />}</i>
           </div>
           <small>
-            {maintenance
+            {t(maintenance
               ? 'ТЕХНИЧЕСКИЕ РАБОТЫ'
               : telegram
                 ? 'ВАШ МАГАЗИН В TELEGRAM'
-                : 'ЭТА СТРАНИЦА НЕДОСТУПНА'}
+                : 'ЭТА СТРАНИЦА НЕДОСТУПНА')}
           </small>
           <h1>
-            {maintenance
+            {t(maintenance
               ? 'Скоро снова\nбудем на связи.'
               : telegram
                 ? 'Встретимся\nв Telegram.'
-                : 'Здесь пока\nничего нет.'}
+                : 'Здесь пока\nничего нет.')}
           </h1>
           <p>
-            {maintenance
+            {t(maintenance
               ? 'Магазин временно недоступен. Пожалуйста, загляните немного позже.'
               : telegram
                 ? 'Откройте приложение через нашего бота, чтобы продолжить.'
-                : 'Вернитесь в магазин или попробуйте открыть страницу позже.'}
+                : 'Вернитесь в магазин или попробуйте открыть страницу позже.')}
           </p>
           {telegram && botUrl ? (
             <a className="primary-button" href={botUrl}>
               <Send size={18} />
-              Открыть бота
+              {t('Открыть бота')}
               <ArrowRight size={18} />
             </a>
           ) : (
@@ -70,11 +71,11 @@ export function AccessScreen({
               }}
             >
               {kind === 'unavailable' ? <ArrowLeft size={17} /> : <RefreshCw size={17} />}{' '}
-              {kind === 'unavailable' ? 'В магазин' : 'Проверить снова'}
+              {t(kind === 'unavailable' ? 'В магазин' : 'Проверить снова')}
             </button>
           )}
         </main>
-        <footer>Чуть больше заботы. Чуть меньше хлопот.</footer>
+        <footer>{t('Чуть больше заботы. Чуть меньше хлопот.')}</footer>
       </div>
     </div>
   );

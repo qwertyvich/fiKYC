@@ -15,7 +15,8 @@ export const getLanguageChoice = () => choice;
 export const getLocale = () => languageTag(language);
 
 function applyLanguage() {
-  language = choice === 'auto' ? telegramLanguage(accountLanguage) : choice;
+  const browserLanguage = typeof window !== 'undefined' ? window.navigator?.language : undefined;
+  language = choice === 'auto' ? telegramLanguage(accountLanguage, browserLanguage) : choice;
   if (typeof document !== 'undefined') {
     document.documentElement.lang = language;
     document.documentElement.dir = language === 'fa' ? 'rtl' : 'ltr';
@@ -38,6 +39,11 @@ export function setLanguageChoice(value: LanguageChoice) {
   choice = value;
   try { localStorage.setItem(languageStorageKey(account), JSON.stringify(value)); } catch { /* Session-only preference. */ }
   applyLanguage();
+}
+export function refreshTelegramLanguage(code?: string) {
+  if (code === accountLanguage) return;
+  accountLanguage = code;
+  if (choice === 'auto') applyLanguage();
 }
 
 // Source-language keys keep original catalog values intact for editing and stock logic.

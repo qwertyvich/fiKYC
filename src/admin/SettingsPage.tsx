@@ -173,24 +173,11 @@ export function SettingsPage({
         <section className="a-card">
           <SectionHeading
             title="Витрина и оформление"
-            description="Общие тексты и тема первого входа"
+            description="Общие тексты и оформление магазина"
           >
             <Palette size={20} />
           </SectionHeading>
-          <label>
-            Тема по умолчанию
-            <select
-              value={settings.defaultAppearance}
-              onChange={(e) =>
-                set('defaultAppearance', e.target.value as SiteSettings['defaultAppearance'])
-              }
-            >
-              <option value="light">Светлая</option>
-              <option value="dark">Тёмная</option>
-              <option value="auto">Как в Telegram / системе</option>
-            </select>
-            <small>Ручной выбор покупателя сохраняет приоритет</small>
-          </label>
+          <p className="a-hint">Тема и язык автоматически выбираются по настройкам Telegram. Покупатель может изменить их в профиле. Вне Telegram тема следует настройкам устройства.</p>
           <label>
             Общий заголовок витрины
             <input

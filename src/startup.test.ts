@@ -18,7 +18,7 @@ test('launch fragments preserve product referrals, Claude entries and explicit n
   assert.equal(resolveRoute('#/admin/gateway', ''), '/admin/gateway');
   assert.equal(resolveRoute('#/support/new?product=claude-pro', ''), '/support/new?product=claude-pro');
 });
-test('only explicit valid appearance choices can override light, including intentional system mode', () => {
+test('explicit appearance choices override automatic Telegram or device appearance', () => {
   assert.equal(APPEARANCE_STORAGE_KEY, 'appearance-v2');
   assert.equal(resolveMode('light', 'dark'), 'light');
   assert.equal(resolveMode('dark', 'light'), 'dark');

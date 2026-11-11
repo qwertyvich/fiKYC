@@ -1,2 +1,26 @@
 <!doctype html>
-<html lang="ru" data-mode="light"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/><meta name="theme-color" content="#f4f5f1"/><meta name="description" content="фиКУС — цифровые сервисы в одном месте"/><title>фиКУС · Маркет</title><link rel="icon" type="image/png" href="./ficus-mascot.png"/><script src="https://telegram.org/js/telegram-web-app.js"></script><script>try{var c=JSON.parse(localStorage.getItem('fikus:appearance-v2')||'"light"');var m=c==='auto'?(window.Telegram?.WebApp?.colorScheme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')):c;document.documentElement.dataset.mode=m==='dark'?'dark':'light'}catch{document.documentElement.dataset.mode='light'}</script></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>
+<html lang="ru"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/><meta name="theme-color" content="#f4f5f1"/><meta name="description" content="фиКУС — цифровые сервисы в одном месте"/><title>фиКУС · Маркет</title><link rel="icon" type="image/png" href="./ficus-mascot.png"/>
+<script>
+(function () {
+  var automatic = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  try {
+    var raw = new URLSearchParams(location.hash.slice(1)).get('tgWebAppThemeParams') || new URLSearchParams(location.search).get('tgWebAppThemeParams');
+    var background = JSON.parse(raw || 'null')?.bg_color;
+    if (/^#[0-9a-f]{6}$/i.test(background || '')) {
+      var r = parseInt(background.slice(1, 3), 16), g = parseInt(background.slice(3, 5), 16), b = parseInt(background.slice(5, 7), 16);
+      automatic = Math.sqrt(.299*r*r + .587*g*g + .114*b*b) < 120 ? 'dark' : 'light';
+    }
+  } catch {}
+  var app = window.Telegram?.WebApp;
+  if (app?.initData && ['light', 'dark'].includes(app.colorScheme)) automatic = app.colorScheme;
+  var choice = 'auto';
+  try { var saved = JSON.parse(localStorage.getItem('fikus:appearance-v2') || 'null'); if (['light', 'dark', 'auto'].includes(saved)) choice = saved; } catch {}
+  var mode = choice === 'auto' ? automatic : choice;
+  var color = mode === 'dark' ? '#131517' : '#f4f5f1';
+  document.documentElement.dataset.mode = mode;
+  document.documentElement.style.colorScheme = mode;
+  document.documentElement.style.backgroundColor = color;
+  document.querySelector('meta[name="theme-color"]').content = color;
+})();
+</script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>
