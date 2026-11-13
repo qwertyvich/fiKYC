@@ -47,7 +47,7 @@ export function analytics(
   ];
   const rows = db
     .prepare(
-      `SELECT id, type, product_id AS productId, session_id AS sessionId, visitor_id AS visitorId, at, duration_ms AS durationMs, quantity, link_id AS linkId, view_id AS viewId, product_ids AS productIds FROM events WHERE ${where} ORDER BY at`,
+      `SELECT id, type, product_id AS productId, session_id AS sessionId, visitor_id AS visitorId, at, duration_ms AS durationMs, quantity, link_id AS linkId, view_id AS viewId, product_ids AS productIds, country FROM events WHERE ${where} ORDER BY at`,
     )
     .all(...args)
     .map((r) => ({ ...r, productIds: JSON.parse(r.productIds) }));
@@ -130,7 +130,9 @@ export function analytics(
       views: 0,
       cartAdds: 0,
       activeMs: 0,
+      country: '',
     };
+    if(!s.country&&r.country)s.country=r.country;
     s.lastAt = r.at;
     if (r.type !== 'product_time') s.events++;
     if (r.type === 'product_view') s.views++;
@@ -140,6 +142,8 @@ export function analytics(
   }
   const actionRows = rows.filter((r) => r.type !== 'product_time').reverse();
   const sessionRows = [...sessions.values()].sort((a, b) => b.lastAt - a.lastAt);
+  const countries=new Map();
+  for(const session of sessionRows){const country=session.country||'',entry=countries.get(country)??{country,visitors:new Set(),sessions:0};entry.visitors.add(session.visitorId);entry.sessions++;countries.set(country,entry);}
   eventPage = Math.max(
     1,
     Math.min(
@@ -180,6 +184,7 @@ export function analytics(
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((d) => ({ ...d, sessions: d.sessions.size })),
     hours,
+    countries:[...countries.values()].map(c=>({country:c.country,visitors:c.visitors.size,sessions:c.sessions,share:sessionRows.length?c.sessions/sessionRows.length*100:0})).sort((a,b)=>b.sessions-a.sessions||a.country.localeCompare(b.country)),
     products: [...products.values()]
       .map((p) => ({
         ...p,

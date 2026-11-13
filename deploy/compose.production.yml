@@ -8,6 +8,8 @@ services:
     restart: unless-stopped
     init: true
     env_file: /opt/fikus-miniapp/shared/.env
+    environment:
+      TRUST_FIKUS_PROXY: "true"
     ports:
       - "127.0.0.1:8787:8787"
     volumes:

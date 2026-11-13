@@ -25,25 +25,27 @@ function applyLanguage() {
   }
   listeners.forEach(listener => listener());
 }
+const contextLanguage = () => (accountLanguage || (typeof navigator !== 'undefined' ? navigator.language : '')).toLowerCase().replaceAll('_','-');
 export function initLanguage(user?: { id?: number; language_code?: string }) {
   account = user?.id; accountLanguage = user?.language_code;
   choice = 'auto';
   try {
     const saved: unknown = JSON.parse(localStorage.getItem(languageStorageKey(account)) ?? 'null');
-    if (isLanguageChoice(saved)) choice = saved;
+    if (saved && typeof saved === 'object' && 'choice' in saved && 'context' in saved && isLanguageChoice(saved.choice) && saved.context === contextLanguage()) choice = saved.choice;
   } catch { /* Use Telegram's language if storage is blocked or corrupted. */ }
   applyLanguage();
 }
 export function setLanguageChoice(value: LanguageChoice) {
   if (!isLanguageChoice(value)) return;
   choice = value;
-  try { localStorage.setItem(languageStorageKey(account), JSON.stringify(value)); } catch { /* Session-only preference. */ }
+  try { localStorage.setItem(languageStorageKey(account), JSON.stringify({choice:value,context:contextLanguage()})); } catch { /* Session-only preference. */ }
   applyLanguage();
 }
 export function refreshTelegramLanguage(code?: string) {
   if (code === accountLanguage) return;
   accountLanguage = code;
-  if (choice === 'auto') applyLanguage();
+  choice = 'auto';
+  applyLanguage();
 }
 
 // Source-language keys keep original catalog values intact for editing and stock logic.
@@ -53,9 +55,9 @@ const patterns = Object.keys(en).filter(key => /\{\{\d+\}\}/.test(key)).sort((a,
   key, regex: new RegExp('^' + key.split(/\{\{\d+\}\}/).map(escape).join('([\\s\\S]*?)') + '$'),
   slots: [...key.matchAll(/\{\{(\d+)\}\}/g)].map(match => match[1]),
 }));
-export function t<T>(value: T): T {
-  if (language === 'ru' || typeof value !== 'string') return value;
-  const dictionary = dictionaries[language];
+export function translate<T>(value: T, target: Language): T {
+  if (target === 'ru' || typeof value !== 'string') return value;
+  const dictionary = dictionaries[target];
   const translate = (source: string): string => {
     if (dictionary[source]) return dictionary[source];
     for (const { key, regex, slots } of patterns) {
@@ -71,3 +73,4 @@ export function t<T>(value: T): T {
   const translated = translate(trimmed);
   return (translated === trimmed ? value : value.replace(trimmed, () => translated)) as T;
 }
+export function t<T>(value:T):T { return translate(value,language); }

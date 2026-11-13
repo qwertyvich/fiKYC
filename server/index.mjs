@@ -16,6 +16,7 @@ import { createChannelImport } from './channel-import.mjs';
 import { createProductImages, MAX_IMAGE_BYTES } from './product-images.mjs';
 import { createShopBots } from './shop-bots.mjs';
 import { createRestocks } from './restocks.mjs';
+import {createCountryLookup,requestCountry} from './geoip.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export async function createApp(options = {}) {
@@ -24,6 +25,7 @@ export async function createApp(options = {}) {
   if (dbPath !== ':memory:') await mkdir(dirname(dbPath), { recursive: true });
   const Database = sqlite.Database ?? sqlite.DatabaseSync;
   const db = new Database(dbPath);
+  const countryLookup=options.countryLookup??createCountryLookup(env.GEOIP_DATABASE_PATH??resolve(dbPath===':memory:'?resolve(root,'data'):dirname(dbPath),'geoip/country.bin'));
   db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
     CREATE TABLE IF NOT EXISTS state (id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL, catalog TEXT NOT NULL, shop TEXT NOT NULL, settings TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS secrets (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -45,6 +47,7 @@ export async function createApp(options = {}) {
       .some((c) => c.name === 'product_ids')
   )
     db.exec("ALTER TABLE events ADD COLUMN product_ids TEXT NOT NULL DEFAULT '[]'");
+  if(!db.prepare('PRAGMA table_info(events)').all().some(c=>c.name==='country'))db.exec("ALTER TABLE events ADD COLUMN country TEXT NOT NULL DEFAULT ''");
   db.prepare('INSERT OR IGNORE INTO state VALUES(1,1,?,?,?)').run(
     JSON.stringify(enrichOffers(structuredClone(initialCatalog))),
     JSON.stringify(defaultShop),
@@ -421,7 +424,7 @@ export async function createApp(options = {}) {
           }
           return send(
             res,
-            analytics(db, Object.fromEntries([...url.searchParams, ['timeZone', zone]])),
+            {...analytics(db, Object.fromEntries([...url.searchParams, ['timeZone', zone]])),geolocation:countryLookup.status?.()??{available:true,release:'',source:'DB-IP Lite'}},
           );
         }
         if (path === '/api/admin/audit' && method === 'GET')
@@ -621,8 +624,9 @@ export async function createApp(options = {}) {
         if (!Array.isArray(b.events) || b.events.length > 50) fail('Пакет — до 50 событий');
         const now = Date.now();
         const insert = db.prepare(
-          'INSERT OR IGNORE INTO events(id,visitor_id,session_id,type,product_id,at,duration_ms,quantity,link_id,view_id,product_ids) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+          'INSERT OR IGNORE INTO events(id,visitor_id,session_id,type,product_id,at,duration_ms,quantity,link_id,view_id,product_ids,country) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
         );
+        const country=requestCountry(req,countryLookup,env.TRUST_FIKUS_PROXY==='true');
         const parsed = b.events
           .map((e) => {
             if (
@@ -687,6 +691,7 @@ export async function createApp(options = {}) {
               linkId,
               viewId,
               JSON.stringify(productIds),
+              country,
             ];
           })
           .filter(Boolean);

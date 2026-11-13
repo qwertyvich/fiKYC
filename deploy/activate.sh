@@ -17,6 +17,10 @@ docker inspect --format '{{.Name}} {{.Id}} {{.State.StartedAt}}' $(docker ps -q)
 find /etc/nginx/sites-available /etc/nginx/conf.d -maxdepth 1 -type f ! -name "$fikus_host" -exec sha256sum {} + | sort > "$backup/nginx-others.before"
 export FIKUS_RELEASE="$revision" FIKUS_RELEASE_DIR="$release"
 compose=(docker compose -p fikus -f "$release/deploy/compose.production.yml")
+if ! python3 "$release/scripts/update-geoip.py"; then
+  test -s "$shared/data/geoip/country.bin" || { echo 'Initial country database download failed'; exit 1; }
+  echo 'Keeping the previous country database until the next update'
+fi
 # Build before switching the site; other projects stay running.
 "${compose[@]}" build --pull app
 # Back up an existing SQLite database online with the same Node runtime.
@@ -71,6 +75,10 @@ fi
 # Make the active service manageable without typing release variables each time.
 printf 'FIKUS_RELEASE=%s\nFIKUS_RELEASE_DIR=%s\nFIKUS_HOST=%s\n' "$revision" "$release" "$fikus_host" > "$shared/release.env"
 chmod 600 "$shared/release.env"
+install -m 644 "$release/deploy/fikus-geoip-update.service" /etc/systemd/system/fikus-geoip-update.service
+install -m 644 "$release/deploy/fikus-geoip-update.timer" /etc/systemd/system/fikus-geoip-update.timer
+systemctl daemon-reload
+systemctl enable --now fikus-geoip-update.timer
 cp "$release/deploy/compose.production.yml" "$shared/compose.production.yml"
 find /etc/nginx/sites-available /etc/nginx/conf.d -maxdepth 1 -type f ! -name "$fikus_host" -exec sha256sum {} + | sort > "$backup/nginx-others.after"
 diff -u "$backup/nginx-others.before" "$backup/nginx-others.after"

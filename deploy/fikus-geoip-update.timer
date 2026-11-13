@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh fiKUS country database monthly
+
+[Timer]
+OnCalendar=*-*-02 03:40:00 Europe/Moscow
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

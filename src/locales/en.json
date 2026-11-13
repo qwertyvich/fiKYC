@@ -86,7 +86,7 @@
   "Верификация вашего аккаунта, прогретые аккаунты с KYC, подписки Pro и Max. Условия и стоимость — в карточке каждой услуги.": "Verification of your account, warmed-up accounts with KYC, Pro and Max subscriptions. Conditions and cost are in the card of each service.",
   "Верификация зарубежных сервисов": "Verification of foreign services",
   "Весь заказ не поместится в одно сообщение Telegram. Скопируйте текст и отправьте его частями.": "The entire order will not fit into one Telegram message. Copy the text and send it in parts.",
-  "Весь каталог": "Entire catalog",
+  "Весь каталог": "Full catalog",
   "Включить анимации Clawd": "Enable Clawd animations",
   "Включить светлую тему": "Enable light theme",
   "Включить тёмную тему": "Enable dark theme",
@@ -828,5 +828,13 @@
   "Реквизиты больше недоступны": "Bank details are no longer available",
   "Поможем с оплатой": "We will help you pay",
   "Проверяем оплату": "Checking payment",
-  "Выданы новые реквизиты": "New bank details issued"
+  "Выданы новые реквизиты": "New bank details issued",
+  "Верификация Claude": "Claude verification",
+  "Аккаунты Claude": "Claude accounts",
+  "Аккаунты нейросетей": "AI accounts",
+  "Аккаунты почтовых сервисов": "Postal service accounts",
+  "Помощь менеджера": "Contact support",
+  "Поможем выбрать услугу и ответим на вопросы. Напишите менеджеру:": "We can help you choose a service and answer your questions. Contact our manager:",
+  "<b>Claude · верификация и аккаунты</b>\n\n<blockquote><b>Всё для вашего Claude</b>\nВерификация на вашем аккаунте или готовый аккаунт — выберите подходящую услугу.</blockquote>\n\nУсловия и стоимость — в каталоге.\n<b>Выберите услугу ниже ↓</b>": "<b>Claude · verification and accounts</b>\n\n<blockquote><b>Everything for your Claude</b>\nVerify your own account or choose a ready-to-use account.</blockquote>\n\nSee service details and prices in the catalog.\n<b>Choose a service below ↓</b>",
+  "<b>фиКУС · цифровые сервисы</b>\n\n<blockquote><b>Верификация и готовые аккаунты</b>\nClaude, нейросети и почтовые сервисы — в одном каталоге.</blockquote>\n\nУсловия и стоимость — в карточке услуги.\n<b>Выберите раздел ниже ↓</b>": "<b>fiCUS · digital services</b>\n\n<blockquote><b>Verification and ready-to-use accounts</b>\nClaude, AI and postal services in one catalog.</blockquote>\n\nSee details and prices on each service page.\n<b>Choose a category below ↓</b>"
 }

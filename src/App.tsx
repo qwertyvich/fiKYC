@@ -7,7 +7,7 @@ import { refreshReviews } from './review-store';
 const AdminPanel = lazy(() => import('./admin/AdminPanel').then(m => ({ default: m.AdminPanel })));
 import { t, getLanguage, subscribeLanguage, refreshTelegramLanguage } from './i18n';
 import { LanguageSettings } from './LanguageSettings';
-import { subscribePricing,pricingSnapshot,configurePricing } from './pricing';
+import { subscribePricing,pricingSnapshot,configurePricing,refreshTelegramPricing } from './pricing';
 import {lineMoney} from './domain';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronRight, CircleHelp, Download, Grid2X2, Heart, Leaf, List, LoaderCircle, Minus, Moon, Package, Plus, Search, Settings2, ShieldCheck, ShoppingBag, SlidersHorizontal, Sparkles, Sun, Trash2, Upload, UserRound, X } from 'lucide-react';
@@ -155,7 +155,7 @@ export function App() {
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(''), 3200); return () => clearTimeout(timer); }, [toast]);
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const changed = () => {setSystemMode(systemColorMode());refreshTelegramLanguage(telegram?.initDataUnsafe?.user?.language_code);};
+    const changed = () => {setSystemMode(systemColorMode());refreshTelegramLanguage(telegram?.initDataUnsafe?.user?.language_code);refreshTelegramPricing(telegram?.initDataUnsafe?.user);};
     const visible = () => {if(document.visibilityState==='visible')changed();};
     media.addEventListener('change', changed);
     telegram?.onEvent('themeChanged', changed);

@@ -1,0 +1,9 @@
+[Unit]
+Description=Update fiKUS local country database
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/fikus-miniapp/current/scripts/update-geoip.py
+Nice=10

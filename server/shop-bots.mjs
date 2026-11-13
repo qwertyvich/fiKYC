@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { token, telegramUser } from './security.mjs';
 import { imageInfo } from './product-images.mjs';
+import {telegramLanguage} from '../src/locale.ts';
+import {translate} from '../src/i18n.ts';
 
 export const botPresets = {
   general: {
@@ -185,11 +187,12 @@ export function createShopBots({ db, env, state, botCall, now = Date.now, assets
     if(!link){const code=token();db.prepare('INSERT INTO links(id,token,product_id,label,active,created_at,target_kind,group_id) VALUES(?,?,?,?,1,?,?,?)').run(token().slice(0,16),code,e.kind==='product'?e.id:'','Меню бота: '+e.label,now(),e.kind,e.kind==='group'?e.id:'');link={token:code};}
     return origin()+'?ref='+ (e.kind==='product'?'p_':'g_')+link.token;
   }
-  function menu(r, requestedPage=0, premium=true) {
+  function menu(r, requestedPage=0, premium=true, language='ru') {
+    const localize=value=>translate(value,language);
     const items=entries(), index=items.findIndex(e=>e.key===r.priority);
     if(index>0)items.unshift(...items.splice(index,1));
     const pages=Math.max(1,Math.ceil(items.length/4)),page=Math.max(0,Math.min(pages-1,requestedPage));
-    const decorate=(button, icon, fallback) => ({...button,...(premium&&emojiManifest[icon]?.id?{icon_custom_emoji_id:emojiManifest[icon].id}:{text:(fallback?fallback+' ':'')+button.text})});
+    const decorate=(button, icon, fallback) => ({...button,text:localize(button.text),...(premium&&emojiManifest[icon]?.id?{icon_custom_emoji_id:emojiManifest[icon].id}:{text:(fallback?fallback+' ':'')+localize(button.text)})});
     const keyboard=items.slice(page*4,page*4+4).map(e=>[decorate({text:e.label,web_app:{url:target(e)}},e.icon,e.fallback)]);
     const nav=[];
     if(page>0)nav.push(decorate({text:'Назад',callback_data:'menu:'+(page-1),style:'success'},'back','←'));
@@ -202,20 +205,21 @@ export function createShopBots({ db, env, state, botCall, now = Date.now, assets
     const caption = r.theme==='claude'
       ? '<b>Claude · верификация и аккаунты</b>\n\n<blockquote><b>Всё для вашего Claude</b>\nВерификация на вашем аккаунте или готовый аккаунт — выберите подходящую услугу.</blockquote>\n\nУсловия и стоимость — в каталоге.\n<b>Выберите услугу ниже ↓</b>'
       : '<b>фиКУС · цифровые сервисы</b>\n\n<blockquote><b>Верификация и готовые аккаунты</b>\nClaude, нейросети и почтовые сервисы — в одном каталоге.</blockquote>\n\nУсловия и стоимость — в карточке услуги.\n<b>Выберите раздел ниже ↓</b>';
-    return {caption:caption+`\n${page+1} / ${pages}`,parse_mode:'HTML',reply_markup:{inline_keyboard:keyboard}};
+    return {caption:localize(caption)+`\n${page+1} / ${pages}`,parse_mode:'HTML',reply_markup:{inline_keyboard:keyboard}};
   }
   async function reply(r, update, premium=true) {
     const cb=update.callback_query,msg=cb?.message ?? update.message;
     if(!msg || msg.chat?.type!=='private' || !Number.isSafeInteger(msg.chat.id) || msg.chat.id<=0 || (cb?.from ?? msg.from)?.is_bot)return;
     if(cb && cb.from?.id!==msg.chat.id)return;
     if(await restocks?.handle(r,update))return;
+    const language=telegramLanguage((cb?.from??msg.from)?.language_code);
     const command=(msg.text ?? '').match(/^\/(start|menu|help)(?:@[a-z0-9_]+)?(?:\s|$)/i);
     if(!cb&&!command)return;
     if(cb&&!/^menu:\d{1,3}$/.test(cb.data ?? ''))return;
     if(command?.[1].toLowerCase()==='help') {
-      const help=menu(r,0,premium);await call(r,'sendMessage',{chat_id:msg.chat.id,text:'Поможем выбрать услугу и ответим на вопросы. Напишите менеджеру:',reply_markup:{inline_keyboard:[help.reply_markup.inline_keyboard.at(-1)]}});return;
+      const help=menu(r,0,premium,language);await call(r,'sendMessage',{chat_id:msg.chat.id,text:translate('Поможем выбрать услугу и ответим на вопросы. Напишите менеджеру:',language),reply_markup:{inline_keyboard:[help.reply_markup.inline_keyboard.at(-1)]}});return;
     }
-    const content=menu(r,cb?Number(cb.data.split(':')[1]):0,premium);
+    const content=menu(r,cb?Number(cb.data.split(':')[1]):0,premium,language);
     try {
       if(cb) {
         await call(r,'editMessageCaption',{chat_id:msg.chat.id,message_id:msg.message_id,...content});

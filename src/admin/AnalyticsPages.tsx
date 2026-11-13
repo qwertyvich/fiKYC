@@ -63,6 +63,15 @@ export function MetricCards({ data }: { data: AnalyticsData }) {
     </div>
   );
 }
+const countryNames=new Intl.DisplayNames(['ru'],{type:'region'});
+function countryName(code:string){try{return code?countryNames.of(code)??code:'Не определена';}catch{return code||'Не определена';}}
+export function CountryReport({data}:{data:AnalyticsData}){
+  return <section className="a-card"><SectionHeading title="Страны посетителей" description="Страна подключения по IP · за выбранный период"/>
+    {!data.geolocation?.available&&<p className="a-note">Определение стран временно недоступно. Посещения продолжают учитываться.</p>}
+    {data.countries?.length?<div className="a-table-wrap"><table className="a-table"><thead><tr><th>Страна</th><th>Посетители</th><th>Сессии</th><th>Доля сессий</th></tr></thead><tbody>{data.countries.map(c=><tr key={c.country||'unknown'}><td><b>{countryName(c.country)}</b>{c.country&&<small> {c.country}</small>}</td><td>{number(c.visitors)}</td><td>{number(c.sessions)}</td><td>{number(c.share)}%</td></tr>)}</tbody></table></div>:<EmptyState title="Здесь появятся страны посетителей">Статистика собирается с новых посещений.</EmptyState>}
+    <p className="a-note">VPN может менять определяемую страну. Для посещений до включения этой функции страна неизвестна. <a href="https://db-ip.com/" target="_blank" rel="noreferrer">IP Geolocation by DB-IP</a>{data.geolocation?.release&&` · база ${data.geolocation.release}`}</p>
+  </section>;
+}
 export function ProductReport({
   data,
   catalog,
@@ -125,7 +134,7 @@ function exportEvents(data: AnalyticsData, catalog: Catalog) {
     return '"' + text.replaceAll('"', '""') + '"';
   };
   const rows = [
-    ['Время', 'Клиент', 'Сессия', 'Действие', 'Товар', 'Количество', 'Активные секунды'],
+    ['Время', 'Клиент', 'Сессия', 'Действие', 'Товар', 'Количество', 'Активные секунды', 'Страна'],
     ...data.events.map((e) => [
       new Date(e.at).toISOString(),
       e.visitorId,
@@ -134,6 +143,7 @@ function exportEvents(data: AnalyticsData, catalog: Catalog) {
       catalog.products.find((p) => p.id === e.productId)?.title ?? e.productId,
       e.quantity,
       e.type === 'product_view' ? e.activeSeconds : '',
+      countryName(e.country),
     ]),
   ];
   const blob = new Blob(['\uFEFF' + rows.map((r) => r.map(escape).join(';')).join('\r\n')], {
@@ -197,6 +207,7 @@ export function Overview({
         </div>
       </section>
       <MetricCards data={data} />
+      <CountryReport data={data}/>
       <div className="a-chart-grid">
         <section className="a-card">
           <SectionHeading
@@ -281,7 +292,7 @@ export function ActivityPage({
               <div>
                 <b>Клиент {s.visitorId.slice(0, 6)}</b>
                 <small>
-                  {dateTime(s.lastAt)} · {s.events} действий
+                  {dateTime(s.lastAt)} · {s.events} действий · {countryName(s.country)}
                 </small>
                 <small>
                   {s.views} карточек · {s.cartAdds} в корзину · {seconds(s.activeMs / 1000)}
@@ -388,6 +399,7 @@ export function AnalyticsPage({
   return (
     <>
       <MetricCards data={data} />
+      <CountryReport data={data}/>
       <div className="a-chart-grid">
         <section className="a-card">
           <SectionHeading

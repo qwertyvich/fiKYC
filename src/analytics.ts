@@ -175,6 +175,7 @@ export interface ProductMetrics {
   averageSeconds: number;
 }
 export interface ActivityEvent {
+  country: string;
   activeSeconds: number;
   id: string;
   type: EventType;
@@ -186,6 +187,7 @@ export interface ActivityEvent {
   linkId: string;
 }
 export interface SessionMetrics {
+  country: string;
   sessionId: string;
   visitorId: string;
   startedAt: number;
@@ -196,6 +198,8 @@ export interface SessionMetrics {
   activeMs: number;
 }
 export interface AnalyticsData {
+  countries: {country:string;visitors:number;sessions:number;share:number}[];
+  geolocation?: {available:boolean;release:string;source:string};
   pagination: {
     eventPage: number;
     eventPages: number;

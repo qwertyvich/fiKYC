@@ -75,3 +75,12 @@ test('a blocked recipient does not block another private menu and custom avatars
  assert.throws(()=>app.shopBots.saveAvatar('123456789',Buffer.from('<svg/>')),/PNG/);
  app.shopBots.stop();
 });
+test('private menus follow each sender language without changing other users or the app language',async t=>{
+ const app=await fixture(t),r=app.shopBots.getRow('123456789');
+ for(const [language,label] of [['en','Claude verification'],['zh-Hans','Claude 验证'],['de','Claude verification'],['ru','Верификация Claude']]){
+  await app.shopBots.reply(r,{message:{chat:{id:777,type:'private'},from:{id:777,language_code:language},text:'/start'}});
+  const sent=app.calls.at(-1).payload;assert.ok(sent.reply_markup.inline_keyboard[0][0].text.includes(label));
+  if(language==='en'||language==='de')assert.match(sent.caption,/digital services/);
+ }
+ assert.match(app.shopBots.menu(r).caption,/цифровые сервисы/);
+});
