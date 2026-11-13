@@ -10,7 +10,7 @@ import { defaultShop, parseShop, enrichOffers } from '../src/commerce.ts';
 import { token, digest, equal, telegramUser } from './security.mjs';
 import { defaultSettings, parseSettings, directLink, eventTypes } from './settings.mjs';
 import { createAccess, blacklistValue } from './access.mjs';
-import { analytics } from './analytics.mjs';
+import {createAnalyticsReports} from './analytics-reports.mjs';
 import { createGateway } from './gateway/gateway.mjs';
 import { createChannelImport } from './channel-import.mjs';
 import { createProductImages, MAX_IMAGE_BYTES } from './product-images.mjs';
@@ -25,6 +25,7 @@ export async function createApp(options = {}) {
   if (dbPath !== ':memory:') await mkdir(dirname(dbPath), { recursive: true });
   const Database = sqlite.Database ?? sqlite.DatabaseSync;
   const db = new Database(dbPath);
+  const analyticsReports=createAnalyticsReports(db,dbPath,{ttl:env.NODE_ENV==='test'?0:15000});
   const countryLookup=options.countryLookup??createCountryLookup(env.GEOIP_DATABASE_PATH??resolve(dbPath===':memory:'?resolve(root,'data'):dirname(dbPath),'geoip/country.bin'));
   db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
     CREATE TABLE IF NOT EXISTS state (id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL, catalog TEXT NOT NULL, shop TEXT NOT NULL, settings TEXT NOT NULL);
@@ -424,7 +425,7 @@ export async function createApp(options = {}) {
           }
           return send(
             res,
-            {...analytics(db, Object.fromEntries([...url.searchParams, ['timeZone', zone]])),geolocation:countryLookup.status?.()??{available:true,release:'',source:'DB-IP Lite'}},
+            {...await analyticsReports.get(Object.fromEntries([...url.searchParams, ['timeZone', zone]])),geolocation:countryLookup.status?.()??{available:true,release:'',source:'DB-IP Lite'}},
           );
         }
         if (path === '/api/admin/audit' && method === 'GET')
@@ -759,6 +760,7 @@ export async function createApp(options = {}) {
   server.on('close', () => {
     clearInterval(cleanup);
     clearInterval(importTimer);
+    analyticsReports.close();
     gateway.stop();
     restocks.stop();
     shopBots.stop();

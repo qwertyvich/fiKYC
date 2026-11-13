@@ -184,7 +184,7 @@ export function AdminPanel({
     }
   }, [days, productFilter, sessionFilter, current.id, from, to, eventPage, sessionPage]);
   useEffect(() => {
-    if (!auth) return;
+    if (!auth || !['overview','analytics','activity'].includes(current.id)) return;
     void refresh();
     const timer = setInterval(() => void refresh(), 30000);
     return () => clearInterval(timer);

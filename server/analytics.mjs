@@ -45,58 +45,47 @@ export function analytics(
     ...(productId ? [productId, productId] : []),
     ...(sessionId ? [sessionId] : []),
   ];
-  const rows = db
-    .prepare(
+  const rows = db.prepare(
       `SELECT id, type, product_id AS productId, session_id AS sessionId, visitor_id AS visitorId, at, duration_ms AS durationMs, quantity, link_id AS linkId, view_id AS viewId, product_ids AS productIds, country FROM events WHERE ${where} ORDER BY at`,
     )
-    .all(...args)
-    .map((r) => ({ ...r, productIds: JSON.parse(r.productIds) }));
-  const count = (type) => rows.filter((r) => r.type === type).length;
-  const unique = (type, key) =>
-    new Set(rows.filter((r) => !type || r.type === type).map((r) => r[key])).size;
-  const durations = rows.filter((r) => r.type === 'product_time');
-  const byView = new Map();
-  for (const r of durations) {
-    const key = r.visitorId + ':' + r.sessionId + ':' + r.viewId;
-    byView.set(key, (byView.get(key) ?? 0) + r.durationMs);
-  }
-  const totalMs = durations.reduce((s, r) => s + r.durationMs, 0);
-  const viewedSessions = new Set(
-    rows.filter((r) => r.type === 'product_view').map((r) => r.sessionId),
-  );
-  const cartSessions = new Set(
-    rows
-      .filter((r) => r.type === 'cart_add' && viewedSessions.has(r.sessionId))
-      .map((r) => r.sessionId),
-  );
+    .iterate(...args);
+  const counts=new Map(),visitors=new Set(),byView=new Map(),viewedSessions=new Set(),allCartSessions=new Set(),actionRows=[];
+  let totalMs=0,units=0;
+  const count=type=>counts.get(type)??0;
   const groups = new Map(),
     products = new Map(),
     sessions = new Map();
-  const dayFormat = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  const hourFormat = new Intl.DateTimeFormat('en-GB', {
-    timeZone,
-    hour: '2-digit',
-    hourCycle: 'h23',
-  });
-  const dayKey = (ms) => dayFormat.format(ms);
+  // Resolve time-zone offsets at transitions, rather than calling Intl for every
+  // heartbeat. Streaming keeps hundreds of thousands of timing rows out of memory.
+  const offsetFormat=new Intl.DateTimeFormat('en',{timeZone,timeZoneName:'longOffset'});
+  const offsetAt=ms=>{const part=offsetFormat.formatToParts(ms).find(p=>p.type==='timeZoneName')?.value??'GMT',m=part.match(/GMT([+-])(\d{2}):(\d{2})/);return m?(m[1]==='-'?-1:1)*(Number(m[2])*60+Number(m[3]))*60000:0;};
+  const offsets=[{at:start,offset:offsetAt(start)}];
+  let sampled=start;
+  for(let at=Math.min(start+21600000,end);sampled<end;at=Math.min(at+21600000,end)){
+    const offset=offsetAt(at),previous=offsets.at(-1).offset;
+    if(offset!==previous){let low=sampled,high=at;while(high-low>1){const mid=Math.floor((low+high)/2);if(offsetAt(mid)===previous)low=mid;else high=mid;}offsets.push({at:high,offset});}
+    sampled=at;
+  }
+  const localDate=ms=>{let low=0,high=offsets.length-1;while(low<high){const mid=Math.ceil((low+high)/2);if(offsets[mid].at<=ms)low=mid;else high=mid-1;}return new Date(ms+offsets[low].offset);};
+  const dayKey=ms=>localDate(ms).toISOString().slice(0,10);
   for (let at = start; at <= end; at += 86400000)
     groups.set(dayKey(at), { date: dayKey(at), views: 0, carts: 0, sessions: new Set() });
   if (!groups.has(dayKey(end)))
     groups.set(dayKey(end), { date: dayKey(end), views: 0, carts: 0, sessions: new Set() });
   const hours = Array.from({ length: 24 }, (_, hour) => ({ hour, events: 0 }));
   for (const r of rows) {
+    counts.set(r.type,count(r.type)+1);visitors.add(r.visitorId);
+    if(r.type==='product_time'){totalMs+=r.durationMs;const key=r.visitorId+':'+r.sessionId+':'+r.viewId;byView.set(key,(byView.get(key)??0)+r.durationMs);}
+    else actionRows.push({...r,productIds:JSON.parse(r.productIds)});
+    if(r.type==='product_view')viewedSessions.add(r.sessionId);
+    if(r.type==='cart_add'){allCartSessions.add(r.sessionId);units+=r.quantity;}
     const key = dayKey(r.at),
       day = groups.get(key) ?? { date: key, views: 0, carts: 0, sessions: new Set() };
     day.sessions.add(r.sessionId);
     if (r.type === 'product_view') day.views++;
     if (r.type === 'cart_add') day.carts++;
     groups.set(key, day);
-    if (r.type !== 'product_time') hours[Number(hourFormat.format(r.at))].events++;
+    if (r.type !== 'product_time') hours[localDate(r.at).getUTCHours()].events++;
     if (r.productId) {
       const p = products.get(r.productId) ?? {
         productId: r.productId,
@@ -140,7 +129,8 @@ export function analytics(
     if (r.type === 'product_time') s.activeMs += r.durationMs;
     sessions.set(r.sessionId, s);
   }
-  const actionRows = rows.filter((r) => r.type !== 'product_time').reverse();
+  actionRows.reverse();
+  const cartSessions=new Set([...allCartSessions].filter(id=>viewedSessions.has(id)));
   const sessionRows = [...sessions.values()].sort((a, b) => b.lastAt - a.lastAt);
   const countries=new Map();
   for(const session of sessionRows){const country=session.country||'',entry=countries.get(country)??{country,visitors:new Set(),sessions:0};entry.visitors.add(session.visitorId);entry.sessions++;countries.set(country,entry);}
@@ -168,12 +158,12 @@ export function analytics(
     },
     period: { start, end, timeZone },
     summary: {
-      visitors: unique(null, 'visitorId'),
-      sessions: unique(null, 'sessionId'),
+      visitors: visitors.size,
+      sessions: sessions.size,
       views: count('product_view'),
       clicks: count('product_click'),
       cartAdds: count('cart_add'),
-      units: rows.filter((r) => r.type === 'cart_add').reduce((s, r) => s + r.quantity, 0),
+      units,
       checkoutViews: count('checkout_view'),
       sellerOpens: count('seller_open'),
       requests: count('request_submit'),
