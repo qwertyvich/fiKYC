@@ -54,6 +54,13 @@ export function SettingsPage({
     >
       <div className="a-settings-grid">
         <section className="a-card">
+          <SectionHeading title="Доллары и оплата USDT" description="Для пользователей с нерусским языком Telegram"/>
+          <label>Курс, ₽ за 1 USD<input type="number" min="0.01" max="100000" step="0.01" required value={settings.usdtRubRate} onChange={e=>set('usdtRubRate',Number(e.target.value))}/><small>Цены пересчитываются в доллары. Сумма уже созданного платежа фиксируется по его курсу.</small></label>
+          <label>Адрес USDT TRC20<input value={settings.usdtTrc20Address} maxLength={64} placeholder="T… — укажите свой адрес сети TRON" onChange={e=>set('usdtTrc20Address',e.target.value)}/></label>
+          <label>Адрес USDT BEP20<input value={settings.usdtBep20Address} maxLength={64} placeholder="0x… — укажите свой адрес BNB Smart Chain" onChange={e=>set('usdtBep20Address',e.target.value)}/></label>
+          <p className="a-hint">Пустой адрес отключает соответствующую сеть. Уведомления «Я оплатил» приходят получателю Gateway; поступление подтверждается вручную. Оплата картой доступна как альтернативный способ.</p>
+        </section>
+        <section className="a-card">
           <SectionHeading title="О магазине" description="Контакты и условия для всех покупателей">
             <Store size={20} />
           </SectionHeading>

@@ -1,4 +1,4 @@
-import { currencyTotals, money, type Product } from './domain.ts';
+import { currencyTotals, money, lineMoney, type Product } from './domain.ts';
 import { t } from './i18n.ts';
 
 export function sellerChatLink(username: string, text: string): string | null {
@@ -8,7 +8,7 @@ export function sellerChatLink(username: string, text: string): string | null {
 }
 
 export function cartMessage(lines: { product: Product; quantity: number }[], note = '', useBalance = false) {
-  return [t('Здравствуйте! Хочу оформить заказ в фиКУС:'), '', ...lines.map(({ product: p, quantity }, i) => `${i + 1}. ${t(p.title)}${p.subtitle ? ` — ${t(p.subtitle)}` : ''}\n   ${quantity} ${t('шт.')} × ${money(p.price, p.currency)} = ${money(p.price * quantity, p.currency)}\n   ${t('Артикул:')} ${p.id}`), '', `${t('Итого:')} ${currencyTotals(lines.map(({ product: p, quantity }) => ({ price: p.price, currency: p.currency, quantity }))).join(' + ')}`, ...(useBalance ? ['', t('Хочу оплатить с баланса магазина. Пожалуйста, проверьте доступную сумму.')] : []), ...(note.trim() ? ['', `${t('Комментарий:')} ${note.trim()}`] : []), '', t('Подтвердите, пожалуйста, наличие, условия и способ оплаты.')].join('\n');
+  return [t('Здравствуйте! Хочу оформить заказ в фиКУС:'), '', ...lines.map(({ product: p, quantity }, i) => `${i + 1}. ${t(p.title)}${p.subtitle ? ` — ${t(p.subtitle)}` : ''}\n   ${quantity} ${t('шт.')} × ${money(p.price, p.currency)} = ${lineMoney(p.price, quantity, p.currency)}\n   ${t('Артикул:')} ${p.id}`), '', `${t('Итого:')} ${currencyTotals(lines.map(({ product: p, quantity }) => ({ price: p.price, currency: p.currency, quantity }))).join(' + ')}`, ...(useBalance ? ['', t('Хочу оплатить с баланса магазина. Пожалуйста, проверьте доступную сумму.')] : []), ...(note.trim() ? ['', `${t('Комментарий:')} ${note.trim()}`] : []), '', t('Подтвердите, пожалуйста, наличие, условия и способ оплаты.')].join('\n');
 }
 
 export function topupMessage(amount: string, currency: 'RUB' | 'USD') {

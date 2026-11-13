@@ -1,5 +1,8 @@
 import type { Catalog, ShopSettings } from './domain';
 export interface SiteSettings {
+  usdtRubRate:number;
+  usdtTrc20Address:string;
+  usdtBep20Address:string;
   botUsername: string;
   appShortName: string;
   adminTelegramIds: string;
@@ -24,8 +27,8 @@ export interface PublicState {
   shop: ShopSettings;
   settings: Omit<
     SiteSettings,
-    'botUsername' | 'appShortName' | 'adminTelegramIds' | 'sellerUsername'
-  >;
+    'botUsername' | 'appShortName' | 'adminTelegramIds' | 'sellerUsername' | 'usdtTrc20Address' | 'usdtBep20Address'
+  > & {usdtNetworks:{trc20:boolean;bep20:boolean}};
 }
 export class ApiError extends Error {
   constructor(

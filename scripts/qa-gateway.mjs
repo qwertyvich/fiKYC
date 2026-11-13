@@ -13,7 +13,7 @@ const card='Реквизиты №1\n🇷🇺 Россия\n🏦 Банк: Сб�
 const heartbeat=setInterval(()=>g.setConnected(),1000);
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
 const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE}: {})});
-const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'});
+const context=await browser.newContext({locale:'ru-RU',viewport:{width:390,height:844},reducedMotion:'reduce'});
 await context.route('https://telegram.org/**',r=>r.fulfill({body:''}));
 await context.addInitScript(id=>{localStorage.setItem('fikus:cart',JSON.stringify([{productId:id,quantity:1}]));},p.id);
 const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));

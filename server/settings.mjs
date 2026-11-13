@@ -1,4 +1,9 @@
+import {rateMinor} from '../src/usdt.ts';
+import {validateUsdtAddress} from './usdt-settings.mjs';
 export const defaultSettings = {
+  usdtRubRate:88,
+  usdtTrc20Address:'',
+  usdtBep20Address:'',
   botUsername: '',
   appShortName: '',
   adminTelegramIds: '',
@@ -13,6 +18,9 @@ export const defaultSettings = {
 };
 export function parseSettings(value) {
   const s = { ...defaultSettings, ...value };
+  rateMinor(s.usdtRubRate);
+  s.usdtTrc20Address=validateUsdtAddress(s.usdtTrc20Address,'trc20');
+  s.usdtBep20Address=validateUsdtAddress(s.usdtBep20Address,'bep20');
   for (const key of [
     'botUsername',
     'appShortName',

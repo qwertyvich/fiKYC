@@ -244,13 +244,13 @@ export async function createApp(options = {}) {
       if (path === '/api/public' && method === 'GET') {
         visitor(req, res);
         const s = state();
-        const { botUsername, appShortName, adminTelegramIds, sellerUsername, ...publicSettings } =
+        const { botUsername, appShortName, adminTelegramIds, sellerUsername, usdtTrc20Address, usdtBep20Address, ...publicSettings } =
           s.settings;
         return send(res, {
           revision: s.revision,
           catalog: channelImport.enrich(publicCatalog(s.catalog)),
           shop: s.shop,
-          settings: publicSettings,
+          settings: {...publicSettings,usdtNetworks:{trc20:!!usdtTrc20Address,bep20:!!usdtBep20Address}},
         });
       }
       if (path === '/api/admin/session' && method === 'GET')
@@ -519,12 +519,13 @@ export async function createApp(options = {}) {
         if (env.NODE_ENV === 'production' && !user) fail('Откройте магазин через Telegram', 401);
         return send(res, gateway.create(v, user?.id ?? '', await body(req)), 201);
       }
-      const paymentRoute = path.match(/^\/api\/payments\/(FK-[A-F0-9-]+)(?:\/(retry|events|receipt))?$/);
+      const paymentRoute = path.match(/^\/api\/payments\/(FK-[A-F0-9-]+)(?:\/(retry|events|receipt|reported))?$/);
       if (paymentRoute) {
         const [, id, action] = paymentRoute, v = paymentOwner(req, res);
         const p = gateway.own(id, v);
         if (!action && method === 'GET') return send(res, gateway.view(p));
         if (action === 'retry' && method === 'POST') { limit('payment:' + v, 20); return send(res, gateway.retry(id, v, await body(req)), 201); }
+        if(action==='reported'&&method==='POST'){limit('crypto-paid:'+v,20,3600000);return send(res,gateway.reportCryptoPaid(id,v,await body(req)));}
         if (action === 'receipt' && method === 'POST') {
           limit('receipt:' + v, 10, 3600000);
           const chunks = []; let size = 0;

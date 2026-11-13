@@ -1,4 +1,5 @@
 import { initLanguage } from './i18n';
+import { initPricing } from './pricing';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
@@ -13,5 +14,6 @@ import './claude-fonts.css';
 import './product-highlights.css';
 import './product-covers.css';
 initLanguage(telegram?.initDataUnsafe?.user);
+initPricing(telegram?.initDataUnsafe?.user);
 initTelegram();
 createRoot(document.getElementById('root')!).render(<React.StrictMode><ClawdMotionProvider><App /></ClawdMotionProvider></React.StrictMode>);

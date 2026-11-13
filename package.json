@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1 --port 5174",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4174",
-    "test": "node --experimental-strip-types --test src/domain.test.ts src/startup.test.ts src/wallet-domain.test.ts src/commerce.test.ts src/seller.test.ts src/locale.test.ts src/admin/demo-statistics.test.ts",
+    "test": "node --experimental-strip-types --test src/domain.test.ts src/startup.test.ts src/wallet-domain.test.ts src/commerce.test.ts src/seller.test.ts src/locale.test.ts src/usdt.test.ts src/admin/demo-statistics.test.ts",
     "test:localization": "node scripts/qa-localization.mjs",
     "test:ui": "node scripts/qa-admin.mjs",
     "test:services": "node scripts/qa-services.mjs",

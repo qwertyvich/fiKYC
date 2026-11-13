@@ -1,6 +1,8 @@
 export interface Payment {
   id: string;
   purpose: 'order' | 'topup';
+  provider?:string;
+  crypto?:{network:'trc20'|'bep20';address:string|null;rate:number;reportedAt:number|null;txid:string;rubCreditMinor?:number}|null;
   items: { productId: string; title: string; quantity: number; price: number; currency: 'RUB' | 'USD' }[];
   amount: number;
   currency: 'RUB' | 'USD';

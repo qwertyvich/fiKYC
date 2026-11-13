@@ -1,4 +1,6 @@
 import { getLocale, t } from './i18n.ts';
+import {displayedUnit,usdDisplay,exchangeRate} from './pricing.ts';
+import {usdTotalMinor,usdUnitMinor} from './usdt.ts';
 export type Theme = 'fikus' | 'claude';
 export const brands = ['claude', 'mail', 'cdek', 'ai', 'figma', 'notion', 'payment', 'gift', 'verification', 'crypto', 'wallet', 'car', 'travel', 'gaming'] as const;
 export type Brand = typeof brands[number];
@@ -15,6 +17,7 @@ export interface OrderEvent { at: string; text: string }
 export interface OrderProgress { updatedAt?: string; demo?: boolean; note?: string; events?: OrderEvent[]; estimatedCompletion?: string; paymentUrl?: string; result?: string; issue?: string; quoteTotal?: number; quoteCurrency?: Currency }
 export interface Order extends OrderProgress { id: string; createdAt: string; items: { productId?: string; title: string; subtitle?: string; price: number; quantity: number; currency?: Currency; offer?: OfferDetails }[]; total: number | null; status: OrderStatus | 'demo' }
 export function currencyTotals(items: { price: number; quantity: number; currency?: Currency }[]): string[] {
+  if(usdDisplay())return [rawMoney(usdTotalMinor(items,exchangeRate())/100,'USD')];
   const totals = new Map<Currency, number>();
   for (const item of items) { const currency = item.currency ?? 'RUB'; totals.set(currency, Math.round(((totals.get(currency) ?? 0) + item.price * item.quantity) * 100) / 100); }
   return [...totals].map(([currency, total]) => money(total, currency));
@@ -104,4 +107,6 @@ export function cartLines(catalog: Catalog, cart: CartItem[]) {
     return product && !isRequest(product) ? [{ product, quantity: item.quantity }] : [];
   });
 }
-export const money = (value: number, currency: Currency = 'RUB') => new Intl.NumberFormat(getLocale(), { maximumFractionDigits: 2 }).format(value) + (currency === 'USD' ? ' $' : ' ₽');
+export const rawMoney = (value: number, currency: Currency = 'RUB') => new Intl.NumberFormat(getLocale(), { maximumFractionDigits: 2 }).format(value) + (currency === 'USD' ? ' $' : ' ₽');
+export const money = (value:number,currency:Currency='RUB') => {const display=displayedUnit(value,currency);return rawMoney(display.amount,display.currency);};
+export const lineMoney = (price:number,quantity:number,currency:Currency='RUB') => usdDisplay()?rawMoney(usdUnitMinor(price,currency,exchangeRate())*quantity/100,'USD'):rawMoney(price*quantity,currency);

@@ -7,6 +7,8 @@ import { refreshReviews } from './review-store';
 const AdminPanel = lazy(() => import('./admin/AdminPanel').then(m => ({ default: m.AdminPanel })));
 import { t, getLanguage, subscribeLanguage, refreshTelegramLanguage } from './i18n';
 import { LanguageSettings } from './LanguageSettings';
+import { subscribePricing,pricingSnapshot,configurePricing } from './pricing';
+import {lineMoney} from './domain';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronRight, CircleHelp, Download, Grid2X2, Heart, Leaf, List, LoaderCircle, Minus, Moon, Package, Plus, Search, Settings2, ShieldCheck, ShoppingBag, SlidersHorizontal, Sparkles, Sun, Trash2, Upload, UserRound, X } from 'lucide-react';
 import { brands, cartLines, currencyTotals, entryTheme, isAvailable, isRequest, priceLabel, requestFields, requestKinds, validateRequest, money, parseCatalog, selectProducts, themeFor, type CartItem, type Catalog, type Group, type Order, type Product, type ServiceRequest, type ShopSettings, type Sort } from './domain';
@@ -46,6 +48,7 @@ const validCart = (x: CartItem[]) => Array.isArray(x) && x.every(i => i && typeo
 
 export function App() {
   useSyncExternalStore(subscribeLanguage, getLanguage);
+  useSyncExternalStore(subscribePricing, pricingSnapshot);
   const [route, setRoute] = useState(routeNow);
   const [access, setAccess] = useState<AccessState | null>(null);
   const [accessError, setAccessError] = useState(false);
@@ -98,6 +101,7 @@ export function App() {
     let live = true;
     Promise.all([store.loadCatalog(), store.loadOrders(), store.loadRequests(), store.loadShop(), loadPublic()]).then(([c, o, r, info, data]) => { if (live) {
       setCatalog(c); setOrders(o); setRequests(r); setShop(info); setSiteSettings(data.settings); setLoadError(false);
+      configurePricing(data.settings);
       configureAnalytics(data.settings.analyticsEnabled);
       void refreshReviews().catch(() => {});
     } }).catch(() => { if (live) setLoadError(true); });
@@ -109,7 +113,7 @@ export function App() {
     const refresh = () => { if (document.visibilityState !== 'visible') return; loadPublic(true).then(data => {
       if (!live) return;
       setCatalog(prev => JSON.stringify(prev) === JSON.stringify(data.catalog) ? prev : data.catalog);
-      setShop(data.shop); setSiteSettings(data.settings); configureAnalytics(data.settings.analyticsEnabled);
+      setShop(data.shop); setSiteSettings(data.settings); configurePricing(data.settings); configureAnalytics(data.settings.analyticsEnabled);
       void refreshReviews().catch(() => {});
     }).catch(() => {}); };
     refresh(); const timer = setInterval(refresh, 30000);
@@ -219,7 +223,7 @@ export function App() {
   if (access.telegramRequired) return <AccessScreen kind="telegram" botUrl={access.botUrl}/>;
   if (kind === 'order-preview' && !access.isSeller) return <AccessScreen kind="unavailable"/>;
   if (kind === 'admin' && !access.isSeller && !access.localAdminLogin) return <AccessScreen kind="unavailable"/>;
-  if (kind === 'admin') return <Suspense fallback={<div className="loading"><LoaderCircle className="spin"/></div>}><AdminPanel page={id ?? 'overview'} mode={mode} onToggleTheme={() => setAppearance(mode === 'dark' ? 'light' : 'dark')} onExit={() => { void loadAccess().then(setAccess); loadPublic(true).then(data => { setCatalog(data.catalog); setShop(data.shop); setSiteSettings(data.settings); configureAnalytics(data.settings.analyticsEnabled); void refreshReviews().catch(() => {}); }).catch(() => setLoadError(true)); go('/catalog'); }}/></Suspense>;
+  if (kind === 'admin') return <Suspense fallback={<div className="loading"><LoaderCircle className="spin"/></div>}><AdminPanel page={id ?? 'overview'} mode={mode} onToggleTheme={() => setAppearance(mode === 'dark' ? 'light' : 'dark')} onExit={() => { void loadAccess().then(setAccess); loadPublic(true).then(data => { setCatalog(data.catalog); setShop(data.shop); setSiteSettings(data.settings); configurePricing(data.settings); configureAnalytics(data.settings.analyticsEnabled); void refreshReviews().catch(() => {}); }).catch(() => setLoadError(true)); go('/catalog'); }}/></Suspense>;
 
   return <div className="app-frame" data-page={kind}><div className="app-scroll">
     <header className="topbar">
@@ -257,7 +261,7 @@ export function App() {
 
 
         {kind === 'cart' && <><PageTitle title={t("Корзина")} subtitle={t(lines.length ? 'Всё готово к следующему шагу' : 'Соберём что-нибудь полезное?')}/>{lines.length ? <>
-          <div className="cart-list">{lines.map(({ product: p, quantity }) => <article className="cart-row" key={p.id}><button className={`cart-art art-${p.brand}`} onClick={() => go(`/product/${p.id}`)} aria-label={t(p.title)}><BrandArt brand={p.brand} productId={p.id}/></button><div className="cart-row-info"><button className="text-button" onClick={() => go(`/product/${p.id}`)}>{t(p.title)}</button><small>{t(p.subtitle)}</small><strong>{t(money(p.price * quantity, p.currency))}</strong><div className="quantity"><button aria-label={t(`Уменьшить ${p.title}`)} onClick={() => changeQuantity(p.id, -1)}><Minus size={14}/></button><span>{quantity}</span><button aria-label={t(`Увеличить ${p.title}`)} disabled={quantity >= p.stock} onClick={() => changeQuantity(p.id, 1)}><Plus size={14}/></button></div>{quantity > p.stock && <small className="error">{t("Доступно только ")}{p.stock}{t(" шт.")}</small>}</div><button className="icon-button remove" aria-label={t(`Удалить ${p.title}`)} onClick={() => { track('cart_remove', { productId: p.id, quantity }); setCart(prev => prev.filter(i => i.productId !== p.id)); }}><Trash2 size={17}/></button></article>)}</div>
+          <div className="cart-list">{lines.map(({ product: p, quantity }) => <article className="cart-row" key={p.id}><button className={`cart-art art-${p.brand}`} onClick={() => go(`/product/${p.id}`)} aria-label={t(p.title)}><BrandArt brand={p.brand} productId={p.id}/></button><div className="cart-row-info"><button className="text-button" onClick={() => go(`/product/${p.id}`)}>{t(p.title)}</button><small>{t(p.subtitle)}</small><strong>{t(lineMoney(p.price, quantity, p.currency))}</strong><div className="quantity"><button aria-label={t(`Уменьшить ${p.title}`)} onClick={() => changeQuantity(p.id, -1)}><Minus size={14}/></button><span>{quantity}</span><button aria-label={t(`Увеличить ${p.title}`)} disabled={quantity >= p.stock} onClick={() => changeQuantity(p.id, 1)}><Plus size={14}/></button></div>{quantity > p.stock && <small className="error">{t("Доступно только ")}{p.stock}{t(" шт.")}</small>}</div><button className="icon-button remove" aria-label={t(`Удалить ${p.title}`)} onClick={() => { track('cart_remove', { productId: p.id, quantity }); setCart(prev => prev.filter(i => i.productId !== p.id)); }}><Trash2 size={17}/></button></article>)}</div>
           <div className="summary-card"><div><span>{t("Товары (")}{cartCount})</span><span>{t(totals.join(' + '))}</span></div><div className="summary-total"><strong>{t("Итого")}</strong><strong>{totals.map(total => <span className="currency-total" key={total}>{total}</span>)}</strong></div>{totals.length > 1 && <p className="fine-print">{t("Каждая валюта рассчитана отдельно, без конвертации.")}</p>}<button className="primary-button" disabled={lines.some(l => l.quantity > l.product.stock)} onClick={() => go('/checkout')}>{t("Перейти к оформлению")}<ArrowRight size={18}/></button><p className="fine-print">{t("Проверьте заказ и получите реквизиты для оплаты. Если нужна помощь, менеджер будет рядом.")}</p></div>
         </> : <Empty icon={<ShoppingBag/>} title={t("Тут пока просторно")} text={t("Добавьте нужные сервисы из каталога. Они будут ждать вас здесь.")} action={t("За покупками")} onAction={() => go('/catalog')}/>}</>}
 
