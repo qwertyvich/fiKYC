@@ -16,6 +16,8 @@ import { createChannelImport } from './channel-import.mjs';
 import { createProductImages, MAX_IMAGE_BYTES } from './product-images.mjs';
 import { createShopBots } from './shop-bots.mjs';
 import { createRestocks } from './restocks.mjs';
+import {createSbp} from './sbp.mjs';
+import {createLanguageChoices} from './language-choices.mjs';
 import {createCountryLookup,requestCountry} from './geoip.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -25,6 +27,7 @@ export async function createApp(options = {}) {
   if (dbPath !== ':memory:') await mkdir(dirname(dbPath), { recursive: true });
   const Database = sqlite.Database ?? sqlite.DatabaseSync;
   const db = new Database(dbPath);
+  const languageChoices=createLanguageChoices(db);
   const analyticsReports=createAnalyticsReports(db,dbPath,{ttl:env.NODE_ENV==='test'?0:15000});
   const countryLookup=options.countryLookup??createCountryLookup(env.GEOIP_DATABASE_PATH??resolve(dbPath===':memory:'?resolve(root,'data'):dirname(dbPath),'geoip/country.bin'));
   db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
@@ -204,6 +207,10 @@ export async function createApp(options = {}) {
     return user?.id ? 'tg:' + user.id : v;
   };
   const gateway = createGateway({ db, env, state, now: options.gatewayNow, botCall: options.gatewayBotCall });
+  const sbp=createSbp({db,env,gateway,state,now:options.sbpNow,fetchImpl:options.sbpFetch});
+  const audience=req=>{const user=access.proof(req),identity=access.identity(req);return (languageChoices.get(identity?.id)?.language??user?.language_code??'ru').toLowerCase().split(/[-_]/)[0]==='ru';};
+  const allowMethod=(req,input)=>{if(!audience(req)&&input.method!=='usdt')fail('Для выбранного языка доступна оплата криптовалютой',403);};
+  const completePayment=async p=>{if(p.provider!=='sbp')return p;try{return await sbp.issue(p.id);}catch(e){if(!db.prepare('SELECT payment_id FROM sbp_intents WHERE payment_id=?').get(p.id))db.prepare("UPDATE payments SET status='invalidated',reason='sbp_unavailable' WHERE id=? AND status!='paid'").run(p.id);return gateway.view(gateway.externalRow(p.id));}};
   const channelImport = createChannelImport({db,state,now:options.importNow});
   channelImport.runScheduled();
   const importTimer = setInterval(() => channelImport.runScheduled(), 30000);
@@ -215,7 +222,7 @@ export async function createApp(options = {}) {
       const url = new URL(req.url, 'http://localhost');
       const path = url.pathname;
       const method = req.method;
-      if (path.startsWith('/api/') && !['GET', 'HEAD'].includes(method)) {
+      if (path.startsWith('/api/') && path!=='/api/webhooks/pay-provider' && !['GET', 'HEAD'].includes(method)) {
         const allowed =
           env.PUBLIC_ORIGIN ??
           `${env.NODE_ENV === 'production' ? 'https' : 'http'}://${req.headers.host}`;
@@ -229,12 +236,15 @@ export async function createApp(options = {}) {
         if (req.headers.origin && !allowedOrigins.includes(req.headers.origin))
           fail('Недопустимый источник запроса', 403);
       }
+      if(path==='/api/webhooks/pay-provider'&&method==='POST'){
+        const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>65536)fail('Уведомление слишком большое',413);chunks.push(chunk);}return send(res,sbp.receiveWebhook(Buffer.concat(chunks),req.headers));
+      }
       if (path === '/api/health') return send(res, { ok: true });
       if (path === '/api/access' && method === 'GET') {
         const result = access.status(req);
         if (!result.blocked) visitor(req, res);
         if (!result.blocked) restocks.observeProof(req.headers['x-telegram-init-data']);
-        return send(res, result);
+        return send(res, {...result,languageSelection:languageChoices.get(access.identity(req)?.id)});
       }
       if (path.startsWith('/api/') && !path.startsWith('/api/admin/') && path !== '/api/access')
         access.guard(req);
@@ -406,6 +416,9 @@ export async function createApp(options = {}) {
         if (path === '/api/admin/gateway/bootstrap' && method === 'POST') {
           const b = await body(req); return send(res, gateway.bootstrap(b.text, 'admin-panel', b.confirmed));
         }
+        if(path==='/api/admin/sbp'&&method==='GET')return send(res,await sbp.admin());
+        if(path==='/api/admin/sbp'&&method==='PUT'){const result=sbp.saveConfig(await body(req));audit('sbp.settings');return send(res,result);}
+        if(path.match(/^\/api\/admin\/sbp\/FK-[A-F0-9-]+\/check$/)&&method==='POST'){await body(req);return send(res,await sbp.check(path.split('/')[4]));}
         if (path === '/api/admin/gateway' && method === 'GET') return send(res, gateway.admin());
         if (path === '/api/admin/gateway' && method === 'PUT') {
           const result = gateway.saveConfig(await body(req)); audit('gateway.settings'); return send(res, result);
@@ -509,32 +522,39 @@ export async function createApp(options = {}) {
         }
         fail('Метод панели не найден', 404);
       }
+      if(path==='/api/language'&&method==='POST'){const user=access.identity(req);if(!user)fail('Откройте магазин через Telegram',401);const input=await body(req);if(input.language==='auto'){languageChoices.clear(user.id);return send(res,{languageSelection:null});}return send(res,{languageSelection:languageChoices.set(user.id,input.language)});}
+      if(path==='/api/payment-options'&&method==='GET'){
+        const value=Number(url.searchParams.get('amount')),minor=Math.round(value*100);if(!Number.isFinite(value)||minor<1||minor>10000000000)fail('Проверьте сумму');
+        if(!audience(req))return send(res,{card:false,sbp:{available:false},russian:false});
+        const card=gateway.cardAvailable(minor);return send(res,{card,sbp:card?{available:false}:await sbp.options(minor),russian:true});
+      }
       if (path === '/api/wallet' && method === 'GET') return send(res, gateway.wallet(paymentOwner(req,res)));
       if (path === '/api/wallet/topups' && method === 'POST') {
         const owner = paymentOwner(req,res), user = access.identity(req);
         if (env.NODE_ENV === 'production' && !user) fail('Откройте магазин через Telegram',401);
         limit('payment:'+owner,20);
-        return send(res,gateway.createTopup(owner,user?.id ?? '',await body(req)),201);
+        const input=await body(req);allowMethod(req,input);return send(res,await completePayment(gateway.createTopup(owner,user?.id ?? '',input)),201);
       }
       if (path === '/api/payments' && method === 'GET') return send(res, gateway.list(paymentOwner(req, res)));
       if (path === '/api/payments' && method === 'POST') {
         const v = paymentOwner(req, res); limit('payment:' + v, 20);
         const user = access.identity(req);
         if (env.NODE_ENV === 'production' && !user) fail('Откройте магазин через Telegram', 401);
-        return send(res, gateway.create(v, user?.id ?? '', await body(req)), 201);
+        const input=await body(req);allowMethod(req,input);return send(res,await completePayment(gateway.create(v,user?.id??'',input)),201);
       }
-      const paymentRoute = path.match(/^\/api\/payments\/(FK-[A-F0-9-]+)(?:\/(retry|events|receipt|reported))?$/);
+      const paymentRoute = path.match(/^\/api\/payments\/(FK-[A-F0-9-]+)(?:\/(retry|events|receipt|reported|check))?$/);
       if (paymentRoute) {
         const [, id, action] = paymentRoute, v = paymentOwner(req, res);
         const p = gateway.own(id, v);
         if (!action && method === 'GET') return send(res, gateway.view(p));
-        if (action === 'retry' && method === 'POST') { limit('payment:' + v, 20); return send(res, gateway.retry(id, v, await body(req)), 201); }
+        if (action === 'retry' && method === 'POST') {limit('payment:'+v,20);const input=await body(req);allowMethod(req,input);if(p.provider==='sbp')await sbp.assertCanSwitch(id);return send(res,await completePayment(gateway.retry(id,v,input)),201);}
+        if(action==='check'&&method==='POST'){limit('sbp-check:'+v,30);await body(req);if(p.provider!=='sbp')fail('Платёж СБП не найден',404);return send(res,await sbp.check(id));}
         if(action==='reported'&&method==='POST'){limit('crypto-paid:'+v,20,3600000);return send(res,gateway.reportCryptoPaid(id,v,await body(req)));}
         if (action === 'receipt' && method === 'POST') {
           limit('receipt:' + v, 10, 3600000);
           const chunks = []; let size = 0;
           for await (const chunk of req) { size += chunk.length; if (size > 12 * 1024 * 1024) fail('Квитанция — до 12 МБ', 413); chunks.push(chunk); }
-          return send(res, gateway.upload(id, v, Buffer.concat(chunks)), 201);
+          const result=gateway.upload(id,v,Buffer.concat(chunks));sbp.enqueueReceipts();return send(res,result,201);
         }
         if (action === 'events' && method === 'GET') {
           limit('payment-stream:' + v, 30);
@@ -761,6 +781,7 @@ export async function createApp(options = {}) {
     clearInterval(cleanup);
     clearInterval(importTimer);
     analyticsReports.close();
+    sbp.stop();
     gateway.stop();
     restocks.stop();
     shopBots.stop();
@@ -769,7 +790,8 @@ export async function createApp(options = {}) {
   if (options.gatewayWorker !== false && env.NODE_ENV !== 'test') gateway.start();
   if (options.shopBotWorker !== false && env.NODE_ENV !== 'test') server.once('listening',()=>void shopBots.start());
   if (options.restockWorker !== false && env.NODE_ENV !== 'test') server.once('listening',()=>restocks.start());
-  return { server, db, gateway, channelImport, shopBots, restocks };
+  if(options.sbpWorker!==false&&env.NODE_ENV!=='test')server.once('listening',()=>sbp.start());
+  return { server, db, gateway, sbp, channelImport, shopBots, restocks };
 }
 export async function startServer() {
   const { server } = await createApp();

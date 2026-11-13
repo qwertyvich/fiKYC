@@ -5,9 +5,9 @@ import { api, loadPublic, loadAccess, type AccessState, type PublicState } from 
 import { configureAnalytics, productVisit, track } from './analytics';
 import { refreshReviews } from './review-store';
 const AdminPanel = lazy(() => import('./admin/AdminPanel').then(m => ({ default: m.AdminPanel })));
-import { t, getLanguage, subscribeLanguage, refreshTelegramLanguage } from './i18n';
+import { t, getLanguage, subscribeLanguage, refreshTelegramLanguage, setLanguageChoice } from './i18n';
 import { LanguageSettings } from './LanguageSettings';
-import { subscribePricing,pricingSnapshot,configurePricing,refreshTelegramPricing } from './pricing';
+import { subscribePricing,pricingSnapshot,configurePricing,refreshTelegramPricing,configureMenuLanguage } from './pricing';
 import {lineMoney} from './domain';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronRight, CircleHelp, Download, Grid2X2, Heart, Leaf, List, LoaderCircle, Minus, Moon, Package, Plus, Search, Settings2, ShieldCheck, ShoppingBag, SlidersHorizontal, Sparkles, Sun, Trash2, Upload, UserRound, X } from 'lucide-react';
@@ -74,6 +74,7 @@ export function App() {
   const startParam = new URLSearchParams(location.search).get('tgWebAppStartParam') ?? new URLSearchParams(location.search).get('ref') ?? telegram?.initDataUnsafe?.start_param ?? '';
   const [resolvingLink, setResolvingLink] = useState(/^[pg]_/.test(startParam) && !location.hash.startsWith('#/admin'));
   const analyticsStarted = useRef(false);
+  const menuLanguageStamp=useRef<number|null>(null);
   const [systemMode, setSystemMode] = useState<ColorMode>(systemColorMode);
   const mode = resolveMode(appearance, systemMode);
   const [lockedTheme] = useState(() => entryTheme(location.search, telegram?.initDataUnsafe?.start_param));
@@ -92,7 +93,7 @@ export function App() {
 
   useEffect(() => {
     let live = true; let accessEpoch = 0;
-    const refresh = () => { const epoch = ++accessEpoch; if(document.visibilityState !== 'visible') return; loadAccess().then(data => { if(!live || epoch!==accessEpoch)return; setAccess(data);setAccessError(false);if(data.blocked||data.telegramRequired)configureAnalytics(false); }).catch(()=>{if(live)setAccessError(true);}); };
+    const refresh = () => { const epoch = ++accessEpoch; if(document.visibilityState !== 'visible') return; loadAccess().then(data => { if(!live || epoch!==accessEpoch)return; setAccess(data);if(data.languageSelection&&menuLanguageStamp.current!==data.languageSelection.updatedAt){menuLanguageStamp.current=data.languageSelection.updatedAt;setLanguageChoice(data.languageSelection.language);configureMenuLanguage(data.languageSelection.language);}else if(!data.languageSelection&&menuLanguageStamp.current!==null){menuLanguageStamp.current=null;configureMenuLanguage(undefined);refreshTelegramLanguage(telegram?.initDataUnsafe?.user?.language_code);setLanguageChoice('auto');}setAccessError(false);if(data.blocked||data.telegramRequired)configureAnalytics(false); }).catch(()=>{if(live)setAccessError(true);}); };
     const denied = (event:Event) => { ++accessEpoch; const code=(event as CustomEvent).detail; configureAnalytics(false);setAccess(prev=>({...prev,isSeller:false,localAdminLogin:prev?.localAdminLogin??false,botUrl:prev?.botUrl??null,blocked:code==='maintenance',telegramRequired:code==='telegram_required'})); };
     refresh(); const timer=setInterval(refresh,30000);window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);window.addEventListener('fikus:access-denied',denied);
     return()=>{live=false;clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);window.removeEventListener('fikus:access-denied',denied);};
@@ -155,7 +156,7 @@ export function App() {
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(''), 3200); return () => clearTimeout(timer); }, [toast]);
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const changed = () => {setSystemMode(systemColorMode());refreshTelegramLanguage(telegram?.initDataUnsafe?.user?.language_code);refreshTelegramPricing(telegram?.initDataUnsafe?.user);};
+    const changed = () => {setSystemMode(systemColorMode());if(menuLanguageStamp.current===null)refreshTelegramLanguage(telegram?.initDataUnsafe?.user?.language_code);refreshTelegramPricing(telegram?.initDataUnsafe?.user);};
     const visible = () => {if(document.visibilityState==='visible')changed();};
     media.addEventListener('change', changed);
     telegram?.onEvent('themeChanged', changed);

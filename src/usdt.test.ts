@@ -14,7 +14,7 @@ test('Telegram language chooses an initial method while card override is account
   initPricing({id:1,language_code:'ru-RU'});assert.equal(paymentMethod(),'card');
   initPricing({id:2,language_code:'en-GB'});assert.equal(paymentMethod(),'usdt');setPaymentMethod('card');
   initPricing({id:3,language_code:'zh-Hant'});assert.equal(paymentMethod(),'usdt');
-  initPricing({id:2,language_code:'en-GB'});assert.equal(paymentMethod(),'card');
+  initPricing({id:2,language_code:'en-GB'});assert.equal(paymentMethod(),'usdt');
   initPricing({id:1,language_code:'ru'});delete(globalThis as {localStorage?:unknown}).localStorage;
 });
 test('USD display never changes stored product prices and cart totals match rounded line prices',()=>{

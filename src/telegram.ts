@@ -7,6 +7,7 @@ interface TelegramApp {
   BackButton: { show(): void; hide(): void; onClick(cb: () => void): void; offClick(cb: () => void): void };
   HapticFeedback?: { impactOccurred(style: 'light'): void };
   openTelegramLink?(url: string): void;
+  openLink?(url:string,options?:{try_instant_view?:boolean}):void;
   onEvent(name: string, cb: () => void): void; offEvent(name: string, cb: () => void): void;
   safeAreaInset?: { top: number; bottom: number };
   contentSafeAreaInset?: { top: number; bottom: number };

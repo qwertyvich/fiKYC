@@ -26,3 +26,8 @@ test('explicit appearance choices override automatic Telegram or device appearan
   for (const value of [null, undefined, {}, ['dark'], 0, '', 'system']) assert.equal(isAppearance(value), false);
   for (const value of ['light', 'dark', 'auto']) assert.equal(isAppearance(value), true);
 });
+test('payment return links resume the owned payment through Telegram',()=>{
+ assert.equal(resolveRoute('#tgWebAppData=fixture','','pay_FK-ABC12345-123'),'/payment/FK-ABC12345-123');
+ assert.equal(resolveRoute('','?tgWebAppStartParam=pay_FK-ABC12345-123'),'/payment/FK-ABC12345-123');
+ assert.equal(resolveRoute('#/profile','','pay_FK-ABC12345-123'),'/profile');
+});

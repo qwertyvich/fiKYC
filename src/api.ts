@@ -75,6 +75,7 @@ export function invalidatePublic() {
 }
 
 export interface AccessState {
+  languageSelection?:{language:'ru'|'en'|'zh'|'fa';updatedAt:number}|null;
   isSeller: boolean;
   localAdminLogin: boolean;
   blocked: boolean;

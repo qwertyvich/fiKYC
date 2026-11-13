@@ -1,7 +1,7 @@
 import {ArrowRight,CreditCard,LoaderCircle,ShieldCheck,WalletCards} from 'lucide-react';
 import {t} from './i18n';
 import {rawMoney,lineMoney,type Product} from './domain';
-import {exchangeRate,paymentNetworks} from './pricing';
+import {exchangeRate,paymentNetworks,russianPayments} from './pricing';
 import {usdTotalMinor,usdtNetworks,type UsdtNetwork} from './usdt';
 import './usdt.css';
 export function UsdtNetworkPicker({amount,busy,onSelect,disabled=false}:{amount:number;busy:boolean;onSelect(network:UsdtNetwork):void;disabled?:boolean}) {
@@ -25,6 +25,6 @@ export function UsdtCheckout({lines,note,setNote,busy,error,onSelect,onCard}:{li
     <UsdtNetworkPicker amount={total} busy={busy} disabled={invalid} onSelect={onSelect}/>
     {invalid&&<p className="form-failure">{t('Количество превышает остаток. Измените состав корзины.')}</p>}
     {error&&<p className="form-failure" role="alert">{t(error)}</p>}
-    <button type="button" className="secondary-button usdt-alternative" disabled={busy} onClick={onCard}><CreditCard size={18}/>{t('Оплатить картой в рублях')}</button>
+    <button hidden={!russianPayments()} type="button" className="secondary-button usdt-alternative" disabled={busy} onClick={onCard}><CreditCard size={18}/>{t('Оплатить картой в рублях')}</button>
   </div>;
 }

@@ -5,6 +5,7 @@ import { token, telegramUser } from './security.mjs';
 import { imageInfo } from './product-images.mjs';
 import {telegramLanguage} from '../src/locale.ts';
 import {translate} from '../src/i18n.ts';
+import {createLanguageChoices} from './language-choices.mjs';
 
 export const botPresets = {
   general: {
@@ -41,6 +42,7 @@ export function createShopBots({ db, env, state, botCall, now = Date.now, assets
       payload TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0,
       next_at INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(bot_id,update_id));
     CREATE TABLE IF NOT EXISTS shop_bot_avatars(bot_id TEXT PRIMARY KEY,data BLOB NOT NULL,updated_at INTEGER NOT NULL);`);
+  const languageChoices=createLanguageChoices(db);
   let stopped = true;
   let restocks;
   const loops = new Map(), controllers = new Set(), retryTimers = new Map();
@@ -201,6 +203,7 @@ export function createShopBots({ db, env, state, botCall, now = Date.now, assets
     keyboard.push([decorate({text:'Весь каталог',web_app:{url:origin()},style:'success'},'catalog','🟢')]);
     const current=state();
     const support=current.shop?.supportTelegram || current.settings.sellerUsername || 'tcmai';
+    keyboard.push([decorate({text:'Язык меню',callback_data:'language:choose'},'language','🌐')]);
     keyboard.push([decorate({text:'Помощь менеджера',url:'https://t.me/'+support.replace(/^@/,'')},'support','👤')]);
     const caption = r.theme==='claude'
       ? '<b>Claude · верификация и аккаунты</b>\n\n<blockquote><b>Всё для вашего Claude</b>\nВерификация на вашем аккаунте или готовый аккаунт — выберите подходящую услугу.</blockquote>\n\nУсловия и стоимость — в каталоге.\n<b>Выберите услугу ниже ↓</b>'
@@ -212,16 +215,24 @@ export function createShopBots({ db, env, state, botCall, now = Date.now, assets
     if(!msg || msg.chat?.type!=='private' || !Number.isSafeInteger(msg.chat.id) || msg.chat.id<=0 || (cb?.from ?? msg.from)?.is_bot)return;
     if(cb && cb.from?.id!==msg.chat.id)return;
     if(await restocks?.handle(r,update))return;
-    const language=telegramLanguage((cb?.from??msg.from)?.language_code);
+    const chosen=languageChoices.get(msg.chat.id);
+    let language=chosen?.language??telegramLanguage((cb?.from??msg.from)?.language_code);
     const command=(msg.text ?? '').match(/^\/(start|menu|help)(?:@[a-z0-9_]+)?(?:\s|$)/i);
     if(!cb&&!command)return;
-    if(cb&&!/^menu:\d{1,3}$/.test(cb.data ?? ''))return;
+    if(cb&&!/^(?:menu:\d{1,3}|language:(?:choose|ru|en|zh))$/.test(cb.data ?? ''))return;
+    if(command?.[1].toLowerCase()==='start'||cb?.data==='language:choose'||(!chosen&&(cb?.data?.startsWith('menu:')||command?.[1].toLowerCase()==='menu'))){
+      const picker={text:'🌿 фиКУС\n\nВыберите язык меню\nChoose your language\n请选择语言',reply_markup:{inline_keyboard:[[{text:'Русский',callback_data:'language:ru'}],[{text:'English',callback_data:'language:en'}],[{text:'中文',callback_data:'language:zh'}]]}};
+      await call(r,'sendMessage',{chat_id:msg.chat.id,...picker});if(cb)await call(r,'answerCallbackQuery',{callback_query_id:cb.id}).catch(()=>{});return;
+    }
+    if(cb?.data?.match(/^language:(ru|en|zh)$/)){language=cb.data.split(':')[1];languageChoices.set(msg.chat.id,language);}
+
     if(command?.[1].toLowerCase()==='help') {
       const help=menu(r,0,premium,language);await call(r,'sendMessage',{chat_id:msg.chat.id,text:translate('Поможем выбрать услугу и ответим на вопросы. Напишите менеджеру:',language),reply_markup:{inline_keyboard:[help.reply_markup.inline_keyboard.at(-1)]}});return;
     }
-    const content=menu(r,cb?Number(cb.data.split(':')[1]):0,premium,language);
+    const languageSelected=cb?.data?.startsWith('language:');
+    const content=menu(r,cb&&!languageSelected?Number(cb.data.split(':')[1]):0,premium,language);
     try {
-      if(cb) {
+      if(cb&&!languageSelected) {
         await call(r,'editMessageCaption',{chat_id:msg.chat.id,message_id:msg.message_id,...content});
       } else {
         const animation=r.animation_file || 'attach://menu';
