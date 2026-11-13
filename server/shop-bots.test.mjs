@@ -35,14 +35,13 @@ test('only private human requests produce replies, groups and requisites source 
  const app=await fixture(t),r=app.shopBots.getRow('123456789');
  for(const chat of [{id:-1002278926769,type:'supergroup'},{id:-123,type:'group'}])await app.shopBots.reply(r,{message:{chat,from:{id:777},text:'/start'}});
  assert.equal(app.calls.length,0);await assert.rejects(()=>app.shopBots.call(r,'sendMessage',{chat_id:-1002278926769,text:'never'}),/группы запрещена/);
- await app.shopBots.reply(r,{message:{chat:{id:777,type:'private'},from:{id:777},text:'/start'}});assert.equal(app.calls.at(-1).method,'sendMessage');assert.deepEqual(app.calls.at(-1).payload.reply_markup.inline_keyboard.map(r=>r[0].text),['Русский','English','中文']);await app.shopBots.reply(r,{callback_query:{id:'choose',from:{id:777},data:'language:ru',message:{message_id:1,chat:{id:777,type:'private'}}}});assert.equal(app.calls.at(-2).method,'sendAnimation');assert.ok(app.calls.at(-2).files.menu.data.length>0);
+ await app.shopBots.reply(r,{message:{chat:{id:777,type:'private'},from:{id:777},text:'/start'}});assert.equal(app.calls.at(-1).method,'sendAnimation');assert.ok(app.calls.at(-1).files.menu.data.length>0);const rows=app.calls.at(-1).payload.reply_markup.inline_keyboard;assert.equal(rows.at(-3)[0].web_app.url,'https://example.test/');assert.equal(rows.at(-2)[0].text,'🌐 Change language');assert.equal(rows.at(-2)[0].callback_data,'language:choose');assert.match(rows.at(-1)[0].url,/^https:\/\/t\.me\//);await app.shopBots.reply(r,{callback_query:{id:'picker',from:{id:777},data:'language:choose',message:{message_id:1,chat:{id:777,type:'private'}}}});assert.equal(app.calls.at(-2).method,'sendMessage');assert.deepEqual(app.calls.at(-2).payload.reply_markup.inline_keyboard.map(r=>r[0].text),['Русский','English','中文']);await app.shopBots.reply(r,{callback_query:{id:'choose',from:{id:777},data:'language:ru',message:{message_id:1,chat:{id:777,type:'private'}}}});assert.equal(app.calls.at(-2).method,'sendAnimation');assert.ok(app.calls.at(-2).files.menu.data.length>0);
  await app.shopBots.reply(r,{callback_query:{id:'cb',from:{id:777},data:'menu:1',message:{message_id:42,chat:{id:777,type:'private'}}}});assert.equal(app.calls.at(-2).method,'editMessageCaption');assert.equal(app.calls.at(-1).method,'answerCallbackQuery');
  const n=app.calls.length;await app.shopBots.reply(r,{callback_query:{id:'bad',from:{id:888},data:'menu:1',message:{message_id:42,chat:{id:777,type:'private'}}}});assert.equal(app.calls.length,n);
 });
 test('premium rejection falls back and gateway/webhook conflicts cannot be connected',async t=>{
  let rejectPremium=true;const app=await fixture(t,{call:async(_,method,payload)=>{if(method==='sendAnimation'&&rejectPremium){rejectPremium=false;throw Object.assign(new Error('CUSTOM_EMOJI_INVALID'),{telegramCode:400});}}});
  app.shopBots.setEmojiManifest({claude:{id:'5208665212483310136'}});await app.shopBots.reply(app.shopBots.getRow('123456789'),{message:{chat:{id:777,type:'private'},from:{id:777},text:'/start'}});
- await app.shopBots.reply(app.shopBots.getRow('123456789'),{callback_query:{id:'choose',from:{id:777},data:'language:ru',message:{message_id:1,chat:{id:777,type:'private'}}}});
  assert.equal(app.shopBots.getRow('123456789').emoji_warning,1);assert.ok(!app.calls.filter(c=>c.method==='sendAnimation').at(-1).payload.reply_markup.inline_keyboard.flat().some(b=>b.icon_custom_emoji_id));
  await assert.rejects(()=>app.shopBots.save({token:gateway}),/реквизитов/);
  const conflicting=await fixture(t,{call:async(_,method)=>method==='getWebhookInfo'?{url:'https://old.example/hook'}:undefined});await assert.rejects(()=>conflicting.shopBots.save({token:secondary}),/webhook/);assert.equal(conflicting.shopBots.list().bots.length,1);
@@ -65,7 +64,7 @@ test('manager button follows the public support contact without changing the sel
  const menu=app.shopBots.menu(app.shopBots.getRow('123456789'));assert.equal(menu.reply_markup.inline_keyboard.at(-1)[0].url,'https://t.me/phiKYC');assert.equal(JSON.parse(app.db.prepare('SELECT settings FROM state').get().settings).sellerUsername,'original_seller');
 });
 test('a blocked recipient does not block another private menu and custom avatars remain private',async t=>{
- const app=await fixture(t,{call:async(_,method,payload)=>{if(method==='sendMessage'&&payload.chat_id===777)throw Object.assign(new Error('Forbidden: bot was blocked'),{telegramCode:403});}});
+ const app=await fixture(t,{call:async(_,method,payload)=>{if(method==='sendAnimation'&&payload.chat_id===777)throw Object.assign(new Error('Forbidden: bot was blocked'),{telegramCode:403});}});
  const r=app.shopBots.getRow('123456789'),date=Math.floor(Date.now()/1000);
  for(const id of [777,888])app.shopBots.accept(r,{update_id:id,message:{date,chat:{id,type:'private'},from:{id},text:'/start'}});
  await app.shopBots.start();

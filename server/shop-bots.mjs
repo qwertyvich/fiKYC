@@ -203,7 +203,7 @@ export function createShopBots({ db, env, state, botCall, now = Date.now, assets
     keyboard.push([decorate({text:'Весь каталог',web_app:{url:origin()},style:'success'},'catalog','🟢')]);
     const current=state();
     const support=current.shop?.supportTelegram || current.settings.sellerUsername || 'tcmai';
-    keyboard.push([decorate({text:'Язык меню',callback_data:'language:choose'},'language','🌐')]);
+    keyboard.push([decorate({text:'Change language',callback_data:'language:choose'},'language','🌐')]);
     keyboard.push([decorate({text:'Помощь менеджера',url:'https://t.me/'+support.replace(/^@/,'')},'support','👤')]);
     const caption = r.theme==='claude'
       ? '<b>Claude · верификация и аккаунты</b>\n\n<blockquote><b>Всё для вашего Claude</b>\nВерификация на вашем аккаунте или готовый аккаунт — выберите подходящую услугу.</blockquote>\n\nУсловия и стоимость — в каталоге.\n<b>Выберите услугу ниже ↓</b>'
@@ -220,7 +220,7 @@ export function createShopBots({ db, env, state, botCall, now = Date.now, assets
     const command=(msg.text ?? '').match(/^\/(start|menu|help)(?:@[a-z0-9_]+)?(?:\s|$)/i);
     if(!cb&&!command)return;
     if(cb&&!/^(?:menu:\d{1,3}|language:(?:choose|ru|en|zh))$/.test(cb.data ?? ''))return;
-    if(command?.[1].toLowerCase()==='start'||cb?.data==='language:choose'||(!chosen&&(cb?.data?.startsWith('menu:')||command?.[1].toLowerCase()==='menu'))){
+    if(cb?.data==='language:choose'){
       const picker={text:'🌿 фиКУС\n\nВыберите язык меню\nChoose your language\n请选择语言',reply_markup:{inline_keyboard:[[{text:'Русский',callback_data:'language:ru'}],[{text:'English',callback_data:'language:en'}],[{text:'中文',callback_data:'language:zh'}]]}};
       await call(r,'sendMessage',{chat_id:msg.chat.id,...picker});if(cb)await call(r,'answerCallbackQuery',{callback_query_id:cb.id}).catch(()=>{});return;
     }
