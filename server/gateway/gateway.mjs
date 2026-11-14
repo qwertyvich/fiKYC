@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { parseTopupAmount } from '../../src/wallet-domain.ts';
 import { EventEmitter } from 'node:events';
-import { parseFeed } from './parser.mjs';
+import { parseFeed, requisiteRecord } from './parser.mjs';
+import { migratePurchaseStats, recordPurchase } from '../purchase-stats.mjs';
 import { bootstrapRequisites } from './bootstrap.mjs';
 import { createCardProvider, createProviderRegistry } from './providers.mjs';
 import {usdTotalMinor,rubTotalMinor,rateMinor,usdtNetworks} from '../../src/usdt.ts';
@@ -30,6 +31,10 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
   if (!paymentColumns.includes('crypto')) db.exec('ALTER TABLE payments ADD COLUMN crypto TEXT');
   if (!paymentColumns.includes('crypto_reported_at')) db.exec('ALTER TABLE payments ADD COLUMN crypto_reported_at INTEGER');
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS payment_request_key ON payments(visitor_id,purpose,request_key) WHERE request_key IS NOT NULL");
+  const cardColumns=db.prepare('PRAGMA table_info(gateway_cards)').all().map(c=>c.name);
+  if(!cardColumns.includes('kind'))db.exec("ALTER TABLE gateway_cards ADD COLUMN kind TEXT NOT NULL DEFAULT 'card'");
+  if(!cardColumns.includes('account'))db.exec("ALTER TABLE gateway_cards ADD COLUMN account TEXT NOT NULL DEFAULT ''");
+  migratePurchaseStats(db,now());
   const defaults = { enabled: true, sourceChatId: '-1002278926769', sourceSender: '@feweqw34234_bot', receiptRecipient: '@tcmai', botUsername: 'GatewayReqBot' };
   db.prepare('INSERT OR IGNORE INTO gateway_config VALUES(1,?)').run(JSON.stringify(defaults));
   const config = () => ({ ...defaults, ...JSON.parse(db.prepare('SELECT json FROM gateway_config WHERE id=1').get().json) });
@@ -138,7 +143,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     const intent=p.provider==='sbp'?db.prepare('SELECT * FROM sbp_intents WHERE payment_id=?').get(p.id):null;
     const receiptJobs=p.provider==='sbp'?db.prepare('SELECT status,COUNT(*) n FROM sbp_receipt_jobs WHERE payment_id=? GROUP BY status').all(p.id):[];
     const qr=intent?{...JSON.parse(intent.snapshot),status:intent.phase,methodCode:intent.method_code,creating:!intent.external_id,error:!!intent.error}:p.provider==='sbp'?{status:p.status==='invalidated'?'failed':'creating',creating:p.status!=='invalidated'}:null;
-    return { id: p.id, provider:p.provider,purpose: p.purpose, items: JSON.parse(p.items), amount: p.amount_minor / 100, currency: p.currency, status: p.status, reason: p.reason, createdAt: p.created_at, expiresAt: p.expires_at, serverNow: now(), card: show ? { number: c.number, bank: c.bank, holder: c.holder } : null,
+    return { id: p.id, provider:p.provider,purpose: p.purpose, items: JSON.parse(p.items), amount: p.amount_minor / 100, currency: p.currency, status: p.status, reason: p.reason, createdAt: p.created_at, expiresAt: p.expires_at, serverNow: now(), requisitesType:c?.kind??'card', card: show ? { id:c.number, type:c.kind, number: c.account||c.number, bank: c.bank, holder: c.holder } : null,
       qr:qr?{...qr,receiptDelivery:receiptJobs.some(r=>r.status==='failed')?'failed':receiptJobs.some(r=>r.status==='pending')?'pending':receiptJobs.length?'sent':null,paymentUrl:['awaiting_transfer','receipt_review'].includes(p.status)&&(!p.expires_at||p.expires_at>now())?qr.paymentUrl??null:null}:null,
       crypto:crypto?{...crypto,address:p.status==='awaiting_transfer'?crypto.address:null,reportedAt:p.crypto_reported_at??null}:null,
       receiptCount: db.prepare('SELECT count(*) n FROM gateway_receipts WHERE payment_id=?').get(p.id).n, deliveryPending: !!db.prepare("SELECT id FROM gateway_outbox WHERE payment_id=? AND kind IN ('receipt','crypto_claim') AND status='pending'").get(p.id) };
@@ -217,7 +222,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     return view(row(id));
   }
   function issueSbp(visitorId,telegramId,items,note,amountMinor,retryOf=null,purpose='order',requestKey=null){
-    if(providers.choose({amountMinor,currency:'RUB'}))error('Карта снова доступна. Выберите оплату картой.',409);
+    if(providers.choose({amountMinor,currency:'RUB'}))error('Реквизиты снова доступны. Выберите перевод по реквизитам.',409);
     const id='FK-'+randomUUID().slice(0,12).toUpperCase();
     db.prepare("INSERT INTO payments(id,visitor_id,telegram_id,items,note,amount_minor,currency,provider,status,created_at,retry_of,receipt_token,purpose,request_key) VALUES(?,?,?,?,?,?,'RUB','sbp','awaiting_transfer',?,?,?,?,?)").run(id,visitorId,telegramId??'',JSON.stringify(items),note,amountMinor,now(),retryOf,randomUUID().replaceAll('-',''),purpose,requestKey);
     return view(row(id));
@@ -286,6 +291,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
       return issue(p.visitor_id, p.telegram_id, JSON.parse(p.items), p.note, p.amount_minor, p.currency, id, p.purpose);
     });
   }
+  let restoringPhoneFeed=false;
   function receiveFeed(message, updateId) {
     const c = config();
     if (String(message.chat?.id) !== c.sourceChatId) return false;
@@ -293,7 +299,8 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     const username = (message.from?.username ?? '').toLowerCase();
     const trusted = /^\d+$/.test(c.sourceSender) ? from === c.sourceSender : meta('senderId') ? from === meta('senderId') : username === c.sourceSender.replace(/^@/, '').toLowerCase();
     const text = (message.text ?? message.caption ?? '').slice(0, 16000);
-    const parsed = parseFeed(text);
+    const raw = parseFeed(text);
+    const parsed = raw ? {...raw,cards:raw.cards.map(requisiteRecord)} : null;
     const outcome = !trusted ? 'untrusted_sender' : !parsed ? 'not_requisites' : parsed.kind;
     db.prepare('INSERT OR IGNORE INTO gateway_inbox VALUES(?,?,?,?,?,?,?,?)').run(updateId,message.message_id ?? 0,from,username,(message.edit_date ?? message.date ?? 0)*1000,now(),outcome,text);
     db.prepare('DELETE FROM gateway_inbox WHERE update_id NOT IN (SELECT update_id FROM gateway_inbox ORDER BY received_at DESC,update_id DESC LIMIT 500)').run();
@@ -303,7 +310,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     const at = (message.edit_date ?? message.date) * 1000;
     if (!Number.isFinite(at)) { db.prepare("UPDATE gateway_inbox SET outcome='invalid_date' WHERE update_id=?").run(updateId); return false; }
     const cursor = JSON.parse(meta('feedCursor') ?? '[0,0]');
-    if (at < cursor[0] || (at === cursor[0] && updateId <= cursor[1])) { db.prepare("UPDATE gateway_inbox SET outcome='out_of_order' WHERE update_id=?").run(updateId); return false; }
+    if (!restoringPhoneFeed && (at < cursor[0] || (at === cursor[0] && updateId <= cursor[1]))) { db.prepare("UPDATE gateway_inbox SET outcome='out_of_order' WHERE update_id=?").run(updateId); return false; }
     // A drained updates queue includes later stops. Don't discard genuine delayed
     // snapshots merely because the process restarted or delivery took over a minute.
     const fresh = now() - at < 23 * 3600_000 && at <= now() + 30_000 && at >= Number(meta('bootstrapAt') ?? 0) - 1000;
@@ -314,8 +321,10 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
         db.prepare('UPDATE gateway_cards SET active=0,version=version+1 WHERE active=1').run(); invalidate(parsed.kind === 'invalid' ? 'feed_unrecognized' : 'stopped');
       } else {
         if (parsed.kind === 'stop' && parsed.stopCard) {
-          db.prepare('UPDATE gateway_cards SET active=0,version=version+1 WHERE number=?').run(parsed.stopCard);
-          invalidate('stopped', parsed.stopCard);
+          for(const stopped of db.prepare("SELECT number FROM gateway_cards WHERE number=? OR (kind='phone' AND account=?)").all(parsed.stopCard,parsed.stopCard)){
+            db.prepare('UPDATE gateway_cards SET active=0,version=version+1 WHERE number=?').run(stopped.number);
+            invalidate('stopped',stopped.number);
+          }
         }
         if (fresh && (parsed.kind === 'snapshot' || parsed.snapshot)) {
           for (const card of db.prepare('SELECT * FROM gateway_cards WHERE active=1').all()) {
@@ -331,13 +340,19 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
         if (fresh) for (const card of parsed.cards) {
           const existing = db.prepare('SELECT * FROM gateway_cards WHERE number=?').get(card.number);
           if (existing && existing.active && existing.bank === card.bank && existing.holder === card.holder && existing.min_minor === card.minMinor && existing.max_minor === card.maxMinor) continue;
-          db.prepare('INSERT INTO gateway_cards VALUES(?,?,?,?,?,1,1) ON CONFLICT(number) DO UPDATE SET bank=excluded.bank,holder=excluded.holder,min_minor=excluded.min_minor,max_minor=excluded.max_minor,active=1,version=gateway_cards.version+1').run(card.number, card.bank, card.holder, card.minMinor, card.maxMinor);
+          db.prepare('INSERT INTO gateway_cards(number,bank,holder,min_minor,max_minor,active,version,kind,account) VALUES(?,?,?,?,?,1,1,?,?) ON CONFLICT(number) DO UPDATE SET bank=excluded.bank,holder=excluded.holder,min_minor=excluded.min_minor,max_minor=excluded.max_minor,kind=excluded.kind,account=excluded.account,active=1,version=gateway_cards.version+1').run(card.number, card.bank, card.holder, card.minMinor, card.maxMinor,card.kind,card.account);
         }
       }
       if (fresh || parsed.kind === 'stop' || parsed.kind === 'invalid') setMeta('lastFeedAt', at);
       if (fresh && (parsed.kind === 'snapshot' || parsed.snapshot)) db.prepare("DELETE FROM gateway_meta WHERE key IN ('bootstrapExpiresAt','bootstrapAt')").run();
     });
     events.emit('change'); return true;
+  }
+  function receiptMethod(p) {
+    if(p.provider==='sbp')return 'СБП по ссылке';
+    if(p.provider==='usdt')return 'USDT';
+    const c=p.card&&db.prepare('SELECT * FROM gateway_cards WHERE number=?').get(p.card);
+    return c?.kind==='phone'?'СБП на телефон •••• '+c.account.slice(-4)+' · '+c.bank:p.card?'карта •••• '+p.card.slice(-4):'выдан менеджером';
   }
   function upload(id, visitorId, buffer) {
     const p = own(id, visitorId);
@@ -351,7 +366,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
       db.prepare('INSERT INTO gateway_receipt_files VALUES(?,?,?)').run(receiptId, buffer, mime);
       freezeOtherAttempts(id);
       if(p.provider!=='sbp')db.prepare("UPDATE payments SET status='receipt_review' WHERE id=?").run(id);
-      queue('receipt', id, { uploadId: receiptId, sbp:p.provider==='sbp', text: `фиКУС · Квитанция к ${id}\nСумма: ${p.amount_minor / 100} ${p.currency}\nTelegram ID: ${p.telegram_id || 'не определён'}\n${JSON.parse(p.items).map(i => `${i.title} × ${i.quantity}`).join('\n')}\nСпособ: ${p.provider==='sbp'?'СБП QR':p.card ? 'карта •••• ' + p.card.slice(-4) : 'выдан менеджером'}\nСостояние при загрузке: ${p.status}\nКомментарий: ${p.note || '—'}\nПроверьте поступление денег перед подтверждением.` }, 'receipt:' + receiptId);
+      queue('receipt', id, { uploadId: receiptId, sbp:p.provider==='sbp', text: `фиКУС · Квитанция к ${id}\nСумма: ${p.amount_minor / 100} ${p.currency}\nTelegram ID: ${p.telegram_id || 'не определён'}\n${JSON.parse(p.items).map(i => `${i.title} × ${i.quantity}`).join('\n')}\nСпособ: ${receiptMethod(p)}\nСостояние при загрузке: ${p.status}\nКомментарий: ${p.note || '—'}\nПроверьте поступление денег перед подтверждением.` }, 'receipt:' + receiptId);
     });
     events.emit('change'); return view(row(id));
   }
@@ -400,7 +415,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
       if (!inserted.changes) return;
       freezeOtherAttempts(p.id);
       if (p.status !== 'paid') db.prepare("UPDATE payments SET status='receipt_review' WHERE id=?").run(p.id);
-      queue('receipt', p.id, { file_id: file.file_id, kind: photo ? 'photo' : 'document', receiptId, text: `фиКУС · Квитанция к ${p.id}\nСумма заказа: ${p.amount_minor / 100} ${p.currency}\nПокупатель: ${message.from.username ? '@' + message.from.username : id} · ID ${id}\n${JSON.parse(p.items).map(i => `${i.title} × ${i.quantity}`).join('\n')}\nСпособ: ${p.provider==='sbp'?'СБП QR':p.card ? 'карта •••• ' + p.card.slice(-4) : 'выдан менеджером'}\nСостояние при загрузке: ${p.status}\nКомментарий: ${p.note || '—'}\nПроверьте поступление денег перед подтверждением.` }, 'receipt:' + receiptId);
+      queue('receipt', p.id, { file_id: file.file_id, kind: photo ? 'photo' : 'document', receiptId, text: `фиКУС · Квитанция к ${p.id}\nСумма заказа: ${p.amount_minor / 100} ${p.currency}\nПокупатель: ${message.from.username ? '@' + message.from.username : id} · ID ${id}\n${JSON.parse(p.items).map(i => `${i.title} × ${i.quantity}`).join('\n')}\nСпособ: ${receiptMethod(p)}\nСостояние при загрузке: ${p.status}\nКомментарий: ${p.note || '—'}\nПроверьте поступление денег перед подтверждением.` }, 'receipt:' + receiptId);
 
     });
     events.emit('change');
@@ -433,6 +448,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
           product.stock -= i.quantity;
         }
         db.prepare('UPDATE state SET catalog=?,revision=revision+1 WHERE id=1').run(JSON.stringify(s.catalog));
+        recordPurchase(db,p,family(id)[0],now());
       }
       for (const relatedId of family(id)) db.prepare("UPDATE payments SET status='paid',paid_at=? WHERE id=?").run(now(), relatedId);
       db.prepare('INSERT INTO audit(action,at) VALUES(?,?)').run('payment.confirm:' + id + ':' + actorId, now());
@@ -516,13 +532,29 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
       if (!closed) worker = setTimeout(poll, 350);
     }
   }
+  function restorePhoneFeed() {
+    const c=config(),cursor=JSON.parse(meta('feedCursor')??'[0,0]');
+    const bound=meta('senderId');
+    const history=db.prepare('SELECT * FROM gateway_inbox ORDER BY event_at DESC,update_id DESC').all();
+    const candidate=history.find(m=>(bound?m.sender_id===bound:/^\d+$/.test(c.sourceSender)?m.sender_id===c.sourceSender:m.sender_username===c.sourceSender.replace(/^@/,'').toLowerCase())&&parseFeed(m.text));
+    if(!candidate||candidate.outcome!=='invalid'||candidate.event_at!==cursor[0]||candidate.update_id!==cursor[1])return;
+    const parsed=parseFeed(candidate.text),at=candidate.event_at;
+    if(parsed.kind!=='snapshot'||!parsed.cards.some(c=>c.kind==='phone')||now()-at>=23*3600_000||at>now()+30_000||at<Number(meta('bootstrapAt')??0)-1000)return;
+    restoringPhoneFeed=true;
+    try {
+      receiveFeed({chat:{id:c.sourceChatId},from:{id:candidate.sender_id,username:candidate.sender_username},date:at/1000,message_id:candidate.message_id,text:candidate.text},candidate.update_id);
+      db.prepare("UPDATE gateway_inbox SET outcome='snapshot' WHERE update_id=?").run(candidate.update_id);
+      db.prepare('INSERT INTO audit(action,at) VALUES(?,?)').run('gateway.phone-feed-restored:'+candidate.update_id,now());
+    } finally { restoringPhoneFeed=false; }
+  }
+  restorePhoneFeed();
   const tick = setInterval(() => { if (!closed) { reconcile(); void flush(); } }, 1000);
   tick.unref();
   function start() { if (env.GATEWAY_BOT_TOKEN && !worker) { worker = setTimeout(poll, 0); worker.unref(); } }
   function stop() { closed = true; clearTimeout(worker); clearInterval(tick); abort?.abort(); events.removeAllListeners(); }
   function admin() {
     reconcile();
-    return { config: config(), tokenConfigured: !!env.GATEWAY_BOT_TOKEN, connected: healthy(), recipientReady: !!recipient(), lastFeedAt: Number(meta('lastFeedAt') ?? 0), lastSourceMessageAt: Number(meta('lastSourceMessageAt') ?? 0), lastPollAt: Number(meta('lastPollAt') ?? 0), pollError: meta('pollError') ?? '', bootstrapExpiresAt: Number(meta('bootstrapExpiresAt') ?? 0), inbox: db.prepare('SELECT update_id AS updateId,message_id AS messageId,sender_username AS senderUsername,event_at AS eventAt,received_at AS receivedAt,outcome FROM gateway_inbox ORDER BY received_at DESC,update_id DESC LIMIT 10').all(), senderBound: !!meta('senderId'), pendingDeliveries: db.prepare("SELECT count(*) n FROM gateway_outbox WHERE status='pending'").get().n, cards: db.prepare('SELECT * FROM gateway_cards').all().map(c => ({ bank: c.bank, holder: c.holder, last4: c.number.slice(-4), min: c.min_minor / 100, max: c.max_minor / 100, active: !!c.active && issuable() })), payments: db.prepare('SELECT * FROM payments ORDER BY created_at DESC LIMIT 100').all().map(p => ({ ...view(p), crypto:p.crypto?JSON.parse(p.crypto):null,telegramId: p.telegram_id, note: p.note })) };
+    return { config: config(), tokenConfigured: !!env.GATEWAY_BOT_TOKEN, connected: healthy(), recipientReady: !!recipient(), lastFeedAt: Number(meta('lastFeedAt') ?? 0), lastSourceMessageAt: Number(meta('lastSourceMessageAt') ?? 0), lastPollAt: Number(meta('lastPollAt') ?? 0), pollError: meta('pollError') ?? '', bootstrapExpiresAt: Number(meta('bootstrapExpiresAt') ?? 0), inbox: db.prepare('SELECT update_id AS updateId,message_id AS messageId,sender_username AS senderUsername,event_at AS eventAt,received_at AS receivedAt,outcome FROM gateway_inbox ORDER BY received_at DESC,update_id DESC LIMIT 10').all(), senderBound: !!meta('senderId'), pendingDeliveries: db.prepare("SELECT count(*) n FROM gateway_outbox WHERE status='pending'").get().n, cards: db.prepare('SELECT * FROM gateway_cards').all().map(c => ({ bank: c.bank, holder: c.holder, type:c.kind,last4: (c.account||c.number).slice(-4), min: c.min_minor / 100, max: c.max_minor / 100, active: !!c.active && issuable() })), payments: db.prepare('SELECT * FROM payments ORDER BY created_at DESC LIMIT 100').all().map(p => ({ ...view(p), crypto:p.crypto?JSON.parse(p.crypto):null,telegramId: p.telegram_id, note: p.note })) };
   }
   return { externalRow:row,cardAvailable:(amountMinor)=>!!providers.choose({amountMinor,currency:'RUB'}),notifyExternal:(id,text,key)=>queue('provider_notice',id,{text},'provider:'+key),confirmExternal:async id=>{const p=row(id);if(!p||p.provider!=='sbp')error('Платёж СБП не найден',404);if(p.status==='paid')return;db.prepare("UPDATE payments SET status='receipt_review',reason='provider_success' WHERE id=?").run(id);await confirm(id,'sbp-provider',true);},wallet, createTopup, reportCryptoPaid, repairShortenedTimers, receipts: id => db.prepare('SELECT r.id,r.created_at AS createdAt,f.mime FROM gateway_receipts r LEFT JOIN gateway_receipt_files f ON f.id=r.id WHERE payment_id=? ORDER BY r.created_at').all(id), receiptFile: id => db.prepare('SELECT data,mime FROM gateway_receipt_files WHERE id=?').get(id), bootstrap: (text, actor, confirmed) => { const result = bootstrapRequisites(db,text,{actor,confirmed,now:now()}); events.emit('change'); return result; }, config, saveConfig, create, retry, upload, view, own, admin, confirm, receiveFeed, processUpdate, flush, start, stop, disconnect, events, list: (visitorId) => { reconcile(); return db.prepare('SELECT * FROM payments WHERE visitor_id=? ORDER BY created_at DESC LIMIT 100').all(visitorId).map(view); }, setConnected: () => { connected = true; lastPoll = now(); setMeta('lastPollAt', now()); } };
 }

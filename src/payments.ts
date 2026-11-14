@@ -12,7 +12,8 @@ export interface Payment {
   createdAt: number;
   expiresAt: number | null;
   serverNow: number;
-  card: { number: string; bank: string; holder: string } | null;
+  requisitesType?: 'card' | 'phone';
+  card: { id?: string; type?: 'card' | 'phone'; number: string; bank: string; holder: string } | null;
   receiptCount: number;
   deliveryPending: boolean;
 }

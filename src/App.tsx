@@ -118,8 +118,8 @@ export function App() {
       void refreshReviews().catch(() => {});
     }).catch(() => {}); };
     refresh(); const timer = setInterval(refresh, 30000);
-    window.addEventListener('focus', refresh); document.addEventListener('visibilitychange', refresh);
-    return () => { live = false; clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
+    window.addEventListener('focus', refresh); document.addEventListener('visibilitychange', refresh);window.addEventListener('fikus:payment-confirmed',refresh);
+    return () => { live = false; clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh);window.removeEventListener('fikus:payment-confirmed',refresh); };
   }, [kind]);
   useEffect(() => {
     if (!resolvingLink) return;

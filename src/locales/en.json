@@ -839,5 +839,16 @@
   "<b>фиКУС · цифровые сервисы</b>\n\n<blockquote><b>Верификация и готовые аккаунты</b>\nClaude, нейросети и почтовые сервисы — в одном каталоге.</blockquote>\n\nУсловия и стоимость — в карточке услуги.\n<b>Выберите раздел ниже ↓</b>": "<b>fiCUS · digital services</b>\n\n<blockquote><b>Verification and ready-to-use accounts</b>\nClaude, AI and postal services in one catalog.</blockquote>\n\nSee details and prices on each service page.\n<b>Choose a category below ↓</b>",
   "Язык меню": "Menu language",
   "Не удалось сохранить язык. Повторите выбор.": "Could not save your language. Please try again.",
-  "Для выбранного языка доступна оплата криптовалютой": "Cryptocurrency payment is available for the selected language."
+  "Для выбранного языка доступна оплата криптовалютой": "Cryptocurrency payment is available for the selected language.",
+  "Оплата по СБП на телефон": "SBP transfer by phone",
+  "Номер телефона для перевода по СБП": "Phone number for SBP transfer",
+  "Скопировать номер телефона": "Copy phone number",
+  "Номер телефона скопирован": "Phone number copied",
+  "Банк для перевода по СБП": "Bank for SBP transfer",
+  "Переведите по СБП только в банк «{{0}}». В другой банк не переводите.": "Transfer via SBP only to {{0}}. Do not select another bank.",
+  "Перевод по реквизитам": "Bank transfer",
+  "Реквизиты могут стать недоступны раньше. Перед переводом проверьте этот экран. Если появится предупреждение — не переводите по прежним реквизитам.": "These payment details may be withdrawn sooner. Check this screen before transferring. If a warning appears, do not use the previous details.",
+  "Если подходящих реквизитов сейчас нет, предложим другой способ оплаты.": "If no suitable payment details are available, we will offer another payment method.",
+  "Проверяем доступность реквизитов. Дождитесь обновления перед переводом.": "Checking payment details. Wait for an update before transferring.",
+  "Реквизиты снова доступны. Выберите перевод по реквизитам.": "Bank transfer details are available again. Choose bank transfer."
 }

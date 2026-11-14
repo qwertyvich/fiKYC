@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { ensurePurchaseStats } from './purchase-stats.mjs';
 
 const DAY = 86400000, MOSCOW = 3 * 3600000;
 export const nextImportAt = time => Math.floor((time + MOSCOW) / DAY) * DAY + DAY - MOSCOW;
@@ -57,6 +58,7 @@ export function validateChannelFile(input, catalog, now = Date.now()) {
 }
 
 export function createChannelImport({db, state, now = Date.now}) {
+  ensurePurchaseStats(db);
   db.exec(`CREATE TABLE IF NOT EXISTS channel_import_file(id INTEGER PRIMARY KEY CHECK(id=1),pending_json TEXT,pending_filename TEXT,pending_at INTEGER,pending_apply_at INTEGER,active_json TEXT,active_filename TEXT,last_check_day INTEGER,last_checked_at INTEGER,last_applied_at INTEGER,error TEXT NOT NULL DEFAULT '');
     INSERT OR IGNORE INTO channel_import_file(id) VALUES(1);
     CREATE TABLE IF NOT EXISTS channel_product_stats(product_id TEXT PRIMARY KEY,name TEXT NOT NULL,buyers INTEGER NOT NULL,mark REAL);
@@ -126,7 +128,11 @@ export function createChannelImport({db, state, now = Date.now}) {
   }
   function enrich(catalog) {
     const stats = new Map(db.prepare('SELECT * FROM channel_product_stats').all().map(s => [s.product_id,s]));
-    return {...catalog, products: catalog.products.map(p => {const s=stats.get(p.id);return s ? {...p,buyerCount:s.buyers,channelStats:{buyers:s.buyers,mark:s.mark}} : p;})};
+    const purchases = new Map(db.prepare('SELECT product_id,COUNT(DISTINCT buyer_id) buyers FROM product_purchases GROUP BY product_id').all().map(s=>[s.product_id,s.buyers]));
+    return {...catalog, products: catalog.products.map(p => {
+      const s=stats.get(p.id),buyerCount=(s?.buyers??p.buyerCount??0)+(purchases.get(p.id)??0);
+      return {...p,buyerCount,...(s?{channelStats:{buyers:buyerCount,mark:s.mark}}:{})};
+    })};
   }
   return {inspect,stage,cancel,status,runScheduled,enrich,download: () => {const f=file();return {text:f.pending_json ?? f.active_json,filename:f.pending_filename ?? f.active_filename};}};
 }

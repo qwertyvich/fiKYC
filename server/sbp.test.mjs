@@ -29,7 +29,7 @@ test('methods are matched by name; MC9 is internal ID 3, Vietnam/card are exclud
 });
 test('chat cards have priority over SBP; no external payment is created while a matching card is available',async t=>{
  const f=await fixture(t);f.gateway.receiveFeed({chat:{id:-1002278926769},from:{id:333,username:'feweqw34234_bot'},date:Math.floor(f.now()/1000),text:'Реквизиты №1\n🇷🇺 Россия\n🏦 Банк: Сбер\n┗ ФИО: Тест Т\n💳 Карта: 2200000000000001\n✅ Мин: 1 000 ₽\n⛔️ Макс: 8 000 ₽'},1);
- assert.throws(()=>f.reserve(),/Карта снова доступна/);const p=f.gateway.create('alice','111',{...f.input,method:'card',accepted:true});assert.equal(p.provider,'telegram-card');assert.equal(p.expiresAt-p.serverNow,900000);assert.equal(f.calls.length,0);
+ assert.throws(()=>f.reserve(),/Реквизиты снова доступны/);const p=f.gateway.create('alice','111',{...f.input,method:'card',accepted:true});assert.equal(p.provider,'telegram-card');assert.equal(p.expiresAt-p.serverNow,900000);assert.equal(f.calls.length,0);
 });
 test('SBP stores the actual expiration and link; a receipt or manual callback cannot confirm the payment',async t=>{
  const f=await fixture(t),p=await f.pay();assert.equal(p.provider,'sbp');assert.equal(p.expiresAt-p.serverNow,600000);assert.match(p.qr.paymentUrl,/^https:\/\/pay-provider.casa\/pay\//);assert.equal(p.card,null);assert.equal(f.stock(),20);
@@ -41,7 +41,7 @@ test('raw signed webhooks are durable, timestamp-checked and deduplicated; payme
  const raw=Buffer.from(JSON.stringify({id:'event-1',event:'payment.success',data:r})),ts=String(Math.floor(f.now()/1000)),headers={'x-timestamp':ts,'x-webhook-id':'event-1','x-signature':'sha256='+createHmac('sha256',secret).update(ts+'.').update(raw).digest('hex')};
  assert.throws(()=>f.sbp.receiveWebhook(Buffer.concat([raw,Buffer.from(' ')]),headers),/подпись/);assert.throws(()=>f.sbp.receiveWebhook(raw,{...headers,'x-timestamp':String(Number(ts)-301)}),/подпись/);
  f.sbp.receiveWebhook(raw,headers);f.sbp.receiveWebhook(raw,headers);await f.sbp.pump();assert.equal(f.db.prepare('SELECT COUNT(*) n FROM sbp_webhooks').get().n,1);
- await f.sbp.apply(r);await f.sbp.apply(r);assert.equal(f.stock(),19);assert.equal(f.gateway.view(f.gateway.own(p.id,'alice')).status,'paid');await f.sbp.apply({...r,status:'pending'});assert.equal(f.gateway.view(f.gateway.own(p.id,'alice')).status,'paid');assert.equal(f.db.prepare("SELECT COUNT(*) n FROM gateway_outbox WHERE kind='provider_notice'").get().n,1);
+ await f.sbp.apply(r);await f.sbp.apply(r);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM product_purchases').get().n,1);assert.equal(f.stock(),19);assert.equal(f.gateway.view(f.gateway.own(p.id,'alice')).status,'paid');await f.sbp.apply({...r,status:'pending'});assert.equal(f.gateway.view(f.gateway.own(p.id,'alice')).status,'paid');assert.equal(f.db.prepare("SELECT COUNT(*) n FROM gateway_outbox WHERE kind='provider_notice'").get().n,1);
 });
 test('underpayment and mismatched order/customer/currency do not deliver a product',async t=>{
  const f=await fixture(t),p=await f.pay(),r=f.remote.get(p.qr.externalId);r.status='success';r.paid_amount='4999.99';await f.sbp.apply(r);assert.equal(f.stock(),20);assert.equal(f.gateway.view(f.gateway.own(p.id,'alice')).reason,'sbp_amount_review');
@@ -72,4 +72,10 @@ test('webhook HTTP endpoint accepts signed provider requests without Telegram au
  const response=await fetch(base+'/api/webhooks/pay-provider',{method:'POST',headers:{'content-type':'application/json','x-timestamp':ts,'x-signature':signature,origin:'https://pay-provider.casa'},body:raw});assert.equal(response.status,200);
  const invalid=await fetch(base+'/api/webhooks/pay-provider',{method:'POST',headers:{'content-type':'application/json'},body:raw});assert.equal(invalid.status,401);
  assert.equal((await fetch(base+'/api/admin/sbp')).status,401);const publicData=await fetch(base+'/api/public').then(r=>r.text()),adminData=JSON.stringify(await f.sbp.admin());for(const value of [key,secret]){assert.ok(!publicData.includes(value));assert.ok(!adminData.includes(value));}
+});
+
+test('chat phone transfer prevents an SBP provider request, including wallet topups',async t=>{
+ const f=await fixture(t);f.gateway.receiveFeed({chat:{id:-1002278926769},from:{id:333,username:'feweqw34234_bot'},date:Math.floor(f.now()/1000),text:'Реквизиты №1\n🏦 Банк: Сбербанк\n┗ ФИО: Тест Т\n💳 Карта: +7 (999) 123-45-67\n✅ Мин: 1 000 ₽\n⛔️ Макс: 8 000 ₽'},1);
+ assert.throws(()=>f.reserve(),/Реквизиты снова доступны/);assert.throws(()=>f.gateway.createTopup('wallet','222',{amount:'5000',requestKey:randomUUID(),method:'sbp'}),/Реквизиты снова доступны/);
+ assert.equal(f.gateway.create('phone','111',{...f.input,method:'card',accepted:true}).card.type,'phone');assert.equal(f.calls.length,0);
 });

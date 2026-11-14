@@ -373,3 +373,112 @@ test('confirmed topups and idempotency keys survive a restart without another cr
   app.gateway.stop();app.db.close();app=await createApp(options);
   try {assert.equal(app.gateway.wallet('tg:123').balance,1500.25);assert.equal(app.gateway.createTopup('tg:123','123',input).id,p.id);await app.gateway.confirm(p.id,'test-admin');assert.equal(app.gateway.wallet('tg:123').entries.length,1);}finally{app.gateway.stop();app.db.close();}
 });
+
+test('phone formats and labels normalize without mistaking malformed accounts for valid requisites',()=>{
+  const phone='+79991234567';
+  for(const value of ['+7 (999) 123-45-67','8 (999) 123 45 67','79991234567','9991234567','+7.999.123.45.67','＋７（９９９）１２３－４５－６７','+7\u200e (999) 123‑45‑67','+٧ (٩٩٩) ١٢٣-٤٥-٦٧']){
+    for(const label of ['Карта','Номер карты','Номер телефона','Телефон','СБП','Номер для СБП']){
+      const parsed=parseFeed(card(value).replace('Карта:',label+':'));
+      assert.equal(parsed.kind,'snapshot',value+' / '+label);assert.equal(parsed.cards[0].number,phone);assert.equal(parsed.cards[0].kind,'phone');
+    }
+    assert.equal(parseFeed(stop(value)).stopCard,phone);
+  }
+  for(const value of ['+7999123456','+19991234567','+799912345678','8 (999) 123-45-67 или +79991234568','9991234567 добавочный 12'])assert.equal(parseFeed(card(value)).kind,'invalid',value);
+  assert.equal(parseFeed(card(A).replace('Карта:','Телефон:')).kind,'invalid');
+  assert.equal(parseFeed(stop(phone).replace('\nвременно','\n\nвременно')).stopCard,phone);
+  assert.equal(parseFeed(stop(phone)+'\n'+stop(A)).kind,'invalid');
+  assert.equal(parseFeed(card('**+7 (999) 123-45-67**').replace('Банк:','**Банк:**').replace('ФИО:','**ФИО:**')).cards[0].number,phone);
+});
+test('phone requisites take priority over SBP links for orders/topups, respect limits, and a stop hides every bank for that phone',async t=>{
+  const {g,feed,pay,db}=await fixture(t),phone='+79991234567';
+  feed(card('8 (999) 123-45-67','8 000','Сбербанк')+'\n'+card(phone,'8 000','Озон банк'));
+  assert.equal(g.cardAvailable(150000),true);assert.equal(g.cardAvailable(900000),false);
+  const chosen=new Set();for(let i=0;i<50;i++){const p=pay('phone-'+i);chosen.add(p.card.bank);assert.equal(p.card.type,'phone');assert.equal(p.card.number,phone);assert.equal(p.expiresAt-p.createdAt,900000);}
+  assert.equal(chosen.size,2);assert.equal(db.prepare('SELECT COUNT(*) n FROM gateway_cards WHERE active=1').get().n,2);
+  assert.throws(()=>g.create('sbp','333',{items:[{productId:pay().items[0].productId,quantity:1}],note:'',expectedAmount:5000,method:'sbp'}),/Реквизиты снова доступны/);
+  const topup=g.createTopup('wallet','444',{amount:'1500',requestKey:randomUUID(),accepted:true});assert.equal(topup.card.type,'phone');
+  feed(stop('8 999 123 45 67'));assert.equal(g.cardAvailable(150000),false);assert.equal(g.view(g.own(topup.id,'wallet')).card,null);assert.equal(g.view(g.own(topup.id,'wallet')).status,'invalidated');
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM gateway_cards WHERE active=1').get().n,0);
+  feed(card(phone));assert.equal(g.view(g.own(topup.id,'wallet')).card,null);
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM gateway_outbox WHERE kind='source'").get().n,0);
+});
+test('changing phone bank or holder revokes issued details, mixed snapshots keep cards, and receipts identify phone + bank',async t=>{
+  const {g,feed,pay,db}=await fixture(t),phone='+79991234567';
+  feed(card(phone,'8 000','Сбербанк'));const first=pay();
+  feed(card(phone,'8 000','Озон банк'));assert.equal(g.view(g.own(first.id,'alice')).card,null);
+  const second=g.retry(first.id,'alice',{accepted:true,notPaid:true});assert.equal(second.card.bank,'Озон банк');
+  g.upload(second.id,'alice',Buffer.from('%PDF-1.4\nfixture'));
+  const caption=JSON.parse(db.prepare("SELECT payload FROM gateway_outbox WHERE payment_id=? AND kind='receipt'").get(second.id).payload).text;
+  assert.match(caption,/СБП на телефон •••• 4567 · Озон банк/);assert.ok(!caption.includes('phone:'));
+  feed(card(phone,'8 000','Озон банк','Другой получатель')+'\n'+card(A));
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM gateway_cards WHERE active=1').get().n,2);
+  feed(stop());assert.equal(g.cardAvailable(500000),false);
+});
+test('confirmed purchases increase buyer totals once per customer/product and survive later review imports',async t=>{
+  const f=await fixture(t),{g,feed,pay,db,p,channelImport:ci}=f;
+  const catalog=()=>JSON.parse(db.prepare('SELECT catalog FROM state').get().catalog);
+  db.prepare('INSERT INTO channel_product_stats VALUES(?,?,?,?)').run(p.id,p.title,123,4.9);
+  const buyers=()=>ci.enrich(catalog()).products.find(v=>v.id===p.id).buyerCount;
+  assert.equal(buyers(),123);feed(card(A,'20 000'));
+  const first=pay('alice',2);assert.equal(buyers(),123);
+  await assert.rejects(g.confirm(first.id,'777'),/квитанции/);assert.equal(buyers(),123);
+  g.upload(first.id,'alice',Buffer.from('%PDF-1.4\nfixture'));assert.equal(buyers(),123);
+  await g.confirm(first.id,'777');await g.confirm(first.id,'777');assert.equal(buyers(),124);
+  const again=pay('alice');g.upload(again.id,'alice',Buffer.from('%PDF-1.4\nfixture'));await g.confirm(again.id,'777');assert.equal(buyers(),124);
+  const other=pay('bob');g.upload(other.id,'bob',Buffer.from('%PDF-1.4\nfixture'));await g.confirm(other.id,'777');assert.equal(buyers(),125);
+  const topup=g.createTopup('alice','111',{amount:'1500',requestKey:randomUUID(),accepted:true});g.upload(topup.id,'alice',Buffer.from('%PDF-1.4\nfixture'));await g.confirm(topup.id,'777');assert.equal(buyers(),125);
+  ci.stage(JSON.stringify({version:1,products:[{id:p.id,name:p.title,buyers:200,mark:5,reviews:[]}]}),'updated.json');
+  db.prepare('UPDATE channel_import_file SET pending_apply_at=0').run();ci.runScheduled();assert.equal(buyers(),202);
+  assert.equal(ci.enrich(catalog()).products.find(v=>v.id===p.id).channelStats.buyers,202);
+  assert.equal(catalog().products.find(v=>v.id===p.id).buyerCount,p.buyerCount);
+});
+test('retry families and failed stock confirmations never duplicate buyer counts',async t=>{
+  const {g,feed,pay,db,p}=await fixture(t);feed(card());const first=pay();feed(stop(A));feed(card());const next=g.retry(first.id,'alice',{notPaid:true,accepted:true});
+  g.upload(first.id,'alice',Buffer.from('%PDF-1.4\nfixture'));g.upload(next.id,'alice',Buffer.from('%PDF-1.4\nfixture'));await g.confirm(next.id,'777');await g.confirm(first.id,'777');
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM product_purchases').get().n,1);
+  const second=pay('bob');g.upload(second.id,'bob',Buffer.from('%PDF-1.4\nfixture'));
+  const catalog=JSON.parse(db.prepare('SELECT catalog FROM state').get().catalog);catalog.products.find(v=>v.id===p.id).stock=0;db.prepare('UPDATE state SET catalog=?').run(JSON.stringify(catalog));
+  await assert.rejects(g.confirm(second.id,'777'),/Остатка недостаточно/);assert.equal(db.prepare('SELECT COUNT(*) n FROM product_purchases').get().n,1);
+});
+
+test('startup safely reparses only the newest trusted, fresh phone snapshot at the exact feed cursor',async t=>{
+  const dir=await mkdtemp(join(tmpdir(),'fikus-phone-recovery-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+  const clock=Math.floor(Date.now()/1000)*1000;
+  for(const mode of ['restore','stop','untrusted','stale','newer-invalid','cursor-mismatch','future']){
+    const options={dbPath:join(dir,mode+'.sqlite'),gatewayWorker:false,gatewayNow:()=>clock,env:{NODE_ENV:'test',GATEWAY_BOT_TOKEN:'isolated-token'}};
+    let app=await createApp(options),db=app.db;
+    const at=mode==='stale'?clock-24*3600000:mode==='future'?clock+60000:clock-1000;
+    const put=(k,v)=>db.prepare('INSERT INTO gateway_meta VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(k,String(v));
+    put('senderId','333');put('lastPollAt',clock);put('lastFeedAt',at);put('feedCursor',JSON.stringify([at,1]));
+    db.prepare('INSERT INTO gateway_inbox VALUES(?,?,?,?,?,?,?,?)').run(1,100,mode==='untrusted'?'999':'333','feweqw34234_bot',at,clock,'invalid',card('+7 (999) 123-45-67'));
+    if(['stop','newer-invalid'].includes(mode)){
+      db.prepare('INSERT INTO gateway_inbox VALUES(?,?,?,?,?,?,?,?)').run(2,101,'333','feweqw34234_bot',clock,clock,mode==='stop'?'stop':'invalid',mode==='stop'?stop('+79991234567'):'Реквизиты №2\nКарта: неизвестна');
+      put('feedCursor',JSON.stringify([clock,2]));
+    }
+    if(mode==='cursor-mismatch')put('feedCursor',JSON.stringify([at,20]));
+    app.gateway.stop();db.close();app=await createApp(options);
+    try{
+      assert.equal(app.gateway.cardAvailable(150000),false,'connection must catch up first');app.gateway.setConnected();
+      assert.equal(app.gateway.cardAvailable(150000),mode==='restore',mode);
+      assert.equal(app.db.prepare("SELECT COUNT(*) n FROM audit WHERE action LIKE 'gateway.phone-feed-restored:%'").get().n,mode==='restore'?1:0);
+      assert.equal(app.db.prepare("SELECT COUNT(*) n FROM gateway_outbox WHERE kind='source'").get().n,0);
+    }finally{app.gateway.stop();app.db.close();}
+  }
+});
+test('historical paid retry families are backfilled once and buyer totals survive restarts',async t=>{
+  const dir=await mkdtemp(join(tmpdir(),'fikus-purchase-backfill-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+  const options={dbPath:join(dir,'db.sqlite'),gatewayWorker:false,env:{NODE_ENV:'test',GATEWAY_BOT_TOKEN:''}};
+  let app=await createApp(options),db=app.db;
+  const catalog=JSON.parse(db.prepare('SELECT catalog FROM state').get().catalog),p=catalog.products.find(v=>v.saleMode!=='request');p.stock=10;p.visible=true;catalog.groups.find(v=>v.id===p.groupId).visible=true;db.prepare('UPDATE state SET catalog=?').run(JSON.stringify(catalog));
+  const input={items:[{productId:p.id,quantity:1}],note:'',accepted:true,expectedAmount:p.price};
+  const first=app.gateway.create('alice','111',input);app.gateway.upload(first.id,'alice',Buffer.from('%PDF-1.4\nfixture'));await app.gateway.confirm(first.id,'777');
+  const original=db.prepare('SELECT * FROM payments WHERE id=?').get(first.id);
+  const cols=Object.keys(original);db.prepare('INSERT INTO payments('+cols.join(',')+') VALUES('+cols.map(()=>'?').join(',')+')').run(...cols.map(k=>k==='id'?'FK-BACKFILL':k==='retry_of'?first.id:k==='receipt_token'?'backfill-token':original[k]));
+  db.prepare('DELETE FROM product_purchases').run();db.prepare("DELETE FROM secrets WHERE key='migration.purchase-stats-v1'").run();
+  app.gateway.stop();db.close();
+  for(let i=0;i<2;i++){
+    app=await createApp(options);
+    try{assert.equal(app.db.prepare('SELECT COUNT(*) n FROM product_purchases').get().n,1);assert.equal(app.channelImport.enrich(catalog).products.find(v=>v.id===p.id).buyerCount,(p.buyerCount??0)+1);}
+    finally{app.gateway.stop();app.db.close();}
+  }
+});

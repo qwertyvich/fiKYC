@@ -15,3 +15,7 @@
 @media(max-width:360px){.payment-number-card{padding:17px}.payment-number-card .payment-card-number{font-size:16px}.payment-copy-icon{width:34px;height:34px;border-radius:11px}}
 
 .payment-receipt>a.payment-text-button{text-decoration:none}
+
+.payment-phone-bank-warning{margin:0 0 20px;align-items:flex-start;border:1px solid var(--accent,#9ac800)}
+.payment-phone-bank-warning svg{flex-shrink:0;margin-top:2px}
+.payment-phone-bank-warning p{margin:0;line-height:1.55}
