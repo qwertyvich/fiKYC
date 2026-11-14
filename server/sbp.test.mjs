@@ -79,3 +79,18 @@ test('chat phone transfer prevents an SBP provider request, including wallet top
  assert.throws(()=>f.reserve(),/Реквизиты снова доступны/);assert.throws(()=>f.gateway.createTopup('wallet','222',{amount:'5000',requestKey:randomUUID(),method:'sbp'}),/Реквизиты снова доступны/);
  assert.equal(f.gateway.create('phone','111',{...f.input,method:'card',accepted:true}).card.type,'phone');assert.equal(f.calls.length,0);
 });
+
+test('fresh checkout replaces expired SBP with current phone only after explicit unpaid consent; late callbacks stay idempotent',async t=>{
+ const f=await fixture(t),owner='tg:222',base='http://127.0.0.1:'+f.server.address().port;
+ const first=await f.sbp.issue(f.gateway.create(owner,'222',f.input).id),remote=f.remote.get(first.qr.externalId);
+ f.gateway.receiveFeed({chat:{id:-1002278926769},from:{id:333,username:'feweqw34234_bot'},date:Math.floor(f.now()/1000),text:'Реквизиты №1\nБанк: Сбербанк\nФИО: Тест Т\nКарта: +7 (999) 123-45-67\nМин: 1 000 ₽\nМакс: 8 000 ₽'},1);
+ const headers={'content-type':'application/json','x-telegram-init-data':proof('ru')},body={...f.input,method:'card',accepted:true,notPaid:true};
+ const request=()=>fetch(base+'/api/payments',{method:'POST',headers,body:JSON.stringify(body)});
+ let res=await request();assert.equal((await res.json()).id,first.id,'live SBP link must not be replaced');
+ f.advance(601000);f.gateway.setConnected();remote.status='expired';await f.sbp.apply(remote);
+ delete body.notPaid;res=await request();assert.equal((await res.json()).id,first.id,'no silent replacement without consent');
+ body.notPaid=true;res=await request();assert.equal(res.status,201);const next=await res.json();assert.equal(next.card.type,'phone');assert.equal(next.expiresAt-next.serverNow,900000);assert.equal(f.gateway.externalRow(next.id).retry_of,first.id);
+ await f.sbp.apply(remote);assert.equal(f.gateway.externalRow(first.id).status,'superseded');assert.equal((await(await request()).json()).id,next.id);
+ f.gateway.disconnect();f.gateway.setConnected();res=await request();const recovered=await res.json();assert.equal(f.gateway.externalRow(recovered.id).retry_of,next.id);
+ remote.status='success';remote.paid_amount='5000.00';await f.sbp.apply(remote);await f.sbp.apply(remote);assert.equal(f.stock(),19);assert.equal(f.gateway.externalRow(next.id).status,'paid');assert.equal(f.calls.filter(c=>c.method==='POST').length,1);
+});

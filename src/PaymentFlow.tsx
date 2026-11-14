@@ -41,7 +41,7 @@ export function CardCheckout({ lines, shop, navigate }: { lines: { product: Prod
   async function submit() {
     if (!accepted || busy) return; setBusy(true); setError('');
     try {
-      const p = await mutation<Payment>('/payments', 'POST', { items: lines.map(l => ({ productId: l.product.id, quantity: l.quantity })), note, expectedAmount: total, accepted: true,method:'card',settlementCurrency:'RUB',expectedRate:exchangeRate() });
+      const p = await mutation<Payment>('/payments', 'POST', { items: lines.map(l => ({ productId: l.product.id, quantity: l.quantity })), note, expectedAmount: total, accepted: true,notPaid:true,method:'card',settlementCurrency:'RUB',expectedRate:exchangeRate() });
       navigate('/payment/' + p.id);
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
@@ -61,7 +61,7 @@ export function CardCheckout({ lines, shop, navigate }: { lines: { product: Prod
       <button hidden={!!options&&!options.card} type="button" className="payment-text-button" onClick={()=>setPaymentMethod('usdt')}>{t('Оплатить USDT')}</button>
       {error && <p className="form-failure" role="alert">{t(error)}</p>}
     </div>}
-    {warning && <PaymentWarning busy={busy} accepted={accepted} error={error} onAccepted={setAccepted} onConfirm={submit} onClose={() => setWarning(false)}/>}
+    {warning && <PaymentWarning busy={busy} accepted={accepted} error={error} onAccepted={setAccepted} onConfirm={submit} onClose={() => setWarning(false)} acceptLabel="Я ещё не переводил деньги по этому заказу и готов к переводу"/>}
   </>;
 }
 

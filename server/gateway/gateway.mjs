@@ -183,7 +183,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     if (!Number.isSafeInteger(amountMinor) || amountMinor < 1 || amountMinor > 100_000_000_00) error('Проверьте сумму заказа');
     if (typeof input.expectedAmount !== 'number' || Math.round(input.expectedAmount * 100) !== amountMinor) error('Стоимость изменилась. Обновите корзину и проверьте сумму.', 409);
     reconcile();
-    const existing = db.prepare("SELECT * FROM payments WHERE visitor_id=? AND purpose='order' AND (status IN ('awaiting_transfer','awaiting_receipt','receipt_review','manual_review') OR (provider='sbp' AND status='invalidated' AND created_at>?)) ORDER BY created_at DESC").all(visitorId,now()-48*3600000).find(p => p.items === JSON.stringify(items) && p.note === input.note.trim());
+    const existing = db.prepare("SELECT * FROM payments WHERE visitor_id=? AND purpose='order' AND status IN ('awaiting_transfer','awaiting_receipt','receipt_review','manual_review','invalidated') ORDER BY created_at DESC,rowid DESC").all(visitorId).find(p => p.items === JSON.stringify(items) && p.note === input.note.trim());
     if (existing) return view(existing);
     return transaction(() => method(input)==='sbp'?issueSbp(visitorId,telegramId,items,input.note.trim(),amountMinor):crypto?issueCrypto(visitorId,telegramId,items,input.note.trim(),amountMinor,input.network):issue(visitorId, telegramId, items, input.note.trim(), amountMinor, settleRub?'RUB':currencies[0]));
   }

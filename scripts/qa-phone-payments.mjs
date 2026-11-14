@@ -23,7 +23,7 @@ const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(
 const dir=new URL('../qa/phone-payments/',import.meta.url);await mkdir(dir,{recursive:true});
 try {
   await page.goto(base+'/#/checkout');await page.getByRole('button',{name:/Оплатить 1/}).click();
-  await page.getByRole('checkbox',{name:'Всё понятно, готовлюсь к переводу'}).check();await page.getByRole('button',{name:'Получить реквизиты',exact:true}).click();
+  await page.getByRole('checkbox',{name:'Я ещё не переводил деньги по этому заказу и готов к переводу'}).check();await page.getByRole('button',{name:'Получить реквизиты',exact:true}).click();
   const copy=page.getByRole('button',{name:'Скопировать номер телефона'});
   await expect(copy).toHaveText('+7 (999) 123-45-67');await expect(page.getByRole('heading',{name:'Оплата по СБП на телефон'})).toBeVisible();
   await expect(page.getByRole('note')).toHaveText('Переведите по СБП только в банк «Сбербанк». В другой банк не переводите.');

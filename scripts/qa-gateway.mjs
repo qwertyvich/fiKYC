@@ -23,7 +23,7 @@ try {
   await page.getByRole('button',{name:/Оплатить 5/}).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.screenshot({path:new URL('warning-mobile.png',dir).pathname});
-  await page.getByRole('checkbox',{name:'Всё понятно, готовлюсь к переводу'}).check();
+  await page.getByRole('checkbox',{name:'Я ещё не переводил деньги по этому заказу и готов к переводу'}).check();
   await page.getByRole('button',{name:'Получить реквизиты',exact:true}).click();
   await expect(page.getByRole('button',{name:'Скопировать номер карты'})).toBeVisible();
   assert.match(page.url(),/payment\/FK-/);const id=page.url().split('/').at(-1);

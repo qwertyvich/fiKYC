@@ -540,7 +540,15 @@ export async function createApp(options = {}) {
         const v = paymentOwner(req, res); limit('payment:' + v, 20);
         const user = access.identity(req);
         if (env.NODE_ENV === 'production' && !user) fail('Откройте магазин через Telegram', 401);
-        const input=await body(req);allowMethod(req,input);return send(res,await completePayment(gateway.create(v,user?.id??'',input)),201);
+        const input=await body(req);allowMethod(req,input);
+        let payment=gateway.create(v,user?.id??'',input);
+        // A fresh checkout explicitly confirms no previous transfer. Reuse the
+        // same order family so a late provider success cannot fulfil twice.
+        if(input.method==='card'&&input.notPaid===true&&input.accepted===true&&['invalidated','awaiting_receipt','awaiting_transfer'].includes(payment.status)&&(['invalidated','awaiting_receipt'].includes(payment.status)||(payment.expiresAt&&payment.expiresAt<=payment.serverNow))){
+          if(payment.provider==='sbp')await sbp.assertCanSwitch(payment.id);
+          payment=gateway.retry(payment.id,v,{method:'card',notPaid:true,accepted:true});
+        }
+        return send(res,await completePayment(payment),201);
       }
       const paymentRoute = path.match(/^\/api\/payments\/(FK-[A-F0-9-]+)(?:\/(retry|events|receipt|reported|check))?$/);
       if (paymentRoute) {

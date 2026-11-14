@@ -44,12 +44,12 @@ export function createSbp({db,env,gateway,state,now=Date.now,fetchImpl=fetch}){
     db.exec('BEGIN IMMEDIATE');try{
       db.prepare('UPDATE sbp_intents SET external_id=?,phase=?,snapshot=?,error=\'\',updated_at=?,next_at=? WHERE payment_id=?').run(remote.id,remote.status,JSON.stringify(snapshot),now(),now()+10000,p.id);
       db.prepare('UPDATE payments SET expires_at=? WHERE id=?').run(expires,p.id);
-      if(['failed','rejected','cancelled'].includes(remote.status))db.prepare("UPDATE payments SET status='invalidated',reason='sbp_failed' WHERE id=? AND status!='paid'").run(p.id);
-      if(remote.status==='expired')db.prepare("UPDATE payments SET status='awaiting_receipt',reason='expired' WHERE id=? AND status!='paid'").run(p.id);
+      if(['failed','rejected','cancelled'].includes(remote.status))db.prepare("UPDATE payments SET status='invalidated',reason='sbp_failed' WHERE id=? AND status NOT IN ('paid','superseded')").run(p.id);
+      if(remote.status==='expired')db.prepare("UPDATE payments SET status='awaiting_receipt',reason='expired' WHERE id=? AND status NOT IN ('paid','superseded')").run(p.id);
       db.exec('COMMIT');
     }catch(e){db.exec('ROLLBACK');throw e;}
     if(remote.status==='success'){
-      if(remote.paid_amount===null||remote.paid_amount===undefined||decimalMinor(remote.paid_amount)<p.amount_minor){db.prepare("UPDATE payments SET status='receipt_review',reason='sbp_amount_review' WHERE id=? AND status!='paid'").run(p.id);gateway.notifyExternal(p.id,`СБП · ${p.id}\nПоступление требует проверки суммы. Ожидали ${p.amount_minor/100} RUB. Получено: ${remote.paid_amount??'не указано'}. Товар не выдан.`,remote.id+':amount');}
+      if(remote.paid_amount===null||remote.paid_amount===undefined||decimalMinor(remote.paid_amount)<p.amount_minor){db.prepare("UPDATE payments SET status='receipt_review',reason='sbp_amount_review' WHERE id=? AND status NOT IN ('paid','superseded')").run(p.id);gateway.notifyExternal(p.id,`СБП · ${p.id}\nПоступление требует проверки суммы. Ожидали ${p.amount_minor/100} RUB. Получено: ${remote.paid_amount??'не указано'}. Товар не выдан.`,remote.id+':amount');}
       else{
         let note=p.status==='paid'&&stored.phase!=='success'?'В заказе уже была подтверждена другая оплата. Дополнительный перевод СБП проверьте вручную.':'Оплата подтверждена платёжной системой.';try{await gateway.confirmExternal(p.id);}catch(e){note='Деньги поступили, но заказ требует ручной обработки: '+safeError(e);}
         gateway.notifyExternal(p.id,`фиКУС · СБП\nЗаказ: ${p.id}\nСумма: ${p.amount_minor/100} RUB\nПолучено: ${remote.paid_amount} RUB\nTelegram ID: ${p.telegram_id||'—'}\n${JSON.parse(p.items).map(i=>i.title+' × '+i.quantity).join('\n')}\nМетод: ${stored.method_code.toUpperCase()}\n${note}`,remote.id+':success');
