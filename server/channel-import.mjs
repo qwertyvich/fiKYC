@@ -128,7 +128,7 @@ export function createChannelImport({db, state, now = Date.now}) {
   }
   function enrich(catalog) {
     const stats = new Map(db.prepare('SELECT * FROM channel_product_stats').all().map(s => [s.product_id,s]));
-    const purchases = new Map(db.prepare('SELECT product_id,COUNT(DISTINCT buyer_id) buyers FROM product_purchases GROUP BY product_id').all().map(s=>[s.product_id,s.buyers]));
+    const purchases = new Map(db.prepare('SELECT product_id,COUNT(*) buyers FROM product_purchases GROUP BY product_id').all().map(s=>[s.product_id,s.buyers]));
     return {...catalog, products: catalog.products.map(p => {
       const s=stats.get(p.id),buyerCount=(s?.buyers??p.buyerCount??0)+(purchases.get(p.id)??0);
       return {...p,buyerCount,...(s?{channelStats:{buyers:buyerCount,mark:s.mark}}:{})};

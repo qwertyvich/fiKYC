@@ -414,7 +414,7 @@ test('changing phone bank or holder revokes issued details, mixed snapshots keep
   assert.equal(db.prepare('SELECT COUNT(*) n FROM gateway_cards WHERE active=1').get().n,2);
   feed(stop());assert.equal(g.cardAvailable(500000),false);
 });
-test('confirmed purchases increase buyer totals once per customer/product and survive later review imports',async t=>{
+test('confirmed purchases increase buyer totals once per order/product and survive later review imports',async t=>{
   const f=await fixture(t),{g,feed,pay,db,p,channelImport:ci}=f;
   const catalog=()=>JSON.parse(db.prepare('SELECT catalog FROM state').get().catalog);
   db.prepare('INSERT INTO channel_product_stats VALUES(?,?,?,?)').run(p.id,p.title,123,4.9);
@@ -424,12 +424,12 @@ test('confirmed purchases increase buyer totals once per customer/product and su
   await assert.rejects(g.confirm(first.id,'777'),/квитанции/);assert.equal(buyers(),123);
   g.upload(first.id,'alice',Buffer.from('%PDF-1.4\nfixture'));assert.equal(buyers(),123);
   await g.confirm(first.id,'777');await g.confirm(first.id,'777');assert.equal(buyers(),124);
-  const again=pay('alice');g.upload(again.id,'alice',Buffer.from('%PDF-1.4\nfixture'));await g.confirm(again.id,'777');assert.equal(buyers(),124);
-  const other=pay('bob');g.upload(other.id,'bob',Buffer.from('%PDF-1.4\nfixture'));await g.confirm(other.id,'777');assert.equal(buyers(),125);
-  const topup=g.createTopup('alice','111',{amount:'1500',requestKey:randomUUID(),accepted:true});g.upload(topup.id,'alice',Buffer.from('%PDF-1.4\nfixture'));await g.confirm(topup.id,'777');assert.equal(buyers(),125);
+  const again=pay('alice');g.upload(again.id,'alice',Buffer.from('%PDF-1.4\nfixture'));await g.confirm(again.id,'777');assert.equal(buyers(),125);
+  const other=pay('bob');g.upload(other.id,'bob',Buffer.from('%PDF-1.4\nfixture'));await g.confirm(other.id,'777');assert.equal(buyers(),126);
+  const topup=g.createTopup('alice','111',{amount:'1500',requestKey:randomUUID(),accepted:true});g.upload(topup.id,'alice',Buffer.from('%PDF-1.4\nfixture'));await g.confirm(topup.id,'777');assert.equal(buyers(),126);
   ci.stage(JSON.stringify({version:1,products:[{id:p.id,name:p.title,buyers:200,mark:5,reviews:[]}]}),'updated.json');
-  db.prepare('UPDATE channel_import_file SET pending_apply_at=0').run();ci.runScheduled();assert.equal(buyers(),202);
-  assert.equal(ci.enrich(catalog()).products.find(v=>v.id===p.id).channelStats.buyers,202);
+  db.prepare('UPDATE channel_import_file SET pending_apply_at=0').run();ci.runScheduled();assert.equal(buyers(),203);
+  assert.equal(ci.enrich(catalog()).products.find(v=>v.id===p.id).channelStats.buyers,203);
   assert.equal(catalog().products.find(v=>v.id===p.id).buyerCount,p.buyerCount);
 });
 test('retry families and failed stock confirmations never duplicate buyer counts',async t=>{

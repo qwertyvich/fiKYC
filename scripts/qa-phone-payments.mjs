@@ -44,5 +44,5 @@ try {
   await page.goto(base+'/#/profile');await page.getByRole('button',{name:'Пополнить баланс',exact:true}).click();await page.getByLabel('Сумма пополнения, ₽',{exact:true}).fill('1500');await page.getByRole('button',{name:'Перейти к пополнению',exact:true}).click();await page.getByRole('checkbox',{name:'Всё понятно, готовлюсь к переводу'}).check();await page.getByRole('button',{name:'Получить реквизиты',exact:true}).click();
   await expect(copy).toBeVisible();await expect(page.getByRole('note')).toContainText('только в банк «Сбербанк»');assert.equal(db.prepare('SELECT purpose FROM payments ORDER BY created_at DESC LIMIT 1').get().purpose,'topup');
   assert.equal(db.prepare("SELECT COUNT(*) n FROM gateway_outbox WHERE kind='source'").get().n,0);assert.deepEqual(errors,[]);
-  console.log('Phone checkout, bank warning, copy, 320px/dark layout, stop, retry, receipt, unique buyers and 1500 RUB topup passed. No external messages.');
+  console.log('Phone checkout, bank warning, copy, 320px/dark layout, stop, retry, receipt, confirmed buyers and 1500 RUB topup passed. No external messages.');
 } finally {await browser.close();clearInterval(heartbeat);g.stop();await new Promise(r=>server.close(r));}
