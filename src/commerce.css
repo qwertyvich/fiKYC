@@ -58,3 +58,15 @@
 @media(max-width:370px){.product-title{font-size:14px}.product-info{padding:10px}.product-price strong{font-size:15px}.product-price button{width:40px;height:40px}.product-info>p{font-size:11px}.stock{font-size:10px}.nav-main button span{font-size:9px}.hero h1{font-size:24px}.hero p{max-width:140px}.purchase-dock{grid-template-columns:minmax(0,1fr) minmax(125px,1.15fr);gap:7px}.purchase-dock .primary-button{font-size:12px}.checkout-item{gap:7px}.checkout-item>strong{font-size:12px}.reorder button{width:35px;height:39px}}
 @media(max-width:600px){.edit-form input:not([type=checkbox]),.edit-form textarea,.edit-form select,.standalone-field textarea{font-size:16px}}
 @media(max-width:370px){.request-form{padding:20px 16px}}
+
+/* Let each grid row fit its longest title; keep the purchase controls aligned. */
+.products:not(.products-list)>.product-card{display:flex;flex-direction:column}
+.products:not(.products-list)>.product-card>.product-art{flex-shrink:0}
+.products .product-info{display:flex;flex-direction:column;min-width:0;flex:1}
+.products .product-title{text-align:start;align-self:stretch}
+.products .product-info>p{overflow-wrap:anywhere}
+.products .product-info>.product-stats{margin-block-start:auto;padding-block-start:10px}
+.products .product-info>.stock{margin-block-start:10px}
+.products .product-price{margin-block-start:10px;min-height:44px;flex-shrink:0}
+.products .product-price strong{min-width:0;overflow-wrap:anywhere}
+.products-list .product-info>.product-stats{margin-block-start:0}
