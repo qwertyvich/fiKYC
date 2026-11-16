@@ -6,7 +6,7 @@ import {methodCode} from './sbp.mjs';
 const key='fixture-provider-key',secret='fixture-webhook-secret',botToken='123456789:'+'a'.repeat(35);
 const list=[{method:'qr',qr_method_id:'3',name:'MS-9 Авто + чек',description:'Газпромбанк - возврат',min_amount:'3000.00',max_amount:'100000.00'},{method:'qr',qr_method_id:'7',name:'ms10 + чек',description:'',min_amount:'5000.00',max_amount:'100000.00'},{method:'qr',qr_method_id:'5',name:'🇻🇳 QR Vietnam',description:'MS9',min_amount:'150.00',max_amount:'100000.00'},{method:'card',qr_method_id:null,name:'Карта Узбекистана',description:'',min_amount:'1000',max_amount:'100000'}];
 async function fixture(t){
- let now=Date.now(),loseReply=false;const remote=new Map(),calls=[],botCalls=[];
+ let now=Date.now(),loseReply=false,failDelivery=false;const remote=new Map(),calls=[],botCalls=[];
  const fetchImpl=async(url,options={})=>{const u=new URL(url),path=u.pathname.replace('/api/v1/','');assert.equal(options.headers.Authorization,'Bearer '+key);calls.push({path,method:options.method,body:options.body});
   if(path==='methods/')return Response.json(list);
   if(path==='payments/'&&options.method==='POST'){const input=JSON.parse(options.body);assert.equal(input.method,'qr');assert.ok(['3','7'].includes(input.qr_method_id));const id=randomUUID(),p={id,status:'pending',method:'qr',amount:input.amount,paid_amount:null,currency:'RUB',order_id:input.order_id,customer_id:input.customer_id,payment_url:'https://pay-provider.casa/pay/'+id+'/',created_at:new Date(now).toISOString(),expires_at:new Date(now+600000).toISOString(),receipts_count:0};remote.set(id,p);if(loseReply){loseReply=false;throw Error('Connection lost after create');}return Response.json(p,{status:201});}
@@ -15,12 +15,12 @@ async function fixture(t){
   if(path.endsWith('/receipt/')){assert.ok(options.body instanceof FormData);assert.equal(options.body.get('file').type,'application/pdf');p.receipts_count++;return Response.json(p,{status:201});}
   return Response.json(p);
  };
- const app=await createApp({dbPath:':memory:',gatewayWorker:false,shopBotWorker:false,sbpWorker:false,gatewayNow:()=>now,sbpNow:()=>now,sbpFetch:fetchImpl,gatewayBotCall:async(method,payload)=>{botCalls.push({method,payload});return{};},env:{NODE_ENV:'test',ADMIN_PASSWORD:'fixture',BOT_TOKEN:botToken,GATEWAY_BOT_TOKEN:'fake-gateway',PAY_PROVIDER_API_KEY:key,PAY_PROVIDER_WEBHOOK_SECRET:secret}});
+ const app=await createApp({dbPath:':memory:',gatewayWorker:false,shopBotWorker:false,sbpWorker:false,gatewayNow:()=>now,sbpNow:()=>now,sbpFetch:fetchImpl,gatewayBotCall:async(method,payload)=>{botCalls.push({method,payload});if(failDelivery)throw Error('Temporary Telegram delivery failure');return{};},env:{NODE_ENV:'test',ADMIN_PASSWORD:'fixture',BOT_TOKEN:botToken,GATEWAY_BOT_TOKEN:'fake-gateway',PAY_PROVIDER_API_KEY:key,PAY_PROVIDER_WEBHOOK_SECRET:secret}});
  await new Promise(r=>app.server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>app.server.close(r)));
  const s=app.db.prepare('SELECT catalog FROM state').get(),catalog=JSON.parse(s.catalog),p=catalog.products.find(p=>p.id==='mail-setup');p.price=5000;p.stock=20;p.currency='RUB';p.saleMode='fixed';app.db.prepare('UPDATE state SET catalog=?').run(JSON.stringify(catalog));app.gateway.saveConfig({receiptRecipient:'777'});app.gateway.setConnected();
  const input={items:[{productId:p.id,quantity:1}],note:'',method:'sbp',expectedAmount:5000,expectedRate:88};
  const reserve=()=>app.gateway.create('alice','111',input),pay=async()=>app.sbp.issue(reserve().id);
- return{...app,remote,calls,botCalls,p,input,pay,reserve,lose:()=>{loseReply=true;},advance:ms=>{now+=ms;},now:()=>now,stock:()=>JSON.parse(app.db.prepare('SELECT catalog FROM state').get().catalog).products.find(v=>v.id===p.id).stock};
+ return{...app,remote,calls,botCalls,p,input,pay,reserve,failDelivery:value=>{failDelivery=value;},lose:()=>{loseReply=true;},advance:ms=>{now+=ms;},now:()=>now,stock:()=>JSON.parse(app.db.prepare('SELECT catalog FROM state').get().catalog).products.find(v=>v.id===p.id).stock};
 }
 test('methods are matched by name; MC9 is internal ID 3, Vietnam/card are excluded, limits are inclusive and selection is manual',async t=>{
  const f=await fixture(t);assert.equal(methodCode(list[1]),'mc10');assert.equal(methodCode(list[2]),null);assert.equal(methodCode(list[3]),null);
@@ -34,7 +34,7 @@ test('chat cards have priority over SBP; no external payment is created while a 
 test('SBP stores the actual expiration and link; a receipt or manual callback cannot confirm the payment',async t=>{
  const f=await fixture(t),p=await f.pay();assert.equal(p.provider,'sbp');assert.equal(p.expiresAt-p.serverNow,600000);assert.match(p.qr.paymentUrl,/^https:\/\/pay-provider.casa\/pay\//);assert.equal(p.card,null);assert.equal(f.stock(),20);
  f.gateway.upload(p.id,'alice',Buffer.from('%PDF-1.4\nfixture'));await assert.rejects(()=>f.gateway.confirm(p.id,'777'),/платёжная система/);assert.equal(f.stock(),20);assert.equal(f.gateway.view(f.gateway.own(p.id,'alice')).status,'awaiting_transfer');
- f.sbp.enqueueReceipts();await f.sbp.pump();await f.gateway.flush();assert.equal(f.remote.get(p.qr.externalId).receipts_count,1);assert.equal(f.db.prepare('SELECT status FROM sbp_receipt_jobs').get().status,'sent');const sent=f.botCalls.find(c=>c.method==='sendDocument');assert.ok(sent.payload instanceof FormData);assert.equal(sent.payload.get('chat_id'),'777');assert.equal(sent.payload.has('reply_markup'),false);
+ f.sbp.enqueueReceipts();await f.sbp.pump();await f.gateway.flush();assert.equal(f.remote.get(p.qr.externalId).receipts_count,1);assert.equal(f.db.prepare('SELECT status FROM sbp_receipt_jobs').get().status,'sent');const sent=f.botCalls.find(c=>c.method==='sendDocument');assert.ok(sent.payload instanceof FormData);assert.equal(sent.payload.get('chat_id'),'777');assert.equal(sent.payload.get('caption').includes(p.qr.paymentUrl),true);assert.deepEqual(JSON.parse(sent.payload.get('reply_markup')),{inline_keyboard:[[{text:'Открыть страницу оплаты',url:p.qr.paymentUrl}]]});
 });
 test('raw signed webhooks are durable, timestamp-checked and deduplicated; payment is verified through API and fulfilled once',async t=>{
  const f=await fixture(t),p=await f.pay(),r=f.remote.get(p.qr.externalId);r.status='success';r.paid_amount='5000.00';
@@ -115,4 +115,46 @@ test('QR cap leaves chat requisites above 8000 and previously issued provider li
  await f.sbp.issue(old.id);assert.equal(f.calls.filter(c=>c.method==='POST').length,1);f.gateway.upload(old.id,'alice',Buffer.from('%PDF-1.4\nlegacy receipt'));remote.status='success';remote.paid_amount='10000.00';await f.sbp.apply(remote);assert.equal(f.stock(),19);
  f.gateway.receiveFeed({chat:{id:-1002278926769},from:{id:333,username:'feweqw34234_bot'},date:Math.floor(f.now()/1000),text:'Реквизиты №1\nБанк: Сбербанк\nФИО: Тест Т\nКарта: +79991234567\nМин: 1 000 ₽\nМакс: 20 000 ₽'},1);
  const p=f.gateway.create('chat','777',{...f.input,method:'card',accepted:true,items:[{productId:f.p.id,quantity:2}],expectedAmount:10000});assert.equal(p.card.type,'phone');assert.equal(p.amount,10000);
+});
+
+test('SBP receipts retain the original payment URL on retry, even after expiry and a new attempt',async t=>{
+ const f=await fixture(t),first=await f.pay(),firstUrl=first.qr.paymentUrl,remote=f.remote.get(first.qr.externalId);
+ f.advance(601000);remote.status='expired';await f.sbp.apply(remote);
+ const second=await f.sbp.issue(f.gateway.retry(first.id,'alice',{method:'sbp',notPaid:true}).id);assert.notEqual(second.qr.paymentUrl,firstUrl);
+ assert.equal(f.gateway.view(f.gateway.externalRow(first.id)).qr.paymentUrl,null,'customer cannot use expired link');
+ f.gateway.upload(first.id,'alice',Buffer.from('%PDF-1.4\nreceipt for earlier transfer'));
+ const job=f.db.prepare("SELECT * FROM gateway_outbox WHERE kind='receipt' AND payment_id=?").get(first.id);assert.equal(JSON.parse(job.payload).paymentUrl,firstUrl);
+ f.failDelivery(true);await f.gateway.flush();assert.equal(f.db.prepare('SELECT attempts FROM gateway_outbox WHERE id=?').get(job.id).attempts,1);
+ const intent=f.db.prepare('SELECT snapshot FROM sbp_intents WHERE payment_id=?').get(first.id),snapshot=JSON.parse(intent.snapshot);snapshot.paymentUrl=firstUrl+'?later=1';f.db.prepare('UPDATE sbp_intents SET snapshot=? WHERE payment_id=?').run(JSON.stringify(snapshot),first.id);
+ f.failDelivery(false);f.advance(3000);await f.gateway.flush();const sent=f.botCalls.filter(c=>c.method==='sendDocument').at(-1).payload;
+ assert.ok(sent.get('caption').includes(firstUrl));assert.ok(!sent.get('caption').includes(second.qr.paymentUrl));assert.equal(JSON.parse(sent.get('reply_markup')).inline_keyboard[0][0].url,firstUrl);assert.equal(f.db.prepare('SELECT status FROM gateway_outbox WHERE id=?').get(job.id).status,'sent');
+});
+
+test('paid SBP receipts and verified payment notifications include the exact private payment link',async t=>{
+ const f=await fixture(t),p=await f.pay(),url=p.qr.paymentUrl,remote=f.remote.get(p.qr.externalId);remote.status='success';remote.paid_amount='5000.00';await f.sbp.apply(remote);
+ assert.equal(f.gateway.view(f.gateway.externalRow(p.id)).qr.paymentUrl,null);
+ // Very long line items cannot truncate the link or remove its URL button.
+ const row=f.gateway.externalRow(p.id),items=JSON.parse(row.items);items[0].title='Товар '.repeat(400);f.db.prepare('UPDATE payments SET items=? WHERE id=?').run(JSON.stringify(items),p.id);
+ f.gateway.upload(p.id,'alice',Buffer.from('%PDF-1.4\npaid receipt'));await f.gateway.flush();
+ const receipt=f.botCalls.find(c=>c.method==='sendDocument').payload;assert.ok(receipt.get('caption').includes(url));assert.ok(receipt.get('caption').length<=1000);assert.equal(JSON.parse(receipt.get('reply_markup')).inline_keyboard[0][0].url,url);
+ const notice=f.botCalls.find(c=>c.method==='sendMessage').payload;assert.ok(notice.text.includes(url));assert.equal(notice.reply_markup.inline_keyboard[0][0].url,url);assert.equal(notice.link_preview_options.is_disabled,true);assert.equal(f.gateway.externalRow(p.id).status,'paid');assert.equal(f.stock(),19);
+});
+
+test('Telegram photo/document receipts carry SBP URL buttons without manual payment confirmation',async t=>{
+ const f=await fixture(t),p=await f.pay(),token=f.gateway.externalRow(p.id).receipt_token;
+ await f.gateway.processUpdate({update_id:1,message:{chat:{id:111,type:'private'},from:{id:111},text:'/start receipt_'+token}});
+ for(const [i,attachment] of [{photo:[{file_id:'photo-receipt',file_size:100}]},{document:{file_id:'pdf-receipt',mime_type:'application/pdf',file_size:100}}].entries())await f.gateway.processUpdate({update_id:2+i,message:{chat:{id:111,type:'private'},from:{id:111},...attachment}});
+ await f.gateway.flush();const receipts=f.botCalls.filter(c=>['sendPhoto','sendDocument'].includes(c.method));assert.equal(receipts.length,2);
+ for(const r of receipts){assert.ok(r.payload.caption.includes(p.qr.paymentUrl));assert.equal(r.payload.reply_markup.inline_keyboard[0][0].url,p.qr.paymentUrl);assert.equal(r.payload.reply_markup.inline_keyboard[0][0].callback_data,undefined);assert.equal(r.payload.chat_id,'777');}
+ assert.equal(f.gateway.externalRow(p.id).status,'awaiting_transfer');await assert.rejects(f.gateway.confirm(p.id,'777'),/платёжная система/);
+});
+
+test('old queued receipts acquire the stored link at delivery; corrupted external URLs never become payment buttons',async t=>{
+ const f=await fixture(t),p=await f.pay();f.gateway.upload(p.id,'alice',Buffer.from('%PDF-1.4\nold queued receipt'));
+ const job=f.db.prepare("SELECT * FROM gateway_outbox WHERE kind='receipt'").get(),payload=JSON.parse(job.payload);delete payload.paymentUrl;delete payload.sbp;f.db.prepare('UPDATE gateway_outbox SET payload=? WHERE id=?').run(JSON.stringify(payload),job.id);
+ await f.gateway.flush();assert.equal(JSON.parse(f.botCalls.at(-1).payload.get('reply_markup')).inline_keyboard[0][0].url,p.qr.paymentUrl);
+ f.gateway.upload(p.id,'alice',Buffer.from('%PDF-1.4\nsecond receipt'));
+ const next=f.db.prepare("SELECT * FROM gateway_outbox WHERE status='pending' AND kind='receipt'").get(),corrupt=JSON.parse(next.payload);corrupt.paymentUrl='https://untrusted.invalid/pay/'+p.qr.externalId+'/';f.db.prepare('UPDATE gateway_outbox SET payload=? WHERE id=?').run(JSON.stringify(corrupt),next.id);
+ const snapshot=JSON.parse(f.db.prepare('SELECT snapshot FROM sbp_intents WHERE payment_id=?').get(p.id).snapshot);snapshot.paymentUrl=corrupt.paymentUrl;f.db.prepare('UPDATE sbp_intents SET snapshot=? WHERE payment_id=?').run(JSON.stringify(snapshot),p.id);
+ await f.gateway.flush();const sent=f.botCalls.at(-1).payload;assert.ok(!sent.get('caption').includes('untrusted.invalid'));assert.equal(sent.has('reply_markup'),false);assert.equal(f.db.prepare("SELECT COUNT(*) n FROM gateway_outbox WHERE kind='source'").get().n,0);
 });

@@ -356,6 +356,23 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     const c=p.card&&db.prepare('SELECT * FROM gateway_cards WHERE number=?').get(p.card);
     return c?.kind==='phone'?'СБП на телефон •••• '+c.account.slice(-4)+' · '+c.bank:p.card?'карта •••• '+p.card.slice(-4):'выдан менеджером';
   }
+  function sbpPaymentUrl(p, savedUrl) {
+    if(p?.provider!=='sbp')return null;
+    const intent=db.prepare('SELECT external_id,snapshot FROM sbp_intents WHERE payment_id=?').get(p.id);
+    if(!intent?.external_id)return null;
+    const valid=value=>{try{const u=new URL(value);return u.origin==='https://pay-provider.casa'&&!u.username&&!u.password&&u.pathname===`/pay/${intent.external_id}/`?u.href:null;}catch{return null;}};
+    // Keep the URL captured with this receipt, even if a later provider response
+    // changes it. Never substitute a different attempt's payment page.
+    return valid(savedUrl)??valid(JSON.parse(intent.snapshot).paymentUrl);
+  }
+  const receiptContext=p=>({sbp:p.provider==='sbp',paymentUrl:sbpPaymentUrl(p)});
+  function withPaymentUrl(text, url) {
+    if(!url)return text;
+    const end=text.indexOf('\n');
+    // Put the link before long product lists and comments, so caption truncation
+    // cannot hide it. The inline URL button is independent of the caption limit.
+    return end<0?text+'\nСтраница оплаты СБП: '+url:text.slice(0,end)+'\nСтраница оплаты СБП: '+url+text.slice(end);
+  }
   function upload(id, visitorId, buffer) {
     const p = own(id, visitorId);
     if (p.status === 'paid'&&p.provider!=='sbp') error('Оплата уже подтверждена', 409);
@@ -368,7 +385,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
       db.prepare('INSERT INTO gateway_receipt_files VALUES(?,?,?)').run(receiptId, buffer, mime);
       freezeOtherAttempts(id);
       if(p.provider!=='sbp')db.prepare("UPDATE payments SET status='receipt_review' WHERE id=?").run(id);
-      queue('receipt', id, { uploadId: receiptId, sbp:p.provider==='sbp', text: `фиКУС · Квитанция к ${id}\nСумма: ${p.amount_minor / 100} ${p.currency}\nTelegram ID: ${p.telegram_id || 'не определён'}\n${JSON.parse(p.items).map(i => `${i.title} × ${i.quantity}`).join('\n')}\nСпособ: ${receiptMethod(p)}\nСостояние при загрузке: ${p.status}\nКомментарий: ${p.note || '—'}\nПроверьте поступление денег перед подтверждением.` }, 'receipt:' + receiptId);
+      queue('receipt', id, { uploadId: receiptId, ...receiptContext(p), text: `фиКУС · Квитанция к ${id}\nСумма: ${p.amount_minor / 100} ${p.currency}\nTelegram ID: ${p.telegram_id || 'не определён'}\n${JSON.parse(p.items).map(i => `${i.title} × ${i.quantity}`).join('\n')}\nСпособ: ${receiptMethod(p)}\nСостояние при загрузке: ${p.status}\nКомментарий: ${p.note || '—'}\nПроверьте поступление денег перед подтверждением.` }, 'receipt:' + receiptId);
     });
     events.emit('change'); return view(row(id));
   }
@@ -416,8 +433,8 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
       const inserted = db.prepare('INSERT OR IGNORE INTO gateway_receipts VALUES(?,?,?,?,?)').run(receiptId, p.id, file.file_id, photo ? 'photo' : 'document', now());
       if (!inserted.changes) return;
       freezeOtherAttempts(p.id);
-      if (p.status !== 'paid') db.prepare("UPDATE payments SET status='receipt_review' WHERE id=?").run(p.id);
-      queue('receipt', p.id, { file_id: file.file_id, kind: photo ? 'photo' : 'document', receiptId, text: `фиКУС · Квитанция к ${p.id}\nСумма заказа: ${p.amount_minor / 100} ${p.currency}\nПокупатель: ${message.from.username ? '@' + message.from.username : id} · ID ${id}\n${JSON.parse(p.items).map(i => `${i.title} × ${i.quantity}`).join('\n')}\nСпособ: ${receiptMethod(p)}\nСостояние при загрузке: ${p.status}\nКомментарий: ${p.note || '—'}\nПроверьте поступление денег перед подтверждением.` }, 'receipt:' + receiptId);
+      if (p.status !== 'paid'&&p.provider!=='sbp') db.prepare("UPDATE payments SET status='receipt_review' WHERE id=?").run(p.id);
+      queue('receipt', p.id, { file_id: file.file_id, kind: photo ? 'photo' : 'document', receiptId, ...receiptContext(p), text: `фиКУС · Квитанция к ${p.id}\nСумма заказа: ${p.amount_minor / 100} ${p.currency}\nПокупатель: ${message.from.username ? '@' + message.from.username : id} · ID ${id}\n${JSON.parse(p.items).map(i => `${i.title} × ${i.quantity}`).join('\n')}\nСпособ: ${receiptMethod(p)}\nСостояние при загрузке: ${p.status}\nКомментарий: ${p.note || '—'}\nПроверьте поступление денег перед подтверждением.` }, 'receipt:' + receiptId);
 
     });
     events.emit('change');
@@ -487,18 +504,24 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
         if (['source','customer'].includes(job.kind)) { db.prepare("UPDATE gateway_outbox SET status='cancelled' WHERE id=?").run(job.id); continue; }
         try {
           let result;
+          const payment=row(job.payment_id);
+          const sbpReceipt=job.kind==='receipt'&&(payload.sbp||payment?.provider==='sbp');
+          const paymentUrl=['receipt','provider_notice'].includes(job.kind)?sbpPaymentUrl(payment,payload.paymentUrl):null;
+          const text=withPaymentUrl(payload.text,paymentUrl);
+          const urlKeyboard=paymentUrl?{inline_keyboard:[[{text:'Открыть страницу оплаты',url:paymentUrl}]]}:undefined;
+          const receiptKeyboard=sbpReceipt?urlKeyboard:{inline_keyboard:[[{text:approvalText,callback_data:'confirm:'+job.payment_id}]]};
           if (job.kind === 'callback') result = await call('answerCallbackQuery', payload);
           else if(job.kind==='crypto_claim')result=await call('sendMessage',{chat_id:recipient(),text:payload.text.slice(0,4000),reply_markup:{inline_keyboard:[[{text:approvalText,callback_data:'confirm:'+job.payment_id}]]}});
           else if (job.kind === 'receipt' && payload.uploadId) {
             const file = db.prepare('SELECT * FROM gateway_receipt_files WHERE id=?').get(payload.uploadId);
             const form = new FormData();
-            form.set('chat_id', recipient()); form.set('caption', payload.text.slice(0, 1000));
-            if(!payload.sbp)form.set('reply_markup', JSON.stringify({ inline_keyboard: [[{ text: approvalText, callback_data: 'confirm:' + job.payment_id }]] }));
+            form.set('chat_id', recipient()); form.set('caption', text.slice(0, 1000));
+            if(receiptKeyboard)form.set('reply_markup', JSON.stringify(receiptKeyboard));
             form.set('document', new Blob([file.data], { type: file.mime }), 'receipt.' + (file.mime === 'application/pdf' ? 'pdf' : file.mime.split('/')[1]));
             result = await call('sendDocument', form);
           }
-          else if (job.kind === 'receipt') result = await call(payload.kind === 'photo' ? 'sendPhoto' : 'sendDocument', { chat_id: recipient(), [payload.kind]: payload.file_id, caption: payload.text.slice(0, 1000), reply_markup: { inline_keyboard: [[{ text: approvalText, callback_data: 'confirm:' + job.payment_id }]] } });
-          else result = await call('sendMessage', { ...payload, chat_id: ['manual','provider_notice'].includes(job.kind) ? recipient() : payload.chat_id, text: payload.text.slice(0, 4000) });
+          else if (job.kind === 'receipt') result = await call(payload.kind === 'photo' ? 'sendPhoto' : 'sendDocument', { chat_id: recipient(), [payload.kind]: payload.file_id, caption: text.slice(0, 1000), reply_markup: receiptKeyboard });
+          else result = await call('sendMessage', { ...payload, chat_id: ['manual','provider_notice'].includes(job.kind) ? recipient() : payload.chat_id, text: text.slice(0, 4000),...(job.kind==='provider_notice'&&urlKeyboard?{reply_markup:urlKeyboard,link_preview_options:{is_disabled:true}}:{}) });
           if (closed) return;
           db.prepare("UPDATE gateway_outbox SET status='sent' WHERE id=?").run(job.id);
         } catch (e) {
