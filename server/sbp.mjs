@@ -1,3 +1,4 @@
+import {SBP_MAX_MINOR,withinSbpLimit} from '../src/sbp-policy.ts';
 import {createHmac,timingSafeEqual} from 'node:crypto';
 const codes=['mc9','mc10','mc27'],phases=['created','pending','review','success','failed','rejected','expired','cancelled'];
 const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
@@ -23,9 +24,10 @@ export function createSbp({db,env,gateway,state,now=Date.now,fetchImpl=fetch}){
   }
   async function loadMethods(){const list=await api('methods/');if(!Array.isArray(list))fail('Не удалось проверить способы оплаты СБП',502);return list.map(m=>({...m,code:methodCode(m)})).filter(m=>m.code&&typeof m.qr_method_id==='string'&&/^[-\w]{1,64}$/.test(m.qr_method_id)).map(m=>({...m,min:decimalMinor(m.min_amount),max:m.max_amount===null?null:decimalMinor(m.max_amount)}));}
   function methods(){if(!methodsPending)methodsPending=loadMethods().finally(()=>{methodsPending=null;});return methodsPending;}
-  const fits=(m,minor)=>minor>=m.min&&(m.max===null||minor<=m.max);
-  async function options(minor){const c=config();if(!apiKey||!c.enabled)return{available:false,configured:!!apiKey};try{const m=(await methods()).find(m=>m.code===c.preferred);return{available:!!m&&fits(m,minor),configured:true,min:m?m.min/100:null,max:m?.max===null?null:m?m.max/100:null};}catch{return{available:false,configured:true,unavailable:true};}}
-  async function admin(){let list=[],error='';if(apiKey)try{list=await methods();}catch(e){error=safeError(e);}return{...config(),apiConfigured:!!apiKey,webhookConfigured:!!secret,webhookUrl:(env.PUBLIC_ORIGIN??'').replace(/\/$/,'')+'/api/webhooks/pay-provider',lastWebhookAt:db.prepare('SELECT MAX(created_at) at FROM sbp_webhooks').get().at??null,error,methods:codes.map(code=>{const m=list.find(m=>m.code===code);return{code,name:m?.name??code.toUpperCase(),description:m?.description??'Сейчас не предоставляется платёжной системой',available:!!m,providerMethodId:m?.qr_method_id??null,min:m?m.min/100:null,max:m?.max===null?null:m?m.max/100:null};})};}
+  const fits=(m,minor)=>withinSbpLimit(minor)&&minor>=m.min&&(m.max===null||minor<=m.max);
+  const effectiveMax=m=>Math.min(m?.max??SBP_MAX_MINOR,SBP_MAX_MINOR)/100;
+  async function options(minor){if(!withinSbpLimit(minor))return{available:false,configured:!!apiKey,max:SBP_MAX_MINOR/100};const c=config();if(!apiKey||!c.enabled)return{available:false,configured:!!apiKey};try{const m=(await methods()).find(m=>m.code===c.preferred);return{available:!!m&&fits(m,minor),configured:true,min:m?m.min/100:null,max:m?effectiveMax(m):null};}catch{return{available:false,configured:true,unavailable:true};}}
+  async function admin(){let list=[],error='';if(apiKey)try{list=await methods();}catch(e){error=safeError(e);}return{...config(),apiConfigured:!!apiKey,webhookConfigured:!!secret,webhookUrl:(env.PUBLIC_ORIGIN??'').replace(/\/$/,'')+'/api/webhooks/pay-provider',lastWebhookAt:db.prepare('SELECT MAX(created_at) at FROM sbp_webhooks').get().at??null,error,methods:codes.map(code=>{const m=list.find(m=>m.code===code);return{code,name:m?.name??code.toUpperCase(),description:m?.description??'Сейчас не предоставляется платёжной системой',available:!!m,providerMethodId:m?.qr_method_id??null,min:m?m.min/100:null,max:m?effectiveMax(m):null};})};}
   function saveConfig(input){if(typeof input.enabled!=='boolean'||!codes.includes(input.preferred))fail('Выберите MC9, MC10 или MC27');db.prepare('UPDATE sbp_config SET enabled=?,preferred=? WHERE id=1').run(Number(input.enabled),input.preferred);return config();}
   function paymentUrl(value,id){try{const u=new URL(value);if(u.protocol==='https:'&&u.hostname==='pay-provider.casa'&&u.pathname===`/pay/${id}/`&&!u.username&&!u.password)return u.href;}catch{}return null;}
   async function apply(remote){
@@ -60,6 +62,7 @@ export function createSbp({db,env,gateway,state,now=Date.now,fetchImpl=fetch}){
   async function recover(id){const list=await api('payments/?order_id='+encodeURIComponent(id)+'&limit=200');if(!Array.isArray(list))fail('Не удалось проверить создание платежа',502);if(list.length>1)fail('Найдены повторные платежи. Требуется проверка менеджера.',409);if(list[0])await apply(list[0]);return gateway.view(gateway.externalRow(id));}
   async function issue(id){if(creating.has(id))return creating.get(id);const work=(async()=>{
     const p=gateway.externalRow(id);if(p?.provider!=='sbp')return gateway.view(p);const old=intent(id);if(old){if(!old.external_id&&['creating','unknown'].includes(old.phase))return recover(id);return gateway.view(p);}
+    if(!withinSbpLimit(p.amount_minor))fail('Оплата по СБП доступна для сумм до 8 000 ₽ включительно. Выберите другой способ оплаты.',409);
     const c=config();if(!c.enabled)fail('Оплата СБП временно приостановлена',409);if(gateway.cardAvailable(p.amount_minor))fail('Карта снова доступна. Выберите оплату картой.',409);
     const method=(await methods()).find(m=>m.code===c.preferred);if(!method||!fits(method,p.amount_minor))fail('СБП недоступен для этой суммы. Выберите криптовалюту или свяжитесь с менеджером.',409);
     if(!config().enabled)fail('Оплата СБП временно приостановлена',409);

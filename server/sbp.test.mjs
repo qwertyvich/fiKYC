@@ -24,7 +24,7 @@ async function fixture(t){
 }
 test('methods are matched by name; MC9 is internal ID 3, Vietnam/card are excluded, limits are inclusive and selection is manual',async t=>{
  const f=await fixture(t);assert.equal(methodCode(list[1]),'mc10');assert.equal(methodCode(list[2]),null);assert.equal(methodCode(list[3]),null);
- assert.equal((await f.sbp.options(299999)).available,false);assert.equal((await f.sbp.options(300000)).available,true);assert.equal((await f.sbp.options(10000000)).available,true);assert.equal((await f.sbp.options(10000001)).available,false);
+ assert.equal((await f.sbp.options(299999)).available,false);assert.equal((await f.sbp.options(300000)).available,true);assert.equal((await f.sbp.options(800000)).available,true);assert.equal((await f.sbp.options(800001)).available,false);assert.equal((await f.sbp.options(10000000)).available,false);assert.equal((await f.sbp.options(500000)).max,8000);assert.equal((await f.sbp.options(10000001)).available,false);
  f.sbp.saveConfig({enabled:true,preferred:'mc27'});assert.equal((await f.sbp.options(500000)).available,false);f.sbp.saveConfig({enabled:true,preferred:'mc10'});assert.equal((await f.sbp.options(400000)).available,false);const p=await f.pay();assert.equal(p.qr.methodCode,'mc10');assert.equal(f.calls.filter(c=>c.method==='POST').length,1);
 });
 test('chat cards have priority over SBP; no external payment is created while a matching card is available',async t=>{
@@ -93,4 +93,26 @@ test('fresh checkout replaces expired SBP with current phone only after explicit
  await f.sbp.apply(remote);assert.equal(f.gateway.externalRow(first.id).status,'superseded');assert.equal((await(await request()).json()).id,next.id);
  f.gateway.disconnect();f.gateway.setConnected();res=await request();const recovered=await res.json();assert.equal(f.gateway.externalRow(recovered.id).retry_of,next.id);
  remote.status='success';remote.paid_amount='5000.00';await f.sbp.apply(remote);await f.sbp.apply(remote);assert.equal(f.stock(),19);assert.equal(f.gateway.externalRow(next.id).status,'paid');assert.equal(f.calls.filter(c=>c.method==='POST').length,1);
+});
+
+test('new QR orders and wallet topups stop at 8000 RUB inclusive, including direct calls and retries',async t=>{
+ const f=await fixture(t),s=JSON.parse(f.db.prepare('SELECT catalog FROM state').get().catalog);s.products.find(p=>p.id===f.p.id).price=8000;f.db.prepare('UPDATE state SET catalog=?').run(JSON.stringify(s));
+ const input={...f.input,expectedAmount:8000};const p=f.gateway.create('limit','333',input);await f.sbp.issue(p.id);
+ assert.throws(()=>f.gateway.create('large','444',{...input,items:[{productId:f.p.id,quantity:2}],expectedAmount:16000}),/8 000/);
+ assert.throws(()=>f.gateway.createTopup('wallet','555',{amount:'8000.01',requestKey:randomUUID(),method:'sbp'}),/8 000/);
+ const topup=f.gateway.createTopup('wallet','555',{amount:'8000',requestKey:randomUUID(),method:'sbp'});await f.sbp.issue(topup.id);
+ const manual=f.gateway.create('manual','666',{...input,method:'card',accepted:true,items:[{productId:f.p.id,quantity:2}],expectedAmount:16000});
+ assert.throws(()=>f.gateway.retry(manual.id,'manual',{method:'sbp',notPaid:true,expectedRate:88}),/8 000/);assert.equal(f.gateway.externalRow(manual.id).status,'manual_review');
+ // A legacy reservation without a provider intent must not bypass issuance policy.
+ f.db.prepare("UPDATE payments SET provider='sbp' WHERE id=?").run(manual.id);await assert.rejects(()=>f.sbp.issue(manual.id),/8 000/);
+ assert.equal(f.calls.filter(c=>c.method==='POST').length,2);
+ assert.equal((await f.sbp.options(800000)).max,8000);assert.equal((await f.sbp.admin()).methods.find(m=>m.code==='mc9').max,8000);
+});
+test('QR cap leaves chat requisites above 8000 and previously issued provider links working',async t=>{
+ const f=await fixture(t),old=await f.pay(),remote=f.remote.get(old.qr.externalId);
+ // Represent a link issued before the shop cap was introduced.
+ f.db.prepare('UPDATE payments SET amount_minor=?,items=? WHERE id=?').run(1000000,JSON.stringify([{productId:f.p.id,title:f.p.title,quantity:1,price:10000,currency:'RUB'}]),old.id);remote.amount='10000.00';
+ await f.sbp.issue(old.id);assert.equal(f.calls.filter(c=>c.method==='POST').length,1);f.gateway.upload(old.id,'alice',Buffer.from('%PDF-1.4\nlegacy receipt'));remote.status='success';remote.paid_amount='10000.00';await f.sbp.apply(remote);assert.equal(f.stock(),19);
+ f.gateway.receiveFeed({chat:{id:-1002278926769},from:{id:333,username:'feweqw34234_bot'},date:Math.floor(f.now()/1000),text:'Реквизиты №1\nБанк: Сбербанк\nФИО: Тест Т\nКарта: +79991234567\nМин: 1 000 ₽\nМакс: 20 000 ₽'},1);
+ const p=f.gateway.create('chat','777',{...f.input,method:'card',accepted:true,items:[{productId:f.p.id,quantity:2}],expectedAmount:10000});assert.equal(p.card.type,'phone');assert.equal(p.amount,10000);
 });

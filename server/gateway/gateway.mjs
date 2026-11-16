@@ -1,3 +1,4 @@
+import {withinSbpLimit} from '../../src/sbp-policy.ts';
 import { randomUUID } from 'node:crypto';
 import { parseTopupAmount } from '../../src/wallet-domain.ts';
 import { EventEmitter } from 'node:events';
@@ -222,6 +223,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     return view(row(id));
   }
   function issueSbp(visitorId,telegramId,items,note,amountMinor,retryOf=null,purpose='order',requestKey=null){
+    if(!withinSbpLimit(amountMinor))error('Оплата по СБП доступна для сумм до 8 000 ₽ включительно. Выберите другой способ оплаты.',409);
     if(providers.choose({amountMinor,currency:'RUB'}))error('Реквизиты снова доступны. Выберите перевод по реквизитам.',409);
     const id='FK-'+randomUUID().slice(0,12).toUpperCase();
     db.prepare("INSERT INTO payments(id,visitor_id,telegram_id,items,note,amount_minor,currency,provider,status,created_at,retry_of,receipt_token,purpose,request_key) VALUES(?,?,?,?,?,?,'RUB','sbp','awaiting_transfer',?,?,?,?,?)").run(id,visitorId,telegramId??'',JSON.stringify(items),note,amountMinor,now(),retryOf,randomUUID().replaceAll('-',''),purpose,requestKey);
