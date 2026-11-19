@@ -8,6 +8,20 @@ const privateId = id => /^[1-9]\d{0,15}$/.test(String(id)) && Number.isSafeInteg
 const escape = value => String(value).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const snapshot = p => JSON.stringify(['id','title','brand','groupId','stock','price','currency','imageId','imageFit','visible','saleMode'].map(k => p[k] ?? null));
 const fingerprint = p => createHash('sha256').update(snapshot(p)).digest('hex');
+const defaultHeading = 'Снова в наличии';
+const defaultText = 'Посмотрите условия и оформите заказ в карточке товара.';
+function messageField(value, fallback, max, label) {
+  if(value===undefined)return fallback;
+  if(typeof value!=='string'||!value.trim()||value.trim().length>max)fail(`${label}: укажите текст от 1 до ${max} символов`);
+  return value.trim().replace(/\r\n?/g,'\n');
+}
+function audienceChoice(value) {
+  if(value===undefined)return {mode:'all',limit:null};
+  if(!value||typeof value!=='object'||Array.isArray(value))fail('Выберите получателей рассылки');
+  if(value.mode==='all'&&(value.limit===undefined||value.limit===null))return {mode:'all',limit:null};
+  if(value.mode==='latest'&&Number.isInteger(value.limit)&&value.limit>=1&&value.limit<=100000)return {mode:'latest',limit:value.limit};
+  fail('Для новых клиентов укажите количество от 1 до 100 000');
+}
 export function claudeRestockVariant(p) {
   const name = `${p.id} ${p.title}`.toLowerCase();
   return /warmed|прогрет/.test(name) ? 'ready' : /kyc|верификац/.test(name) ? 'kyc' : /team|команд/.test(name) ? 'team' : /setup|настрой/.test(name) ? 'setup' : /max/.test(name) ? 'max' : /cdk|код активации/.test(name) ? 'cdk' : 'pro';
@@ -15,6 +29,7 @@ export function claudeRestockVariant(p) {
 
 export function createRestocks({db, state, bots, blocked, assetsRoot, now = Date.now}) {
   db.exec(`CREATE TABLE IF NOT EXISTS shop_contacts(bot_id TEXT NOT NULL,telegram_id TEXT NOT NULL,username TEXT NOT NULL DEFAULT '',last_seen INTEGER NOT NULL,reachable INTEGER NOT NULL DEFAULT 1,PRIMARY KEY(bot_id,telegram_id));
+    CREATE TABLE IF NOT EXISTS shop_client_first_seen(telegram_id TEXT PRIMARY KEY,first_seen INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS restock_preferences(telegram_id TEXT PRIMARY KEY,muted INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS restock_campaigns(id TEXT PRIMARY KEY,product_id TEXT NOT NULL,title TEXT NOT NULL,quantity INTEGER NOT NULL,fingerprint TEXT NOT NULL,caption TEXT NOT NULL,plain_caption TEXT NOT NULL,emoji_id TEXT NOT NULL,media_kind TEXT NOT NULL,media BLOB NOT NULL,product_url TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'draft',created_at INTEGER NOT NULL,started_at INTEGER NOT NULL DEFAULT 0,error TEXT NOT NULL DEFAULT '');
     CREATE TABLE IF NOT EXISTS restock_deliveries(campaign_id TEXT NOT NULL,telegram_id TEXT NOT NULL,bots TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',attempts INTEGER NOT NULL DEFAULT 0,next_at INTEGER NOT NULL DEFAULT 0,error TEXT NOT NULL DEFAULT '',sent_at INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(campaign_id,telegram_id));
@@ -22,6 +37,20 @@ export function createRestocks({db, state, bots, blocked, assetsRoot, now = Date
     CREATE INDEX IF NOT EXISTS restock_recent_recipient ON restock_deliveries(telegram_id,sent_at);
     CREATE INDEX IF NOT EXISTS restock_campaign_pending ON restock_deliveries(campaign_id,status,next_at);
     CREATE TABLE IF NOT EXISTS restock_file_ids(campaign_id TEXT NOT NULL,bot_id TEXT NOT NULL,file_id TEXT NOT NULL,PRIMARY KEY(campaign_id,bot_id));`);
+  const columns=new Set(db.prepare('PRAGMA table_info(restock_campaigns)').all().map(c=>c.name));
+  for(const [name,definition] of [['message_title',`TEXT NOT NULL DEFAULT '${defaultHeading}'`],['message_text',`TEXT NOT NULL DEFAULT '${defaultText}'`],['audience_mode',"TEXT NOT NULL DEFAULT 'all'"],['audience_limit','INTEGER']])
+    if(!columns.has(name))db.exec(`ALTER TABLE restock_campaigns ADD COLUMN ${name} ${definition}`);
+  function rememberHistoricalClients() {
+    // Old contacts only retained last_seen. Use the earliest known visit where
+    // available, then keep this timestamp across later activity and bot funnels.
+    db.exec(`INSERT INTO shop_client_first_seen(telegram_id,first_seen)
+      SELECT telegram_id,MIN(at) FROM (
+        SELECT telegram_id,CASE WHEN created_at>0 THEN created_at ELSE verified_at END at FROM visitors WHERE telegram_id<>'' AND verified_at>0
+        UNION ALL SELECT telegram_id,last_seen at FROM shop_contacts WHERE last_seen>0
+      ) WHERE at>0 GROUP BY telegram_id
+      ON CONFLICT(telegram_id) DO UPDATE SET first_seen=MIN(shop_client_first_seen.first_seen,excluded.first_seen)`);
+  }
+  rememberHistoricalClients();
   // Telegram has no idempotency key for sends. An interrupted in-flight request is not sent twice.
   db.prepare("UPDATE restock_deliveries SET status='uncertain',error='Доставка не подтверждена после перезапуска' WHERE status='sending'").run();
   let timer, stopped = true, working = false, nextSend = 0;
@@ -32,6 +61,7 @@ export function createRestocks({db, state, bots, blocked, assetsRoot, now = Date
     if (msg?.chat?.type !== 'private' || !privateId(msg.chat.id) || !from || from.is_bot || String(from.id) !== String(msg.chat.id)) return;
     const reachable = member ? !['kicked','left'].includes(member.new_chat_member?.status) : true;
     db.prepare(`INSERT INTO shop_contacts VALUES(?,?,?,?,?) ON CONFLICT(bot_id,telegram_id) DO UPDATE SET username=excluded.username,last_seen=excluded.last_seen,reachable=excluded.reachable`).run(bot.id,String(msg.chat.id),from.username ?? '',now(),Number(reachable));
+    db.prepare('INSERT OR IGNORE INTO shop_client_first_seen VALUES(?,?)').run(String(msg.chat.id),now());
   }
   function observeProof(initData) {
     const proof = bots.proof(initData);
@@ -56,7 +86,9 @@ export function createRestocks({db, state, bots, blocked, assetsRoot, now = Date
     return p;
   };
   const muted = id => !!db.prepare('SELECT muted FROM restock_preferences WHERE telegram_id=?').get(id)?.muted;
-  function audience() {
+  function audience(choice) {
+    rememberHistoricalClients();
+    const firstSeen=new Map(db.prepare('SELECT * FROM shop_client_first_seen').all().map(c=>[c.telegram_id,c.first_seen]));
     const enabled=bots.list().bots.filter(b=>b.enabled), users=new Map();
     // Historical verified visitors predate contact tracking. Try their store bots, never the gateway.
     for (const v of db.prepare("SELECT telegram_id,telegram_username,MAX(verified_at) at FROM visitors WHERE telegram_id<>'' AND verified_at>0 GROUP BY telegram_id").all())
@@ -68,21 +100,28 @@ export function createRestocks({db, state, bots, blocked, assetsRoot, now = Date
       if (c.reachable && enabled.some(b=>b.id===c.bot_id)) u.ids.push(c.bot_id);
       users.set(c.telegram_id,u);
     }
-    return [...users].filter(([id,u])=>!muted(id)&&!blocked({id,username:u.username})).map(([id,u])=>({id,ids:[...new Set([...u.ids,...enabled.filter(b=>{
+    const recipients=[...users].filter(([id,u])=>!muted(id)&&!blocked({id,username:u.username})).map(([id,u])=>({id,firstSeen:firstSeen.get(id)??0,ids:[...new Set([...u.ids,...enabled.filter(b=>{
       const known=db.prepare('SELECT reachable FROM shop_contacts WHERE bot_id=? AND telegram_id=?').get(b.id,id);
       return !known || known.reachable;
     }).map(b=>b.id)])]})).filter(u=>u.ids.length);
+    if(choice.mode==='all')return recipients;
+    recipients.sort((a,b)=>b.firstSeen-a.firstSeen||Number(b.id)-Number(a.id));
+    return recipients.slice(0,choice.limit);
   }
   function summary(id) {
-    const c=db.prepare('SELECT id,product_id,title,quantity,status,created_at,started_at,error,media_kind,plain_caption,product_url FROM restock_campaigns WHERE id=?').get(id);
+    const c=db.prepare('SELECT id,product_id,title,quantity,status,created_at,started_at,error,media_kind,plain_caption,product_url,message_title,message_text,audience_mode,audience_limit FROM restock_campaigns WHERE id=?').get(id);
     if (!c) fail('Рассылка не найдена',404);
     const counts=Object.fromEntries(db.prepare('SELECT status,COUNT(*) n FROM restock_deliveries WHERE campaign_id=? GROUP BY status').all(id).map(r=>[r.status,r.n]));
-    return {id:c.id,productId:c.product_id,title:c.title,quantity:c.quantity,status:c.status,createdAt:c.created_at,startedAt:c.started_at,error:c.error,mediaKind:c.media_kind,caption:c.plain_caption,productUrl:c.product_url,total:Object.values(counts).reduce((a,b)=>a+b,0),sent:counts.sent??0,failed:counts.failed??0,skipped:counts.skipped??0,uncertain:counts.uncertain??0,pending:(counts.pending??0)+(counts.sending??0)};
+    return {id:c.id,productId:c.product_id,title:c.title,quantity:c.quantity,status:c.status,createdAt:c.created_at,startedAt:c.started_at,error:c.error,mediaKind:c.media_kind,caption:c.plain_caption,productUrl:c.product_url,messageTitle:c.message_title,messageText:c.message_text,audience:{mode:c.audience_mode,limit:c.audience_limit},total:Object.values(counts).reduce((a,b)=>a+b,0),sent:counts.sent??0,failed:counts.failed??0,skipped:counts.skipped??0,uncertain:counts.uncertain??0,pending:(counts.pending??0)+(counts.sending??0)};
   }
   async function preview(input) {
     const p=product(input.productId), quantity=input.quantity;
     if (!Number.isInteger(quantity)||quantity<1||quantity>p.stock) fail('Укажите количество пополнения: от 1 до текущего остатка');
     if (!input.product || snapshot(input.product)!==snapshot(p)) fail('Карточка изменилась. Сохраните её и обновите предпросмотр',409);
+    const heading=messageField(input.messageTitle,defaultHeading,100,'Заголовок'), text=messageField(input.messageText,defaultText,800,'Текст сообщения'), choice=audienceChoice(input.audience);
+    const line=`Добавили ${quantity.toLocaleString('ru-RU')} шт.`, plain=`${heading}\n\n${p.title}\n${line}\n\n${text}`;
+    // Telegram media captions allow 1024 UTF-16 units after HTML parsing.
+    if(`🟢 ${plain}`.length>1024)fail('Сообщение слишком длинное. Сократите заголовок или текст: вместе с названием товара — не более 1 024 символов');
     const manifest=JSON.parse(await readFile(resolve(assetsRoot,'branding/telegram/emoji-manifest.json'),'utf8'));
     const icon=manifest[p.brand] ?? manifest[p.groupId] ?? manifest.catalog, emoji=icon?.id ?? '';
     let media,kind='photo';
@@ -93,12 +132,11 @@ export function createRestocks({db, state, bots, blocked, assetsRoot, now = Date
       media=Buffer.from(input.image.split(',')[1],'base64');if(imageInfo(media).mime!=='image/jpeg')fail('Нужна обложка в формате JPG');
     }
     if (media.length>8*1024*1024) fail('Обложка слишком большая');
-    const heading='Снова в наличии', line=`Добавили ${quantity.toLocaleString('ru-RU')} шт.`, plain=`${heading}\n\n${p.title}\n${line}\n\nПосмотрите условия и оформите заказ в карточке товара.`;
-    const caption=`${emoji?`<tg-emoji emoji-id="${emoji}">🟢</tg-emoji>`:'🟢'} <b>${heading}</b>\n\n<blockquote><b>${escape(p.title)}</b>\n${line}</blockquote>\n\nПосмотрите условия и оформите заказ в карточке товара.`;
-    const id=randomUUID(), users=audience(), url=bots.productUrl(p.id);
+    const caption=`${emoji?`<tg-emoji emoji-id="${emoji}">🟢</tg-emoji>`:'🟢'} <b>${escape(heading)}</b>\n\n<blockquote><b>${escape(p.title)}</b>\n${line}</blockquote>\n\n${escape(text)}`;
+    const id=randomUUID(), users=audience(choice), url=bots.productUrl(p.id);
     db.exec('BEGIN IMMEDIATE');
     try {
-      db.prepare('INSERT INTO restock_campaigns(id,product_id,title,quantity,fingerprint,caption,plain_caption,emoji_id,media_kind,media,product_url,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run(id,p.id,p.title,quantity,fingerprint(p),caption,plain,emoji,kind,media,url,now());
+      db.prepare('INSERT INTO restock_campaigns(id,product_id,title,quantity,fingerprint,caption,plain_caption,emoji_id,media_kind,media,product_url,created_at,message_title,message_text,audience_mode,audience_limit) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(id,p.id,p.title,quantity,fingerprint(p),caption,plain,emoji,kind,media,url,now(),heading,text,choice.mode,choice.limit);
       const insert=db.prepare('INSERT INTO restock_deliveries(campaign_id,telegram_id,bots) VALUES(?,?,?)');
       for (const u of users) insert.run(id,u.id,JSON.stringify(u.ids));
       db.exec('COMMIT');

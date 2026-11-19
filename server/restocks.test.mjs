@@ -91,3 +91,62 @@ test('large draft audiences and completed delivery history do not block the idle
  app.db.prepare("UPDATE restock_campaigns SET status='running' WHERE id=?").run(draft.id);at=performance.now();await app.restocks.tick();assert.ok(performance.now()-at<1000,'active scheduler must filter by campaign before recipient history');assert.equal(app.sends().length,0);
  assert.equal(app.db.prepare("SELECT COUNT(*) n FROM restock_deliveries WHERE campaign_id=? AND status='pending'").get(draft.id).n,4999);
 });
+
+test('custom title and multiline text survive preview and delivery as literal text with the product link',async t=>{
+ const app=await fixture(t);app.visitor(777);
+ const messageTitle='Поставка <Claude> & друзья 🟢',messageText='Забирайте сегодня!\nЦена < 5000 ₽ & помощь менеджера.';
+ const c=await app.restocks.preview({productId:'mail-setup',product:app.product('mail-setup'),quantity:2,image,messageTitle,messageText});
+ assert.equal(c.messageTitle,messageTitle);assert.equal(c.messageText,messageText);assert.deepEqual(c.audience,{mode:'all',limit:null});assert.equal(app.sends().length,0);
+ app.restocks.launch(c.id);app.restocks.start();await app.restocks.tick();
+ const sent=app.sends()[0];assert.match(sent.payload.caption,/<b>Поставка &lt;Claude&gt; &amp; друзья 🟢<\/b>/);assert.ok(sent.payload.caption.endsWith('Забирайте сегодня!\nЦена &lt; 5000 ₽ &amp; помощь менеджера.'));
+ assert.match(sent.payload.caption,/Добавили 2 шт\./);assert.equal(sent.payload.reply_markup.inline_keyboard[0][0].web_app.url,c.productUrl);assert.equal(app.restocks.summary(c.id).caption,c.caption);
+});
+
+test('latest audience uses first arrival across bots, excludes unavailable customers before limiting and freezes recipients',async t=>{
+ const app=await fixture(t);await app.shopBots.save({token:secondary});const bot=app.shopBots.getRow('123456789'),other=app.shopBots.getRow('234567890');
+ const contact=(id,b=bot)=>app.restocks.observe(b,{message:{chat:{id,type:'private'},from:{id,username:'user'+id}}});
+ for(const id of [701,702,703,704,705,706]){contact(id);app.advance();}
+ // Returning through another funnel must not turn the oldest customer into a new one.
+ contact(701,other);contact(704,other);app.db.prepare('INSERT INTO restock_preferences VALUES(?,1)').run('706');
+ app.db.prepare("INSERT INTO blacklist(id,type,value,active,created_at) VALUES('latest-block','id','705',1,?)").run(Date.now());
+ for(const b of [bot,other])app.db.prepare('INSERT INTO shop_contacts VALUES(?,?,?,?,0) ON CONFLICT(bot_id,telegram_id) DO UPDATE SET reachable=0').run(b.id,'703','user703',Date.now());
+ const c=await app.restocks.preview({productId:'mail-setup',product:app.product('mail-setup'),quantity:1,image,audience:{mode:'latest',limit:2}});
+ const ids=()=>app.db.prepare('SELECT telegram_id FROM restock_deliveries WHERE campaign_id=? ORDER BY rowid').all(c.id).map(r=>r.telegram_id);
+ assert.deepEqual(ids(),['704','702']);assert.equal(c.total,2);assert.deepEqual(c.audience,{mode:'latest',limit:2});
+ app.advance();contact(707);assert.deepEqual(ids(),['704','702']);assert.equal(app.sends().length,0);
+ app.restocks.launch(c.id);app.restocks.start();await app.restocks.tick();app.advance();await app.restocks.tick();
+ assert.deepEqual(app.sends().map(c=>c.payload.chat_id),['704','702']);
+});
+
+test('latest 200 selects exactly the newest unique customers and historical dates survive restarts',async t=>{
+ const app=await fixture(t),bot=app.shopBots.getRow('123456789');
+ for(let i=0;i<205;i++){app.visitor(1000+i);app.advance();}
+ // An old browser session is the earliest available history for this contact.
+ const early=app.db.prepare('SELECT created_at FROM visitors WHERE telegram_id=?').get('1000').created_at;
+ app.restocks.observe(bot,{message:{chat:{id:1000,type:'private'},from:{id:1000,username:'returned'}}});
+ const input={productId:'mail-setup',product:app.product('mail-setup'),quantity:1,image,audience:{mode:'latest',limit:200}};
+ const c=await app.restocks.preview(input),rows=app.db.prepare('SELECT telegram_id FROM restock_deliveries WHERE campaign_id=? ORDER BY rowid').all(c.id);
+ assert.equal(c.total,200);assert.equal(rows[0].telegram_id,'1204');assert.equal(rows.at(-1).telegram_id,'1005');
+ assert.equal(app.db.prepare('SELECT first_seen FROM shop_client_first_seen WHERE telegram_id=?').get('1000').first_seen,early);
+ const recovered=createRestocks({db:app.db,state:()=>({catalog:JSON.parse(app.db.prepare('SELECT catalog FROM state').get().catalog)}),bots:app.shopBots,blocked:()=>false,assetsRoot:assets});
+ assert.deepEqual(recovered.summary(c.id),c);const d=await recovered.preview(input);assert.equal(d.total,200);
+ assert.equal(app.db.prepare('SELECT first_seen FROM shop_client_first_seen WHERE telegram_id=?').get('1000').first_seen,early);recovered.stop();
+ const all=await app.preview();assert.equal(all.total,205);assert.equal(app.sends().length,0);
+});
+
+test('invalid message or audience cannot prepare a draft; caption limit counts emoji and product name',async t=>{
+ const app=await fixture(t),input={productId:'mail-setup',product:app.product('mail-setup'),quantity:1,image};
+ for(const patch of [{messageTitle:''},{messageTitle:'a'.repeat(101)},{messageTitle:17},{messageText:'   '},{messageText:'a'.repeat(801)},{audience:null},{audience:{mode:'wrong'}},{audience:{mode:'latest',limit:0}},{audience:{mode:'latest',limit:1.5}},{audience:{mode:'latest',limit:'200'}},{audience:{mode:'latest',limit:100001}},{audience:{mode:'all',limit:200}}])
+  await assert.rejects(()=>app.restocks.preview({...input,...patch}),{status:400});
+ const longProduct={...input.product,title:'Т'.repeat(200)},state=JSON.parse(app.db.prepare('SELECT catalog FROM state').get().catalog);state.products=state.products.map(p=>p.id===longProduct.id?longProduct:p);app.db.prepare('UPDATE state SET catalog=?').run(JSON.stringify(state));
+ await assert.rejects(()=>app.restocks.preview({...input,product:longProduct,messageTitle:'З'.repeat(100),messageText:'🟢'.repeat(400)}),/слишком длинное/);
+ assert.equal(app.db.prepare('SELECT COUNT(*) n FROM restock_campaigns').get().n,0);assert.equal(app.sends().length,0);
+});
+
+test('legacy draft migrations preserve saved captions and media with default message and audience fields',async t=>{
+ const app=await fixture(t);app.visitor(777);const c=await app.preview();
+ // Recreate the previous schema on the same database to exercise real ALTER migrations.
+ for(const column of ['message_title','message_text','audience_mode','audience_limit'])app.db.exec('ALTER TABLE restock_campaigns DROP COLUMN '+column);
+ const recovered=createRestocks({db:app.db,state:()=>({}),bots:app.shopBots,blocked:()=>false,assetsRoot:assets});
+ assert.deepEqual(recovered.summary(c.id),c);assert.deepEqual(recovered.media(c.id).media,app.restocks.media(c.id).media);recovered.stop();
+});
