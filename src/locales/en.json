@@ -957,5 +957,14 @@
   "В случай отказа верификации, возврат на карту с которой оплатили!!": "If verification is rejected, the refund goes to the card used for payment.",
   "Верификация KYC для вашего аккаунта Claude.\nЦена указана за верификацию дропами из следующих стран:\nШри Ланка, Египет, Непал, Аргентина\n\nВерификация европейцем 7900 руб.\nДля заказа перейдите в соответствующую карточку в магазине.": "KYC verification for your Claude account.\nThe price covers verification using third-party identities from:\nSri Lanka, Egypt, Nepal or Argentina.\n\nVerification using a European identity: 7,900 RUB.\nTo order, open the corresponding product card in the store.",
   "Скопируйте ссылку по инструкции ниже.\nПерейдите в корзину. \nЖмите \"Перейти к оформлению\"\nВставляйте ссылку и выбранную страну в комментарий к заказу.": "Copy the link using the instructions below.\nOpen your cart.\nClick “Proceed to checkout”.\nPaste the link and your chosen country into the order comment.",
-  "Если нужен конкретный регион, не указанный в списке, уточните в ЛС, пожалуйста": "If you need a region that is not listed, please ask in a private message."
+  "Если нужен конкретный регион, не указанный в списке, уточните в ЛС, пожалуйста": "If you need a region that is not listed, please ask in a private message.",
+  "Запросить карту у оператора": "Request a card from an operator",
+  "Помощь с оплатой": "Payment assistance",
+  "Помощь с реквизитами и оплатой": "Help with payment details and transfers",
+  "Свяжитесь с оператором удобным способом": "Contact an operator for help",
+  "Здравствуйте! Хочу запросить карту для оплаты заказа.": "Hello! Please provide card details to pay for my order.",
+  "Здравствуйте! Нужна помощь с оплатой заказа.": "Hello! I need help paying for my order.",
+  "Здравствуйте! Хочу запросить карту для пополнения баланса.": "Hello! Please provide card details to top up my store balance.",
+  "Здравствуйте! Нужна помощь с пополнением баланса.": "Hello! I need help topping up my store balance.",
+  "Остальные товары уточню в чате.": "I will provide the remaining items in this chat."
 }

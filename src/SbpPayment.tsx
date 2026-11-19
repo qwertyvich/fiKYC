@@ -1,3 +1,4 @@
+import type {ReactNode} from 'react';
 import {withinSbpLimit} from './sbp-policy';
 import {useEffect,useRef,useState} from 'react';
 import {ArrowLeft,ArrowUpRight,CheckCircle2,Clock3,FileUp,LoaderCircle,MessageCircle,Smartphone,RefreshCw,WalletCards} from 'lucide-react';
@@ -13,10 +14,11 @@ import {PaymentWarning} from './PaymentFlow';
 import type {Payment,PaymentOptions} from './payments';
 import './sbp.css';
 
-export function AlternativePayments({options,amount,busy,onSbp,onCrypto}:{options:PaymentOptions;amount:number;busy:boolean;onSbp():void;onCrypto():void}){
+export function AlternativePayments({options,amount,busy,onSbp,onCrypto,children}:{children:ReactNode;options:PaymentOptions;amount:number;busy:boolean;onSbp():void;onCrypto():void}){
   return <section className="alternative-payments"><h2>{t('Выберите способ оплаты')}</h2><p>{t('Подходящей карты сейчас нет. Можно выбрать другой способ оплаты.')}</p>
     {options.russian&&options.sbp.enabled!==false&&withinSbpLimit(Math.round(amount*100))&&<><button className="alternative-payment" type="button" disabled={busy||!options.sbp.available} onClick={onSbp}><span className="sbp-mark"><Smartphone size={24}/></span><span><b>СБП</b><small>{options.sbp.available?'Оплата в приложении банка':options.sbp.min?'Для сумм от '+rawMoney(options.sbp.min)+(options.sbp.max?' до '+rawMoney(options.sbp.max):''):'Сейчас недоступно'}</small></span><ArrowUpRight size={20}/></button></>}
     <button className="alternative-payment" type="button" disabled={busy} onClick={onCrypto}><span className="usdt-token">₮</span><span><b>{t('Криптовалюта USDT')}</b><small>TRC20 · BEP20</small></span><ArrowUpRight size={20}/></button>
+    {children}
     <p className="fine-print">{t('К оплате')}: {rawMoney(amount)}</p>
   </section>;
 }

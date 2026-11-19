@@ -10,11 +10,12 @@ import { telegram } from './telegram';
 import {t,getLocale} from './i18n';
 import {paymentMethod,setPaymentMethod,exchangeRate,russianPayments} from './pricing';
 import {UsdtNetworkPicker} from './UsdtCheckout';
+import {PaymentManagerLink} from './PaymentManagerLink';
 import {AlternativePayments} from './SbpPayment';
 import type {UsdtNetwork} from './usdt';
 import './wallet.css';
 
-export function Wallet({navigate}: {shop: ShopSettings; navigate(path:string):void}) {
+export function Wallet({shop,navigate}: {shop: ShopSettings; navigate(path:string):void}) {
   const method=paymentMethod(),cryptoMode=method==='usdt';
   const draftKey = 'wallet-topup:' + (telegram?.initDataUnsafe?.user?.id ?? 'guest')+':'+method;
   const [draft] = useState(() => readLocal<{amount?:unknown;requestKey?:unknown}>(draftKey,{}));
@@ -34,6 +35,7 @@ export function Wallet({navigate}: {shop: ShopSettings; navigate(path:string):vo
     return()=>{alive=false;clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};
   },[refreshKey]);
   const amountMinor = (()=>{try{return parseTopupAmount(amount);}catch{return null;}})();
+  const managerHelp=<PaymentManagerLink username={shop.supportTelegram} requestCard={russianPayments()} message={[t(russianPayments()?'Здравствуйте! Хочу запросить карту для пополнения баланса.':'Здравствуйте! Нужна помощь с пополнением баланса.'),`${t('Сумма пополнения')}: ${amountMinor!==null?(amountMinor/100).toFixed(2):amount} ${cryptoMode?'USD':'RUB'}`].join('\n')}/>;
   async function submit(network?:UsdtNetwork,chosenMethod:'card'|'usdt'|'sbp'=method) {
     if((chosenMethod==='card'&&!accepted)||busy)return;setBusy(true);setError('');
     try {
@@ -56,7 +58,8 @@ export function Wallet({navigate}: {shop: ShopSettings; navigate(path:string):vo
       <p className="form-help">{t(cryptoMode?t('Введите сумму в долларах. Для перевода выберите сеть USDT.'):t('Введите сумму в рублях. Подберём карту с подходящими лимитами; если её нет, менеджер поможет с оплатой.'))}</p>
       {error && <p className="field-error" id="wallet-amount-error" role="alert">{t(error)}</p>}
       <button className="primary-button" type="submit" disabled={busy}>{busy?<LoaderCircle size={17} className="spin"/>:<>{t('Перейти к пополнению')}<ArrowRight size={17}/></>}</button>
-      {!cryptoMode&&options&&!options.card&&amountMinor!==null&&<AlternativePayments options={options} amount={amountMinor/100} busy={busy} onSbp={()=>void submit(undefined,'sbp')} onCrypto={()=>{pendingCryptoAmount.current=(Math.ceil(amountMinor/exchangeRate())/100).toFixed(2);setPaymentMethod('usdt');}}/>}
+      {!cryptoMode&&options&&!options.card&&amountMinor!==null&&<AlternativePayments options={options} amount={amountMinor/100} busy={busy} onSbp={()=>void submit(undefined,'sbp')} onCrypto={()=>{pendingCryptoAmount.current=(Math.ceil(amountMinor/exchangeRate())/100).toFixed(2);setPaymentMethod('usdt');}}>{managerHelp}</AlternativePayments>}
+      {(cryptoMode||!options||options.card)&&managerHelp}
       {cryptoMode&&networks&&amountMinor!==null&&<UsdtNetworkPicker amount={amountMinor/100} busy={busy} onSelect={network=>void submit(network)}/>}
       <button hidden={cryptoMode&&!russianPayments()||!cryptoMode&&!!options&&!options.card} type="button" className="payment-text-button" onClick={()=>setPaymentMethod(cryptoMode?'card':'usdt')}>{t(cryptoMode?'Оплатить картой в рублях':'Оплатить USDT')}</button>
     </form>}
