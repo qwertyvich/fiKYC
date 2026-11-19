@@ -144,8 +144,9 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     const intent=p.provider==='sbp'?db.prepare('SELECT * FROM sbp_intents WHERE payment_id=?').get(p.id):null;
     const receiptJobs=p.provider==='sbp'?db.prepare('SELECT status,COUNT(*) n FROM sbp_receipt_jobs WHERE payment_id=? GROUP BY status').all(p.id):[];
     const qr=intent?{...JSON.parse(intent.snapshot),status:intent.phase,methodCode:intent.method_code,creating:!intent.external_id,error:!!intent.error}:p.provider==='sbp'?{status:p.status==='invalidated'?'failed':'creating',creating:p.status!=='invalidated'}:null;
+    const sbpEnabled=p.provider==='sbp'?!!db.prepare('SELECT enabled FROM sbp_config WHERE id=1').get()?.enabled:false;
     return { id: p.id, provider:p.provider,purpose: p.purpose, items: JSON.parse(p.items), amount: p.amount_minor / 100, currency: p.currency, status: p.status, reason: p.reason, createdAt: p.created_at, expiresAt: p.expires_at, serverNow: now(), requisitesType:c?.kind??'card', card: show ? { id:c.number, type:c.kind, number: c.account||c.number, bank: c.bank, holder: c.holder } : null,
-      qr:qr?{...qr,receiptDelivery:receiptJobs.some(r=>r.status==='failed')?'failed':receiptJobs.some(r=>r.status==='pending')?'pending':receiptJobs.length?'sent':null,paymentUrl:['awaiting_transfer','receipt_review'].includes(p.status)&&(!p.expires_at||p.expires_at>now())?qr.paymentUrl??null:null}:null,
+      qr:qr?{...qr,enabled:sbpEnabled,receiptDelivery:receiptJobs.some(r=>r.status==='failed')?'failed':receiptJobs.some(r=>r.status==='pending')?'pending':receiptJobs.length?'sent':null,paymentUrl:sbpEnabled&&['awaiting_transfer','receipt_review'].includes(p.status)&&(!p.expires_at||p.expires_at>now())?qr.paymentUrl??null:null}:null,
       crypto:crypto?{...crypto,address:p.status==='awaiting_transfer'?crypto.address:null,reportedAt:p.crypto_reported_at??null}:null,
       receiptCount: db.prepare('SELECT count(*) n FROM gateway_receipts WHERE payment_id=?').get(p.id).n, deliveryPending: !!db.prepare("SELECT id FROM gateway_outbox WHERE payment_id=? AND kind IN ('receipt','crypto_claim') AND status='pending'").get(p.id) };
   }

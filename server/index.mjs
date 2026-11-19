@@ -526,7 +526,7 @@ export async function createApp(options = {}) {
       if(path==='/api/payment-options'&&method==='GET'){
         const value=Number(url.searchParams.get('amount')),minor=Math.round(value*100);if(!Number.isFinite(value)||minor<1||minor>10000000000)fail('Проверьте сумму');
         if(!audience(req))return send(res,{card:false,sbp:{available:false},russian:false});
-        const card=gateway.cardAvailable(minor);return send(res,{card,sbp:card?{available:false}:await sbp.options(minor),russian:true});
+        const card=gateway.cardAvailable(minor);return send(res,{card,sbp:card?{available:false,enabled:sbp.config().enabled&&!!env.PAY_PROVIDER_API_KEY}:await sbp.options(minor),russian:true});
       }
       if (path === '/api/wallet' && method === 'GET') return send(res, gateway.wallet(paymentOwner(req,res)));
       if (path === '/api/wallet/topups' && method === 'POST') {

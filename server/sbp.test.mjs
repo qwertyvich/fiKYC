@@ -158,3 +158,15 @@ test('old queued receipts acquire the stored link at delivery; corrupted externa
  const snapshot=JSON.parse(f.db.prepare('SELECT snapshot FROM sbp_intents WHERE payment_id=?').get(p.id).snapshot);snapshot.paymentUrl=corrupt.paymentUrl;f.db.prepare('UPDATE sbp_intents SET snapshot=? WHERE payment_id=?').run(JSON.stringify(snapshot),p.id);
  await f.gateway.flush();const sent=f.botCalls.at(-1).payload;assert.ok(!sent.get('caption').includes('untrusted.invalid'));assert.equal(sent.has('reply_markup'),false);assert.equal(f.db.prepare("SELECT COUNT(*) n FROM gateway_outbox WHERE kind='source'").get().n,0);
 });
+
+test('pausing SBP hides customer links and stops new QR issuance while receipts and verified success keep working',async t=>{
+ const f=await fixture(t),p=await f.pay(),url=p.qr.paymentUrl,remote=f.remote.get(p.qr.externalId);
+ f.sbp.saveConfig({enabled:false,preferred:'mc9'});const options=await f.sbp.options(500000);assert.equal(options.enabled,false);assert.equal(options.available,false);
+ const existing=f.gateway.view(f.gateway.externalRow(p.id));assert.equal(existing.qr.enabled,false);assert.equal(existing.qr.paymentUrl,null);
+ const next=f.gateway.create('next','333',f.input);await assert.rejects(()=>f.sbp.issue(next.id),/приостановлена/);assert.equal(f.calls.filter(c=>c.method==='POST').length,1);
+ f.gateway.upload(p.id,'alice',Buffer.from('%PDF-1.4\nreceipt while paused'));await f.gateway.flush();assert.equal(JSON.parse(f.botCalls.at(-1).payload.get('reply_markup')).inline_keyboard[0][0].url,url);
+ remote.status='success';remote.paid_amount='5000.00';await f.sbp.apply(remote);assert.equal(f.gateway.externalRow(p.id).status,'paid');assert.equal(f.stock(),19);
+ f.gateway.receiveFeed({chat:{id:-1002278926769},from:{id:333,username:'feweqw34234_bot'},date:Math.floor(f.now()/1000),text:'Реквизиты №1\nБанк: Сбербанк\nФИО: Тест Т\nКарта: +79991234567\nМин: 1 000 ₽\nМакс: 8 000 ₽'},1);
+ const base='http://127.0.0.1:'+f.server.address().port,res=await fetch(base+'/api/payment-options?amount=5000',{headers:{'x-telegram-init-data':proof('ru')}}).then(r=>r.json());assert.equal(res.card,true);assert.equal(res.sbp.enabled,false);
+ f.sbp.saveConfig({enabled:true,preferred:'mc9'});assert.equal((await f.sbp.options(500000)).enabled,true);assert.equal((await f.sbp.options(500000)).available,true);
+});

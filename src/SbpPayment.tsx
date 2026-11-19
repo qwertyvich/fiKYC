@@ -15,7 +15,7 @@ import './sbp.css';
 
 export function AlternativePayments({options,amount,busy,onSbp,onCrypto}:{options:PaymentOptions;amount:number;busy:boolean;onSbp():void;onCrypto():void}){
   return <section className="alternative-payments"><h2>{t('Выберите способ оплаты')}</h2><p>{t('Подходящей карты сейчас нет. Можно выбрать другой способ оплаты.')}</p>
-    {options.russian&&withinSbpLimit(Math.round(amount*100))&&<><button className="alternative-payment" type="button" disabled={busy||!options.sbp.available} onClick={onSbp}><span className="sbp-mark"><Smartphone size={24}/></span><span><b>СБП</b><small>{options.sbp.available?'Оплата в приложении банка':options.sbp.min?'Для сумм от '+rawMoney(options.sbp.min)+(options.sbp.max?' до '+rawMoney(options.sbp.max):''):'Сейчас недоступно'}</small></span><ArrowUpRight size={20}/></button></>}
+    {options.russian&&options.sbp.enabled!==false&&withinSbpLimit(Math.round(amount*100))&&<><button className="alternative-payment" type="button" disabled={busy||!options.sbp.available} onClick={onSbp}><span className="sbp-mark"><Smartphone size={24}/></span><span><b>СБП</b><small>{options.sbp.available?'Оплата в приложении банка':options.sbp.min?'Для сумм от '+rawMoney(options.sbp.min)+(options.sbp.max?' до '+rawMoney(options.sbp.max):''):'Сейчас недоступно'}</small></span><ArrowUpRight size={20}/></button></>}
     <button className="alternative-payment" type="button" disabled={busy} onClick={onCrypto}><span className="usdt-token">₮</span><span><b>{t('Криптовалюта USDT')}</b><small>TRC20 · BEP20</small></span><ArrowUpRight size={20}/></button>
     <p className="fine-print">{t('К оплате')}: {rawMoney(amount)}</p>
   </section>;
@@ -25,11 +25,11 @@ export function SbpPayment({payment:p,onUpdate,navigate,shop}:{payment:Payment;o
  const updated=useRef(onUpdate);updated.current=onUpdate;
  const [options,setOptions]=useState<PaymentOptions|null>(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[time,setTime]=useState(Date.now()),[clockOffset,setClockOffset]=useState(()=>p.serverNow-Date.now()),[notPaid,setNotPaid]=useState(false),[networks,setNetworks]=useState(false),[cardWarning,setCardWarning]=useState(false),[cardAccepted,setCardAccepted]=useState(false);
- const q=p.qr!,paid=p.status==='paid',expires=p.expiresAt??null,seconds=expires?Math.max(0,Math.ceil((expires-time-clockOffset)/1000)):null;
+ const q=p.qr!,paused=q.enabled===false,paid=p.status==='paid',expires=p.expiresAt??null,seconds=expires?Math.max(0,Math.ceil((expires-time-clockOffset)/1000)):null;
  const terminal=['failed','rejected','expired','cancelled'].includes(q.status)||seconds!==null&&seconds<=0;
  useEffect(()=>{if(!terminal||paid)return;let alive=true;const refresh=()=>api<PaymentOptions>('/payment-options?amount='+p.amount).then(v=>{if(alive)setOptions(v);}).catch(()=>{});void refresh();const timer=setInterval(refresh,5000);return()=>{alive=false;clearInterval(timer);};},[p.id,p.amount,terminal,paid]);
  useEffect(()=>setClockOffset(p.serverNow-Date.now()),[p.serverNow]);
- const canOpen=!paid&&!terminal&&!!q.paymentUrl&&['created','pending','review'].includes(q.status);
+ const canOpen=!paused&&!paid&&!terminal&&!!q.paymentUrl&&['created','pending','review'].includes(q.status);
  useEffect(()=>{const timer=setInterval(()=>setTime(Date.now()),1000);return()=>clearInterval(timer);},[]);
  useEffect(()=>{if(paid)return;let alive=true;const timer=setInterval(()=>{if(document.visibilityState==='visible')void mutation<Payment>('/payments/'+p.id+'/check','POST',{}).then(v=>{if(alive)updated.current(v);}).catch(()=>{});},10000);return()=>{alive=false;clearInterval(timer);};},[p.id,paid]);
  async function check(){if(busy)return;setBusy(true);setError('');try{onUpdate(await mutation<Payment>('/payments/'+p.id+'/check','POST',{}));}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
@@ -39,11 +39,11 @@ export function SbpPayment({payment:p,onUpdate,navigate,shop}:{payment:Payment;o
  return <><div className="page-title"><button className="back-link" onClick={()=>navigate('/orders')}><ArrowLeft size={17}/>{t('Мои заказы')}</button><h1>{paid?(p.purpose==='topup'?t('Баланс пополнен'):t('Оплата подтверждена')):'Оплата по СБП'}</h1><p className="payment-order-id">{p.id}</p></div>
   <section className="payment-amount-card"><div className="payment-eyebrow">{t('СУММА ПЕРЕВОДА')}</div><strong>{rawMoney(p.amount,'RUB')}</strong><p>{p.items.map(i=>t(i.title)+(i.quantity>1?' × '+i.quantity:'')).join(' · ')}</p></section>
   <section className="sbp-payment-card"><span className="sbp-mark large">{paid?<CheckCircle2 size={32}/>:<Smartphone size={32}/>}</span>
-    <h2>{paid?'Спасибо, оплата получена':terminal?'Предыдущая оплата СБП закрыта':q.creating?'Подготавливаем оплату':'Оплатите через приложение банка'}</h2>
-    <p>{paid?(p.purpose==='topup'?'Средства зачислены на баланс магазина.':'Менеджер свяжется с вами для передачи покупки.'):terminal?'Если уже перевели деньги, не платите повторно. Прикрепите чек — проверим поступление.':q.creating?'Проверяем создание ссылки. Не создавайте новый платёж, пока проверка не завершена.':'Откройте защищённую страницу оплаты и перейдите в приложение банка. Сумму менять не нужно.'}</p>
-    {!paid&&!terminal&&expires&&<div className="sbp-expiry"><Clock3 size={17}/><span>{terminal?'Время истекло':'Оплатите до '+new Date(expires).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span><strong role="timer">{seconds===null?'—':Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')}</strong></div>}
-    {!paid&&!expires&&!terminal&&<p className="fine-print">Срок действия ссылки будет указан на странице оплаты. Переводите только по действующей ссылке.</p>}
-    {instructions&&!paid&&!terminal&&<div className="payment-notice"><p style={{whiteSpace:'pre-line'}}>{instructions}</p></div>}
+    <h2>{paid?'Спасибо, оплата получена':paused?'СБП временно недоступен':terminal?'Предыдущая оплата СБП закрыта':q.creating?'Подготавливаем оплату':'Оплатите через приложение банка'}</h2>
+    <p>{paid?(p.purpose==='topup'?'Средства зачислены на баланс магазина.':'Менеджер свяжется с вами для передачи покупки.'):paused?'Если вы уже оплатили, прикрепите чек — проверим поступление.':terminal?'Если уже перевели деньги, не платите повторно. Прикрепите чек — проверим поступление.':q.creating?'Проверяем создание ссылки. Не создавайте новый платёж, пока проверка не завершена.':'Откройте защищённую страницу оплаты и перейдите в приложение банка. Сумму менять не нужно.'}</p>
+    {!paid&&!paused&&!terminal&&expires&&<div className="sbp-expiry"><Clock3 size={17}/><span>{terminal?'Время истекло':'Оплатите до '+new Date(expires).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span><strong role="timer">{seconds===null?'—':Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')}</strong></div>}
+    {!paid&&!paused&&!expires&&!terminal&&<p className="fine-print">Срок действия ссылки будет указан на странице оплаты. Переводите только по действующей ссылке.</p>}
+    {instructions&&!paid&&!paused&&!terminal&&<div className="payment-notice"><p style={{whiteSpace:'pre-line'}}>{instructions}</p></div>}
     {canOpen&&<a className="primary-button" href={q.paymentUrl!} target="_blank" rel="noreferrer" onClick={e=>{if(telegram?.openLink){e.preventDefault();telegram.openLink(q.paymentUrl!,{try_instant_view:false});}}}>Перейти к оплате по СБП<ArrowUpRight size={19}/></a>}
     {!paid&&<button className="secondary-button" disabled={busy} onClick={()=>void check()}>{busy?<LoaderCircle className="spin" size={18}/>:<RefreshCw size={18}/>}Проверить оплату</button>}
     {p.reason==='sbp_amount_review'&&<p className="form-failure">Проверяем сумму поступления. Повторно переводить деньги не нужно.</p>}
