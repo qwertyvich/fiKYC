@@ -21,11 +21,12 @@ try{
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),lang+' horizontal overflow');
   }
   await page.locator('.products').scrollIntoViewIfNeeded();await page.screenshot({path:dir+'/'+lang+'-catalog.png'});
-  if(lang!=='ru'){
+  {
    const catalog=JSON.parse(app.db.prepare('SELECT catalog FROM state').get().catalog);
    for(const product of catalog.products.filter(p=>p.visible&&catalog.groups.some(g=>g.id===p.groupId&&g.visible))){
     await page.goto(base+'/#/product/'+product.id);await expect(page.locator('.offer-page')).toBeVisible();
-    const text=await page.locator('.offer-page').innerText();if(/[А-Яа-яЁё]/.test(text))untranslated.push(...text.split('\n').filter(s=>/[А-Яа-яЁё]/.test(s))); 
+    await expect(page.locator('.offer-block a[href="https://claude.com/pricing"]')).toHaveCount(0);
+    const text=await page.locator('.offer-page').innerText();assert.ok(!text.includes('Важно о проверках Anthropic'));if(lang!=='ru'&&/[А-Яа-яЁё]/.test(text))untranslated.push(...text.split('\n').filter(s=>/[А-Яа-яЁё]/.test(s)));
    }
   }
   assert.deepEqual([...new Set(untranslated)],[],lang+' untranslated detail strings');
