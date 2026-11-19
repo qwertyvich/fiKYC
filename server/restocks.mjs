@@ -47,6 +47,7 @@ export function createRestocks({db, state, bots, blocked, assetsRoot, now = Date
       SELECT telegram_id,MIN(at) FROM (
         SELECT telegram_id,CASE WHEN created_at>0 THEN created_at ELSE verified_at END at FROM visitors WHERE telegram_id<>'' AND verified_at>0
         UNION ALL SELECT telegram_id,last_seen at FROM shop_contacts WHERE last_seen>0
+        UNION ALL SELECT d.telegram_id,c.created_at at FROM restock_deliveries d JOIN restock_campaigns c ON c.id=d.campaign_id WHERE c.created_at>0
       ) WHERE at>0 GROUP BY telegram_id
       ON CONFLICT(telegram_id) DO UPDATE SET first_seen=MIN(shop_client_first_seen.first_seen,excluded.first_seen)`);
   }

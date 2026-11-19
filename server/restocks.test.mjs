@@ -143,6 +143,18 @@ test('invalid message or audience cannot prepare a draft; caption limit counts e
  assert.equal(app.db.prepare('SELECT COUNT(*) n FROM restock_campaigns').get().n,0);assert.equal(app.sends().length,0);
 });
 
+test('legacy bot-only clients retain earlier campaign history when their last activity is recent',async t=>{
+ const app=await fixture(t),bot=app.shopBots.getRow('123456789');
+ const contact=id=>app.restocks.observe(bot,{message:{chat:{id,type:'private'},from:{id}}});
+ contact(701);const old=await app.preview();app.advance();contact(702);app.advance();contact(701);
+ // Before first-arrival tracking, broadcasts still proved that this client was already known.
+ app.db.exec('DELETE FROM shop_client_first_seen');
+ const recovered=createRestocks({db:app.db,state:()=>({catalog:JSON.parse(app.db.prepare('SELECT catalog FROM state').get().catalog)}),bots:app.shopBots,blocked:()=>false,assetsRoot:assets});
+ assert.equal(app.db.prepare('SELECT first_seen FROM shop_client_first_seen WHERE telegram_id=?').get('701').first_seen,old.createdAt);
+ const c=await recovered.preview({productId:'mail-setup',product:app.product('mail-setup'),quantity:1,image,audience:{mode:'latest',limit:1}});
+ assert.equal(app.db.prepare('SELECT telegram_id FROM restock_deliveries WHERE campaign_id=?').get(c.id).telegram_id,'702');recovered.stop();assert.equal(app.sends().length,0);
+});
+
 test('legacy draft migrations preserve saved captions and media with default message and audience fields',async t=>{
  const app=await fixture(t);app.visitor(777);const c=await app.preview();
  // Recreate the previous schema on the same database to exercise real ALTER migrations.
