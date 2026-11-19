@@ -19,6 +19,8 @@ export function createRestocks({db, state, bots, blocked, assetsRoot, now = Date
     CREATE TABLE IF NOT EXISTS restock_campaigns(id TEXT PRIMARY KEY,product_id TEXT NOT NULL,title TEXT NOT NULL,quantity INTEGER NOT NULL,fingerprint TEXT NOT NULL,caption TEXT NOT NULL,plain_caption TEXT NOT NULL,emoji_id TEXT NOT NULL,media_kind TEXT NOT NULL,media BLOB NOT NULL,product_url TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'draft',created_at INTEGER NOT NULL,started_at INTEGER NOT NULL DEFAULT 0,error TEXT NOT NULL DEFAULT '');
     CREATE TABLE IF NOT EXISTS restock_deliveries(campaign_id TEXT NOT NULL,telegram_id TEXT NOT NULL,bots TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',attempts INTEGER NOT NULL DEFAULT 0,next_at INTEGER NOT NULL DEFAULT 0,error TEXT NOT NULL DEFAULT '',sent_at INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(campaign_id,telegram_id));
     CREATE INDEX IF NOT EXISTS restock_pending ON restock_deliveries(status,next_at);
+    CREATE INDEX IF NOT EXISTS restock_recent_recipient ON restock_deliveries(telegram_id,sent_at);
+    CREATE INDEX IF NOT EXISTS restock_campaign_pending ON restock_deliveries(campaign_id,status,next_at);
     CREATE TABLE IF NOT EXISTS restock_file_ids(campaign_id TEXT NOT NULL,bot_id TEXT NOT NULL,file_id TEXT NOT NULL,PRIMARY KEY(campaign_id,bot_id));`);
   // Telegram has no idempotency key for sends. An interrupted in-flight request is not sent twice.
   db.prepare("UPDATE restock_deliveries SET status='uncertain',error='Доставка не подтверждена после перезапуска' WHERE status='sending'").run();
@@ -125,7 +127,10 @@ export function createRestocks({db, state, bots, blocked, assetsRoot, now = Date
     working=true;
     try {
       finish();
-      const d=db.prepare("SELECT d.* FROM restock_deliveries d JOIN restock_campaigns c ON c.id=d.campaign_id WHERE c.status='running' AND d.status='pending' AND d.next_at<=? AND NOT EXISTS(SELECT 1 FROM restock_deliveries recent WHERE recent.telegram_id=d.telegram_id AND recent.sent_at>?) ORDER BY c.started_at,d.rowid LIMIT 1").get(now(),now()-1200);
+      // Draft audiences and delivery history can be large. Never scan them on
+      // every idle tick; the recent-recipient check also needs its own index.
+      if(!db.prepare("SELECT id FROM restock_campaigns WHERE status='running' LIMIT 1").get())return;
+      const d=db.prepare("SELECT d.* FROM restock_campaigns c CROSS JOIN restock_deliveries d ON d.campaign_id=c.id WHERE c.status='running' AND d.status='pending' AND d.next_at<=? AND NOT EXISTS(SELECT 1 FROM restock_deliveries recent WHERE recent.telegram_id=d.telegram_id AND recent.sent_at>?) ORDER BY c.started_at,d.rowid LIMIT 1").get(now(),now()-1200);
       if(!d)return;
       const c=db.prepare('SELECT * FROM restock_campaigns WHERE id=?').get(d.campaign_id);
       try {product(c.product_id);} catch {db.prepare("UPDATE restock_campaigns SET status='cancelled',error='Товар больше недоступен' WHERE id=?").run(c.id);return;}

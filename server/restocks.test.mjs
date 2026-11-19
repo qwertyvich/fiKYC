@@ -81,3 +81,13 @@ test('cancellation during a failed request prevents fallback to another bot',asy
  await app.shopBots.save({token:secondary});app.visitor(777);const c=await app.preview();app.restocks.launch(c.id);cancel=()=>app.restocks.cancel(c.id);
  app.restocks.start();await app.restocks.tick();assert.equal(app.sends().length,1);assert.equal(app.restocks.summary(c.id).status,'cancelled');assert.equal(app.restocks.summary(c.id).sent,0);
 });
+
+test('large draft audiences and completed delivery history do not block the idle scheduler',async t=>{
+ const app=await fixture(t),draft=await app.preview(),history=await app.preview();
+ app.db.prepare("UPDATE restock_campaigns SET status='done' WHERE id=?").run(history.id);
+ const put=app.db.prepare('INSERT INTO restock_deliveries(campaign_id,telegram_id,bots,status,sent_at) VALUES(?,?,?,?,?)');
+ app.db.exec('BEGIN');for(let i=0;i<5000;i++){const id=String(100000+i);put.run(draft.id,id,'[]','pending',0);put.run(history.id,id,'[]','sent',Date.now()-60000);}app.db.exec('COMMIT');
+ app.restocks.start();let at=performance.now();for(let i=0;i<10;i++)await app.restocks.tick();assert.ok(performance.now()-at<1000,'idle scheduler must remain responsive with 10k delivery rows');assert.equal(app.sends().length,0);
+ app.db.prepare("UPDATE restock_campaigns SET status='running' WHERE id=?").run(draft.id);at=performance.now();await app.restocks.tick();assert.ok(performance.now()-at<1000,'active scheduler must filter by campaign before recipient history');assert.equal(app.sends().length,0);
+ assert.equal(app.db.prepare("SELECT COUNT(*) n FROM restock_deliveries WHERE campaign_id=? AND status='pending'").get(draft.id).n,4999);
+});
