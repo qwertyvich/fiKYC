@@ -7,6 +7,7 @@ import { configurePricing,exchangeRate,paymentMethod,setPaymentMethod,russianPay
 import { loadPublic } from './api';
 import { usdTotalMinor,rubTotalMinor,rubUnitMinor,usdtNetworks,type UsdtNetwork } from './usdt';
 import {UsdtCheckout,UsdtNetworkPicker} from './UsdtCheckout';
+import {needsUsdtRecovery,UsdtRecovery} from './UsdtRecovery';
 import { paymentTitles, type Payment,type PaymentOptions } from './payments';
 import {AlternativePayments,SbpPayment} from './SbpPayment';
 import {PaymentManagerLink} from './PaymentManagerLink';
@@ -33,6 +34,8 @@ export function CardCheckout({ lines, shop, navigate }: { lines: { product: Prod
   const [note, setNote] = useState(() => { const saved = readLocal<{note?: unknown}>('checkout-draft', {}); return typeof saved?.note === 'string' ? saved.note.slice(0, 1000) : ''; });
   const [warning, setWarning] = useState(false), [accepted, setAccepted] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [options,setOptions]=useState<PaymentOptions|null>(null);
+  const [cryptoRecovery,setCryptoRecovery]=useState<{payment:Payment;network:UsdtNetwork}|null>(null);
+  useEffect(()=>setCryptoRecovery(null),[lines.map(l=>l.product.id+':'+l.quantity).join(','),note]);
   const total = rubTotalMinor(lines.map(l=>({...l.product,quantity:l.quantity})),exchangeRate())/100;
   const currencies = ['RUB' as const];
   const invalid = !lines.length || lines.some(l => l.quantity > l.product.stock || l.product.stock < 1);
@@ -49,10 +52,10 @@ export function CardCheckout({ lines, shop, navigate }: { lines: { product: Prod
   }
   async function submitUsdt(network:UsdtNetwork) {
     if(busy)return;setBusy(true);setError('');
-    try {const p=await mutation<Payment>('/payments','POST',{items:lines.map(l=>({productId:l.product.id,quantity:l.quantity})),note,method:'usdt',network,expectedRate:exchangeRate(),expectedAmount:usdTotalMinor(lines.map(l=>({...l.product,quantity:l.quantity})),exchangeRate())/100});navigate('/payment/'+p.id);}
+    try {const p=await mutation<Payment>('/payments','POST',{items:lines.map(l=>({productId:l.product.id,quantity:l.quantity})),note,method:'usdt',network,expectedRate:exchangeRate(),expectedAmount:usdTotalMinor(lines.map(l=>({...l.product,quantity:l.quantity})),exchangeRate())/100});if(needsUsdtRecovery(p,network)){setCryptoRecovery({payment:p,network});return;}navigate('/payment/'+p.id);}
     catch(e){setError((e as Error).message);void loadPublic(true).then(data=>configurePricing(data.settings)).catch(()=>{});}finally{setBusy(false);}
   }
-  if(paymentMethod()==='usdt')return <><div className="page-title"><button className="back-link" onClick={()=>navigate('/cart')}><ArrowLeft size={17}/>{t('В корзину')}</button><h1>{t('Оплата USDT')}</h1><p>{t('Проверьте заказ и выберите сеть перевода')}</p></div><UsdtCheckout lines={lines} note={note} setNote={setNote} busy={busy} error={error} onSelect={network=>void submitUsdt(network)} onCard={()=>{setPaymentMethod('card');void begin();}}/>{managerHelp}</>;
+  if(paymentMethod()==='usdt')return <><div className="page-title"><button className="back-link" onClick={()=>navigate('/cart')}><ArrowLeft size={17}/>{t('В корзину')}</button><h1>{t('Оплата USDT')}</h1><p>{t('Проверьте заказ и выберите сеть перевода')}</p></div><UsdtCheckout lines={lines} note={note} setNote={setNote} busy={busy} error={error} onSelect={network=>void submitUsdt(network)} onCard={()=>{setPaymentMethod('card');void begin();}} recovery={cryptoRecovery?<UsdtRecovery {...cryptoRecovery} navigate={navigate} onBack={()=>setCryptoRecovery(null)}/>:undefined}/>{managerHelp}</>;
   return <><div className="page-title"><button className="back-link" onClick={() => navigate('/cart')}><ArrowLeft size={17}/>{t("В корзину")}</button><h1>{t("Оформление заказа")}</h1><p>{t("Проверьте детали — и перейдём к оплате")}</p></div>
     <div className="checkout-steps"><span className="done"><Check size={14}/>{t("Корзина")}</span><span className="active">{t("2 · Проверка")}</span><span>{t("3 · Оплата")}</span></div>
     {!lines.length ? <div className="context-notice"><p>{t("В корзине пока пусто.")}<button className="inline-link" onClick={() => navigate('/catalog')}>{t("Выбрать товары")}</button></p></div> : <div className="checkout-form">
@@ -69,7 +72,8 @@ export function CardCheckout({ lines, shop, navigate }: { lines: { product: Prod
 }
 
 function CryptoPaymentDetails({payment:p,online,onUpdate,navigate,shop}:{payment:Payment;online:boolean;onUpdate(p:Payment):void;navigate(path:string):void;shop:ShopSettings}) {
-  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[txid,setTxid]=useState(''),[copied,setCopied]=useState(false),[cardWarning,setCardWarning]=useState(false),[accepted,setAccepted]=useState(false),[networks,setNetworks]=useState(false),[notPaid,setNotPaid]=useState(false);
+  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[txid,setTxid]=useState(''),[copied,setCopied]=useState(false),[cardWarning,setCardWarning]=useState(false),[accepted,setAccepted]=useState(false),[networks,setNetworks]=useState(p.status==='invalidated'),[notPaid,setNotPaid]=useState(false);
+  useEffect(()=>{if(p.status==='invalidated')setNetworks(true);},[p.status]);
   const quote=p.crypto!,paid=p.status==='paid',review=p.status==='receipt_review'||!!quote.reportedAt;
   async function copyAddress(){setError('');try{const fresh=await api<Payment>('/payments/'+p.id);if(!online||fresh.status!=='awaiting_transfer'||!fresh.crypto?.address||fresh.crypto.address!==quote.address)throw Error('Адрес изменился. Обновите способ оплаты.');await navigator.clipboard.writeText(fresh.crypto.address);setCopied(true);}catch(e){setError((e as Error).message);}}
   async function report(){if(busy)return;setBusy(true);setError('');try{onUpdate(await mutation<Payment>('/payments/'+p.id+'/reported','POST',{txid}));}catch(e){setError((e as Error).message);}finally{setBusy(false);}}

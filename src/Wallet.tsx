@@ -10,6 +10,7 @@ import { telegram } from './telegram';
 import {t,getLocale} from './i18n';
 import {paymentMethod,setPaymentMethod,exchangeRate,russianPayments} from './pricing';
 import {UsdtNetworkPicker} from './UsdtCheckout';
+import {needsUsdtRecovery,UsdtRecovery} from './UsdtRecovery';
 import {PaymentManagerLink} from './PaymentManagerLink';
 import {AlternativePayments} from './SbpPayment';
 import type {UsdtNetwork} from './usdt';
@@ -24,6 +25,8 @@ export function Wallet({shop,navigate}: {shop: ShopSettings; navigate(path:strin
   const [wallet,setWallet] = useState<WalletState|null>(null), [loadError,setLoadError] = useState(''), [error,setError] = useState('');
   const [warning,setWarning] = useState(false), [accepted,setAccepted] = useState(false), [busy,setBusy] = useState(false), [refreshKey,setRefreshKey] = useState(0);
   const [networks,setNetworks]=useState(false),[options,setOptions]=useState<PaymentOptions|null>(null);
+  const [cryptoRecovery,setCryptoRecovery]=useState<{payment:Payment;network:UsdtNetwork}|null>(null);
+  useEffect(()=>setCryptoRecovery(null),[amount,method]);
   const pendingCryptoAmount=useRef<string|null>(null);
   const previousMethod=useRef(method);
   useEffect(()=>{if(previousMethod.current===method)return;previousMethod.current=method;const converted=pendingCryptoAmount.current;pendingCryptoAmount.current=null;setAmount(converted??'');setOptions(null);setRequestKey(crypto.randomUUID());setNetworks(!!converted);setWarning(false);setError('');},[method]);
@@ -41,6 +44,7 @@ export function Wallet({shop,navigate}: {shop: ShopSettings; navigate(path:strin
     try {
       parseTopupAmount(amount);
       const p=await mutation<Payment>('/wallet/topups','POST',{amount,requestKey,accepted:chosenMethod==='card',method:chosenMethod,network,currency:chosenMethod==='usdt'?'USD':'RUB',expectedRate:exchangeRate()});
+      if(chosenMethod==='usdt'&&network&&needsUsdtRecovery(p,network)){setCryptoRecovery({payment:p,network});return;}
       try{writeLocal(draftKey,{});}catch{}
       navigate('/payment/'+p.id);
     }catch(e){setError((e as Error).message);}finally{setBusy(false);}
@@ -60,7 +64,7 @@ export function Wallet({shop,navigate}: {shop: ShopSettings; navigate(path:strin
       <button className="primary-button" type="submit" disabled={busy}>{busy?<LoaderCircle size={17} className="spin"/>:<>{t('Перейти к пополнению')}<ArrowRight size={17}/></>}</button>
       {!cryptoMode&&options&&!options.card&&amountMinor!==null&&<AlternativePayments options={options} amount={amountMinor/100} busy={busy} onSbp={()=>void submit(undefined,'sbp')} onCrypto={()=>{pendingCryptoAmount.current=(Math.ceil(amountMinor/exchangeRate())/100).toFixed(2);setPaymentMethod('usdt');}}>{managerHelp}</AlternativePayments>}
       {(cryptoMode||!options||options.card)&&managerHelp}
-      {cryptoMode&&networks&&amountMinor!==null&&<UsdtNetworkPicker amount={amountMinor/100} busy={busy} onSelect={network=>void submit(network)}/>}
+      {cryptoMode&&networks&&amountMinor!==null&&(cryptoRecovery?<UsdtRecovery {...cryptoRecovery} navigate={navigate} onBack={()=>setCryptoRecovery(null)} onResolved={()=>{try{writeLocal(draftKey,{});}catch{}}}/>:<UsdtNetworkPicker amount={amountMinor/100} busy={busy} onSelect={network=>void submit(network)}/>)}
       <button hidden={cryptoMode&&!russianPayments()||!cryptoMode&&!!options&&!options.card} type="button" className="payment-text-button" onClick={()=>setPaymentMethod(cryptoMode?'card':'usdt')}>{t(cryptoMode?'Оплатить картой в рублях':'Оплатить USDT')}</button>
     </form>}
     {wallet?.entries.length ? <div className="wallet-history"><h3>{t('Последние пополнения')}</h3>{wallet.entries.slice(0,3).map(e=><button key={e.paymentId} onClick={()=>navigate('/payment/'+e.paymentId)}><span>{new Date(e.createdAt).toLocaleDateString(getLocale(),{day:'numeric',month:'long'})}<small>{t('Зачислено')}</small></span><strong>+{money(e.amount)}</strong></button>)}</div>:null}
