@@ -150,16 +150,17 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
   }
   function view(p) {
     reconcile(); p = row(p.id);
+    const transfersEnabled=env.INSTANCE_MODE!=='standby';
     const c = p.card && db.prepare('SELECT * FROM gateway_cards WHERE number=?').get(p.card);
-    const show = p.status === 'awaiting_transfer' && ready() && c?.active && c.version === p.card_version && p.expires_at > now();
+    const show = transfersEnabled && p.status === 'awaiting_transfer' && ready() && c?.active && c.version === p.card_version && p.expires_at > now();
     const crypto=p.crypto?JSON.parse(p.crypto):null;
     const intent=p.provider==='sbp'?db.prepare('SELECT * FROM sbp_intents WHERE payment_id=?').get(p.id):null;
     const receiptJobs=p.provider==='sbp'?db.prepare('SELECT status,COUNT(*) n FROM sbp_receipt_jobs WHERE payment_id=? GROUP BY status').all(p.id):[];
     const qr=intent?{...JSON.parse(intent.snapshot),status:intent.phase,methodCode:intent.method_code,creating:!intent.external_id,error:!!intent.error}:p.provider==='sbp'?{status:p.status==='invalidated'?'failed':'creating',creating:p.status!=='invalidated'}:null;
     const sbpEnabled=p.provider==='sbp'?!!db.prepare('SELECT enabled FROM sbp_config WHERE id=1').get()?.enabled:false;
     return { id: p.id, replacementId:p.status==='superseded'?latestAttempt(p).id:null, provider:p.provider,purpose: p.purpose, items: JSON.parse(p.items), amount: p.amount_minor / 100, currency: p.currency, status: p.status, reason: p.reason, createdAt: p.created_at, expiresAt: p.expires_at, serverNow: now(), requisitesType:c?.kind??'card', card: show ? { id:c.number, type:c.kind, number: c.account||c.number, bank: c.bank, holder: c.holder } : null,
-      qr:qr?{...qr,enabled:sbpEnabled,receiptDelivery:receiptJobs.some(r=>r.status==='failed')?'failed':receiptJobs.some(r=>r.status==='pending')?'pending':receiptJobs.length?'sent':null,paymentUrl:sbpEnabled&&['awaiting_transfer','receipt_review'].includes(p.status)&&(!p.expires_at||p.expires_at>now())?qr.paymentUrl??null:null}:null,
-      crypto:crypto?{...crypto,address:p.status==='awaiting_transfer'?crypto.address:null,reportedAt:p.crypto_reported_at??null}:null,
+      qr:qr?{...qr,enabled:transfersEnabled&&sbpEnabled,receiptDelivery:receiptJobs.some(r=>r.status==='failed')?'failed':receiptJobs.some(r=>r.status==='pending')?'pending':receiptJobs.length?'sent':null,paymentUrl:transfersEnabled&&sbpEnabled&&['awaiting_transfer','receipt_review'].includes(p.status)&&(!p.expires_at||p.expires_at>now())?qr.paymentUrl??null:null}:null,
+      crypto:crypto?{...crypto,address:transfersEnabled&&p.status==='awaiting_transfer'?crypto.address:null,reportedAt:p.crypto_reported_at??null}:null,
       receiptCount: db.prepare('SELECT count(*) n FROM gateway_receipts WHERE payment_id=?').get(p.id).n, deliveryPending: !!db.prepare("SELECT id FROM gateway_outbox WHERE payment_id=? AND kind IN ('receipt','crypto_claim') AND status='pending'").get(p.id) };
   }
   function own(id, visitorId) { const p = row(id); if (!p || p.visitor_id !== visitorId) error('Заказ не найден', 404); return p; }

@@ -6,7 +6,7 @@ import {parseSettings} from './settings.mjs';
 import {validTronAddress} from './usdt-settings.mjs';
 function tron(byte){const payload=Buffer.concat([Buffer.from([0x41]),Buffer.alloc(20,byte)]),check=createHash('sha256').update(createHash('sha256').update(payload).digest()).digest().subarray(0,4);let n=BigInt('0x'+Buffer.concat([payload,check]).toString('hex')),s='';while(n){s='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'[Number(n%58n)]+s;n/=58n;}return s;}
 const A=tron(7),B=tron(8),EVM='0x'+'a'.repeat(40);
-async function fixture(t){let now=Date.now();const calls=[];const app=await createApp({dbPath:':memory:',gatewayWorker:false,shopBotWorker:false,restockWorker:false,gatewayNow:()=>now,gatewayBotCall:async(method,payload)=>{calls.push({method,payload});return{};},env:{NODE_ENV:'test',GATEWAY_BOT_TOKEN:'fixture-gateway',ADMIN_PASSWORD:'fixture'}});await new Promise(r=>app.server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>app.server.close(r)));
+async function fixture(t,extraEnv={}){let now=Date.now();const calls=[];const app=await createApp({dbPath:':memory:',gatewayWorker:false,shopBotWorker:false,restockWorker:false,gatewayNow:()=>now,gatewayBotCall:async(method,payload)=>{calls.push({method,payload});return{};},env:{NODE_ENV:'test',GATEWAY_BOT_TOKEN:'fixture-gateway',ADMIN_PASSWORD:'fixture',...extraEnv}});await new Promise(r=>app.server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>app.server.close(r)));
 const s=app.db.prepare('SELECT settings,catalog FROM state').get(),settings={...JSON.parse(s.settings),usdtRubRate:88,usdtTrc20Address:A,usdtBep20Address:EVM},catalog=JSON.parse(s.catalog);const p=catalog.products.find(p=>p.id==='mail-setup');p.price=1500;p.stock=20;p.currency='RUB';app.db.prepare('UPDATE state SET settings=?,catalog=?').run(JSON.stringify(settings),JSON.stringify(catalog));app.gateway.saveConfig({receiptRecipient:'777'});app.gateway.setConnected();
 const change=patch=>{const current=JSON.parse(app.db.prepare('SELECT settings FROM state').get().settings);app.db.prepare('UPDATE state SET settings=?').run(JSON.stringify({...current,...patch}));};
 const input=(network='trc20',quantity=1)=>({items:[{productId:p.id,quantity}],note:'',method:'usdt',network,expectedRate:88,expectedAmount:17.05*quantity});
@@ -98,4 +98,9 @@ test('renewal cannot issue another address for sold-out or hidden goods; an issu
  product.stock=0;f.db.prepare('UPDATE state SET catalog=?').run(JSON.stringify(catalog));assert.throws(retry,/наличие/);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM payments').get().n,1);
  product.stock=20;product.visible=false;f.db.prepare('UPDATE state SET catalog=?').run(JSON.stringify(catalog));assert.throws(retry,/наличие/);
  product.visible=true;product.price=2000;f.db.prepare('UPDATE state SET catalog=?').run(JSON.stringify(catalog));const next=retry();assert.equal(next.amount,first.amount);assert.equal(next.crypto.address,B);
+});
+
+test('standby masks customer transfer addresses without deleting frozen payment data',async t=>{
+ const f=await fixture(t,{INSTANCE_MODE:'standby'}),payment=f.pay();assert.equal(payment.crypto.address,null);assert.equal(payment.status,'awaiting_transfer');assert.equal(payment.expiresAt,null);
+ assert.equal(JSON.parse(f.g.externalRow(payment.id).crypto).address,A);assert.equal(f.g.wallet('alice').balance,0);
 });
