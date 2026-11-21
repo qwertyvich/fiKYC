@@ -75,7 +75,21 @@ export function createSbp({db,env,gateway,state,now=Date.now,fetchImpl=fetch}){
     return gateway.view(gateway.externalRow(id));
   })().finally(()=>creating.delete(id));creating.set(id,work);return work;}
   async function check(id){if(checking.has(id))return checking.get(id);const stored=intent(id);if(!stored)return issue(id);if(now()-stored.updated_at<5000)return gateway.view(gateway.externalRow(id));const work=(async()=>{if(stored.external_id)await apply(await api('payments/'+stored.external_id+'/'));else await recover(id);return gateway.view(gateway.externalRow(id));})().finally(()=>checking.delete(id));checking.set(id,work);return work;}
-  async function assertCanSwitch(id){const stored=intent(id);if(!stored)return;await check(id);const live=intent(id),p=gateway.externalRow(id);if(p.status==='paid')fail('Оплата уже подтверждена',409);if(['creating','unknown'].includes(live.phase)||(['created','pending','review'].includes(live.phase)&&(!p.expires_at||p.expires_at>now())))fail('Ссылка СБП ещё действует. Сначала проверьте платёж или дождитесь окончания срока.',409);}
+  async function assertCanSwitch(id){
+    const stored=intent(id);if(!stored)return;
+    if(gateway.externalRow(id).status==='paid')fail('Оплата уже подтверждена',409);
+    try{await check(id);}catch(e){
+      // An unavailable provider must not trap an explicitly unpaid customer on
+      // a known, expired link. Unknown creation/review outcomes stay protected;
+      // the retry family still reconciles any late success exactly once.
+      const live=intent(id),p=gateway.externalRow(id);
+      const expiredKnown=live.external_id&&['created','pending','expired','failed','rejected','cancelled'].includes(live.phase)&&p.expires_at&&p.expires_at<=now()&&['awaiting_transfer','awaiting_receipt','invalidated'].includes(p.status);
+      if(!expiredKnown)throw e;
+    }
+    const live=intent(id),p=gateway.externalRow(id);
+    if(p.status==='paid')fail('Оплата уже подтверждена',409);
+    if(['creating','unknown','review'].includes(live.phase)||(['created','pending'].includes(live.phase)&&(!p.expires_at||p.expires_at>now())))fail('Ссылка СБП ещё действует. Сначала проверьте платёж или дождитесь окончания срока.',409);
+  }
   function receiveWebhook(raw,headers){
     const ts=headers['x-timestamp'],signature=headers['x-signature'];if(!secret||typeof ts!=='string'||!/^\d{1,12}$/.test(ts)||Math.abs(now()/1000-Number(ts))>300||typeof signature!=='string'||!/^sha256=[a-f0-9]{64}$/.test(signature))fail('Неверная подпись уведомления',401);
     const expected='sha256='+createHmac('sha256',secret).update(ts+'.').update(raw).digest('hex');if(!timingSafeEqual(Buffer.from(signature),Buffer.from(expected)))fail('Неверная подпись уведомления',401);

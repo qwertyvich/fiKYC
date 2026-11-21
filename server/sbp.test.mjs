@@ -6,9 +6,10 @@ import {methodCode} from './sbp.mjs';
 const key='fixture-provider-key',secret='fixture-webhook-secret',botToken='123456789:'+'a'.repeat(35);
 const list=[{method:'qr',qr_method_id:'3',name:'MS-9 Авто + чек',description:'Газпромбанк - возврат',min_amount:'3000.00',max_amount:'100000.00'},{method:'qr',qr_method_id:'7',name:'ms10 + чек',description:'',min_amount:'5000.00',max_amount:'100000.00'},{method:'qr',qr_method_id:'5',name:'🇻🇳 QR Vietnam',description:'MS9',min_amount:'150.00',max_amount:'100000.00'},{method:'card',qr_method_id:null,name:'Карта Узбекистана',description:'',min_amount:'1000',max_amount:'100000'}];
 async function fixture(t){
- let now=Date.now(),loseReply=false,failDelivery=false;const remote=new Map(),calls=[],botCalls=[];
+ let now=Date.now(),loseReply=false,failDelivery=false,providerOffline=false;const remote=new Map(),calls=[],botCalls=[];
  const fetchImpl=async(url,options={})=>{const u=new URL(url),path=u.pathname.replace('/api/v1/','');assert.equal(options.headers.Authorization,'Bearer '+key);calls.push({path,method:options.method,body:options.body});
   if(path==='methods/')return Response.json(list);
+  if(providerOffline)throw Error('Provider temporarily unavailable');
   if(path==='payments/'&&options.method==='POST'){const input=JSON.parse(options.body);assert.equal(input.method,'qr');assert.ok(['3','7'].includes(input.qr_method_id));const id=randomUUID(),p={id,status:'pending',method:'qr',amount:input.amount,paid_amount:null,currency:'RUB',order_id:input.order_id,customer_id:input.customer_id,payment_url:'https://pay-provider.casa/pay/'+id+'/',created_at:new Date(now).toISOString(),expires_at:new Date(now+600000).toISOString(),receipts_count:0};remote.set(id,p);if(loseReply){loseReply=false;throw Error('Connection lost after create');}return Response.json(p,{status:201});}
   if(path==='payments/'){const order=u.searchParams.get('order_id');return Response.json([...remote.values()].filter(p=>!order||p.order_id===order));}
   const id=path.split('/')[1],p=remote.get(id);if(!p)return Response.json({error:'not_found'},{status:404});
@@ -20,12 +21,24 @@ async function fixture(t){
  const s=app.db.prepare('SELECT catalog FROM state').get(),catalog=JSON.parse(s.catalog),p=catalog.products.find(p=>p.id==='mail-setup');p.price=5000;p.stock=20;p.currency='RUB';p.saleMode='fixed';app.db.prepare('UPDATE state SET catalog=?').run(JSON.stringify(catalog));app.gateway.saveConfig({receiptRecipient:'777'});app.gateway.setConnected();
  const input={items:[{productId:p.id,quantity:1}],note:'',method:'sbp',expectedAmount:5000,expectedRate:88};
  const reserve=()=>app.gateway.create('alice','111',input),pay=async()=>app.sbp.issue(reserve().id);
- return{...app,remote,calls,botCalls,p,input,pay,reserve,failDelivery:value=>{failDelivery=value;},lose:()=>{loseReply=true;},advance:ms=>{now+=ms;},now:()=>now,stock:()=>JSON.parse(app.db.prepare('SELECT catalog FROM state').get().catalog).products.find(v=>v.id===p.id).stock};
+ return{...app,remote,calls,botCalls,p,input,pay,reserve,offline:()=>{providerOffline=true;},failDelivery:value=>{failDelivery=value;},lose:()=>{loseReply=true;},advance:ms=>{now+=ms;},now:()=>now,stock:()=>JSON.parse(app.db.prepare('SELECT catalog FROM state').get().catalog).products.find(v=>v.id===p.id).stock};
 }
 test('methods are matched by name; MC9 is internal ID 3, Vietnam/card are excluded, limits are inclusive and selection is manual',async t=>{
  const f=await fixture(t);assert.equal(methodCode(list[1]),'mc10');assert.equal(methodCode(list[2]),null);assert.equal(methodCode(list[3]),null);
  assert.equal((await f.sbp.options(299999)).available,false);assert.equal((await f.sbp.options(300000)).available,true);assert.equal((await f.sbp.options(800000)).available,true);assert.equal((await f.sbp.options(800001)).available,false);assert.equal((await f.sbp.options(10000000)).available,false);assert.equal((await f.sbp.options(500000)).max,8000);assert.equal((await f.sbp.options(10000001)).available,false);
  f.sbp.saveConfig({enabled:true,preferred:'mc27'});assert.equal((await f.sbp.options(500000)).available,false);f.sbp.saveConfig({enabled:true,preferred:'mc10'});assert.equal((await f.sbp.options(400000)).available,false);const p=await f.pay();assert.equal(p.qr.methodCode,'mc10');assert.equal(f.calls.filter(c=>c.method==='POST').length,1);
+});
+
+test('expired known SBP can move to USDT during a provider outage; live, unknown and review payments remain protected',async t=>{
+ const f=await fixture(t),p=await f.pay();f.advance(6000);f.offline();
+ await assert.rejects(()=>f.sbp.assertCanSwitch(p.id));
+ f.advance(600000);assert.equal(f.gateway.view(f.gateway.externalRow(p.id)).status,'awaiting_receipt');
+ await f.sbp.assertCanSwitch(p.id);
+ const settings=JSON.parse(f.db.prepare('SELECT settings FROM state').get().settings);settings.usdtBep20Address='0x'+'a'.repeat(40);f.db.prepare('UPDATE state SET settings=?').run(JSON.stringify(settings));
+ const next=f.gateway.retry(p.id,'alice',{method:'usdt',network:'bep20',notPaid:true,expectedRate:88});assert.equal(next.provider,'usdt');assert.equal(next.crypto.address,settings.usdtBep20Address);
+ const remote=f.remote.get(p.qr.externalId);remote.status='success';remote.paid_amount='5000.00';await f.sbp.apply(remote);await f.gateway.confirm(next.id,'777');assert.equal(f.stock(),19);
+ const other=await fixture(t),review=await other.pay();other.advance(601000);other.db.prepare("UPDATE sbp_intents SET phase='review' WHERE payment_id=?").run(review.id);other.offline();await assert.rejects(()=>other.sbp.assertCanSwitch(review.id));
+ other.db.prepare("UPDATE sbp_intents SET phase='unknown',external_id=NULL WHERE payment_id=?").run(review.id);await assert.rejects(()=>other.sbp.assertCanSwitch(review.id));
 });
 test('chat cards have priority over SBP; no external payment is created while a matching card is available',async t=>{
  const f=await fixture(t);f.gateway.receiveFeed({chat:{id:-1002278926769},from:{id:333,username:'feweqw34234_bot'},date:Math.floor(f.now()/1000),text:'Реквизиты №1\n🇷🇺 Россия\n🏦 Банк: Сбер\n┗ ФИО: Тест Т\n💳 Карта: 2200000000000001\n✅ Мин: 1 000 ₽\n⛔️ Макс: 8 000 ₽'},1);

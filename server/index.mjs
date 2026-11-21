@@ -544,7 +544,7 @@ export async function createApp(options = {}) {
         let payment=gateway.create(v,user?.id??'',input);
         // A fresh checkout explicitly confirms no previous transfer. Reuse the
         // same order family so a late provider success cannot fulfil twice.
-        if(input.method==='card'&&input.notPaid===true&&input.accepted===true&&['invalidated','awaiting_receipt','awaiting_transfer'].includes(payment.status)&&(['invalidated','awaiting_receipt'].includes(payment.status)||(payment.expiresAt&&payment.expiresAt<=payment.serverNow))){
+        if(input.method==='card'&&input.notPaid===true&&input.accepted===true&&['invalidated','awaiting_receipt','awaiting_transfer'].includes(payment.status)&&(payment.provider==='usdt'||['invalidated','awaiting_receipt'].includes(payment.status)||(payment.expiresAt&&payment.expiresAt<=payment.serverNow))){
           if(payment.provider==='sbp')await sbp.assertCanSwitch(payment.id);
           payment=gateway.retry(payment.id,v,{method:'card',notPaid:true,accepted:true});
         }

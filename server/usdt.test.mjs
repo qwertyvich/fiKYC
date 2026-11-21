@@ -57,3 +57,45 @@ const f=await fixture(t),catalog=JSON.parse(f.db.prepare('SELECT catalog FROM st
 const p=f.g.create('alice','111',{items:[{productId:f.p.id,quantity:1},{productId:other.id,quantity:1}],note:'',method:'card',settlementCurrency:'RUB',accepted:true,expectedRate:88,expectedAmount:3260});
 assert.equal(p.currency,'RUB');assert.equal(p.amount,3260);assert.equal(p.items[1].currency,'USD');
 });
+
+test('reopening a topup after several wallet changes returns its current attempt, not a superseded ancestor',async t=>{
+ const f=await fixture(t),input={amount:'10',requestKey:randomUUID(),method:'usdt',network:'trc20',currency:'USD',expectedRate:88};
+ const first=f.g.createTopup('alice','111',input);f.change({usdtTrc20Address:B});
+ const second=f.g.retry(first.id,'alice',{method:'usdt',network:'trc20',notPaid:true,expectedRate:88});
+ f.change({usdtTrc20Address:tron(9)});const third=f.g.retry(second.id,'alice',{method:'usdt',network:'trc20',notPaid:true,expectedRate:88});
+ assert.equal(f.g.createTopup('alice','111',input).id,third.id);
+ assert.equal(f.g.retry(first.id,'alice',{method:'usdt',network:'trc20',notPaid:true,expectedRate:88}).id,third.id);
+ f.g.reportCryptoPaid(first.id,'alice',{});assert.equal(f.g.view(f.g.own(third.id,'alice')).crypto.address,null);
+ assert.equal(f.g.createTopup('alice','111',input).status,'receipt_review');assert.equal(f.g.createTopup('alice','111',input).id,first.id);
+ assert.throws(()=>f.g.retry(third.id,'alice',{method:'usdt',network:'bep20',notPaid:true,expectedRate:88}),/проверяем вашу оплату/);
+ await f.g.confirm(first.id,'777');await f.g.confirm(third.id,'777');assert.equal(f.g.wallet('alice').balance,880);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM wallet_ledger').get().n,1);
+});
+
+test('a disabled network hides only its own address and recovery keeps the frozen amount and rate',async t=>{
+ const f=await fixture(t),trc=f.pay('trc20','alice'),bep=f.pay('bep20','bob');
+ f.change({usdtTrc20Address:'',usdtRubRate:99});f.advance(86400000);
+ assert.equal(f.g.view(f.g.own(trc.id,'alice')).crypto.address,null);assert.equal(f.g.view(f.g.own(bep.id,'bob')).crypto.address,EVM);
+ const next=f.g.retry(trc.id,'alice',{method:'usdt',network:'bep20',notPaid:true,expectedRate:99});
+ assert.equal(next.amount,trc.amount);assert.equal(next.crypto.rate,88);assert.equal(next.crypto.network,'bep20');assert.equal(next.crypto.address,EVM);assert.equal(next.expiresAt,null);
+ f.change({usdtTrc20Address:A});assert.equal(f.g.view(f.g.own(trc.id,'alice')).crypto.address,null);
+});
+
+test('fresh card checkout honours an explicit switch from an active USDT quote and a late crypto report still settles once',async t=>{
+ const f=await fixture(t),access=await fetch(f.base+'/api/access'),cookie=access.headers.getSetCookie().map(c=>c.split(';')[0]).join('; '),owner=f.db.prepare('SELECT id FROM visitors WHERE token=?').get(createHash('sha256').update(cookie.split('=')[1]).digest('hex')).id;
+ const before=f.g.create(owner,'111',f.input());
+ f.g.receiveFeed({chat:{id:-1002278926769},from:{id:333,username:'feweqw34234_bot'},date:Math.floor(Date.now()/1000),text:'Реквизиты №1\nБанк: Сбербанк\nФИО: Тест Т\nКарта: +7 (999) 123-45-67\nМин: 1 000 ₽\nМакс: 8 000 ₽'},1);f.g.setConnected();
+ const input={...f.input(),method:'card',settlementCurrency:'RUB',accepted:true,expectedAmount:1500};
+ const request=()=>fetch(f.base+'/api/payments',{method:'POST',headers:{cookie,'Content-Type':'application/json'},body:JSON.stringify(input)});
+ assert.equal((await(await request()).json()).id,before.id);
+ input.notPaid=true;const response=await request();assert.equal(response.status,201);const next=await response.json();assert.equal(next.card.type,'phone');assert.equal(next.expiresAt-next.serverNow,900000);
+ assert.equal((await(await request()).json()).id,next.id);assert.equal(f.g.view(f.g.own(before.id,owner)).replacementId,next.id);
+ f.g.reportCryptoPaid(before.id,owner,{});await f.g.confirm(before.id,'777');await f.g.confirm(next.id,'777');assert.equal(JSON.parse(f.db.prepare('SELECT catalog FROM state').get().catalog).products.find(p=>p.id===f.p.id).stock,19);
+});
+
+test('renewal cannot issue another address for sold-out or hidden goods; an issued quote keeps its agreed price',async t=>{
+ const f=await fixture(t),first=f.pay();f.change({usdtTrc20Address:B});f.g.view(f.g.own(first.id,'alice'));
+ const catalog=JSON.parse(f.db.prepare('SELECT catalog FROM state').get().catalog),product=catalog.products.find(p=>p.id===f.p.id),retry=()=>f.g.retry(first.id,'alice',{method:'usdt',network:'trc20',notPaid:true,expectedRate:88});
+ product.stock=0;f.db.prepare('UPDATE state SET catalog=?').run(JSON.stringify(catalog));assert.throws(retry,/наличие/);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM payments').get().n,1);
+ product.stock=20;product.visible=false;f.db.prepare('UPDATE state SET catalog=?').run(JSON.stringify(catalog));assert.throws(retry,/наличие/);
+ product.visible=true;product.price=2000;f.db.prepare('UPDATE state SET catalog=?').run(JSON.stringify(catalog));const next=retry();assert.equal(next.amount,first.amount);assert.equal(next.crypto.address,B);
+});

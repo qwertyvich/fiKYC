@@ -136,6 +136,18 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     return count;
   }
   function row(id) { return db.prepare('SELECT * FROM payments WHERE id=?').get(id); }
+  function latestAttempt(payment) {
+    let current=payment,next;const seen=new Set([current.id]);
+    while((next=db.prepare('SELECT * FROM payments WHERE retry_of=?').get(current.id))) {
+      if(seen.has(next.id))error('Не удалось открыть оплату. Свяжитесь с менеджером.',500);
+      seen.add(next.id);current=next;
+    }
+    return current;
+  }
+  function currentAttempt(payment) {
+    const review=family(payment.id).map(row).find(p=>p.status==='receipt_review');
+    return review??latestAttempt(payment);
+  }
   function view(p) {
     reconcile(); p = row(p.id);
     const c = p.card && db.prepare('SELECT * FROM gateway_cards WHERE number=?').get(p.card);
@@ -145,7 +157,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     const receiptJobs=p.provider==='sbp'?db.prepare('SELECT status,COUNT(*) n FROM sbp_receipt_jobs WHERE payment_id=? GROUP BY status').all(p.id):[];
     const qr=intent?{...JSON.parse(intent.snapshot),status:intent.phase,methodCode:intent.method_code,creating:!intent.external_id,error:!!intent.error}:p.provider==='sbp'?{status:p.status==='invalidated'?'failed':'creating',creating:p.status!=='invalidated'}:null;
     const sbpEnabled=p.provider==='sbp'?!!db.prepare('SELECT enabled FROM sbp_config WHERE id=1').get()?.enabled:false;
-    return { id: p.id, provider:p.provider,purpose: p.purpose, items: JSON.parse(p.items), amount: p.amount_minor / 100, currency: p.currency, status: p.status, reason: p.reason, createdAt: p.created_at, expiresAt: p.expires_at, serverNow: now(), requisitesType:c?.kind??'card', card: show ? { id:c.number, type:c.kind, number: c.account||c.number, bank: c.bank, holder: c.holder } : null,
+    return { id: p.id, replacementId:p.status==='superseded'?latestAttempt(p).id:null, provider:p.provider,purpose: p.purpose, items: JSON.parse(p.items), amount: p.amount_minor / 100, currency: p.currency, status: p.status, reason: p.reason, createdAt: p.created_at, expiresAt: p.expires_at, serverNow: now(), requisitesType:c?.kind??'card', card: show ? { id:c.number, type:c.kind, number: c.account||c.number, bank: c.bank, holder: c.holder } : null,
       qr:qr?{...qr,enabled:sbpEnabled,receiptDelivery:receiptJobs.some(r=>r.status==='failed')?'failed':receiptJobs.some(r=>r.status==='pending')?'pending':receiptJobs.length?'sent':null,paymentUrl:sbpEnabled&&['awaiting_transfer','receipt_review'].includes(p.status)&&(!p.expires_at||p.expires_at>now())?qr.paymentUrl??null:null}:null,
       crypto:crypto?{...crypto,address:p.status==='awaiting_transfer'?crypto.address:null,reportedAt:p.crypto_reported_at??null}:null,
       receiptCount: db.prepare('SELECT count(*) n FROM gateway_receipts WHERE payment_id=?').get(p.id).n, deliveryPending: !!db.prepare("SELECT id FROM gateway_outbox WHERE payment_id=? AND kind IN ('receipt','crypto_claim') AND status='pending'").get(p.id) };
@@ -186,7 +198,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
     if (typeof input.expectedAmount !== 'number' || Math.round(input.expectedAmount * 100) !== amountMinor) error('Стоимость изменилась. Обновите корзину и проверьте сумму.', 409);
     reconcile();
     const existing = db.prepare("SELECT * FROM payments WHERE visitor_id=? AND purpose='order' AND status IN ('awaiting_transfer','awaiting_receipt','receipt_review','manual_review','invalidated') ORDER BY created_at DESC,rowid DESC").all(visitorId).find(p => p.items === JSON.stringify(items) && p.note === input.note.trim());
-    if (existing) return view(existing);
+    if (existing) return view(currentAttempt(existing));
     return transaction(() => method(input)==='sbp'?issueSbp(visitorId,telegramId,items,input.note.trim(),amountMinor):crypto?issueCrypto(visitorId,telegramId,items,input.note.trim(),amountMinor,input.network):issue(visitorId, telegramId, items, input.note.trim(), amountMinor, settleRub?'RUB':currencies[0]));
   }
   function wallet(ownerId) {
@@ -209,7 +221,7 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
       if (existing) {
         if(existing.amount_minor!==minor)error('Сумма изменилась. Откройте новое пополнение.',409);
         if((existing.provider==='usdt')!==crypto||(input.method==='sbp'&&existing.provider!=='sbp'))error('Способ оплаты изменился. Откройте новое пополнение.',409);
-        return view(existing);
+        return view(currentAttempt(existing));
       }
       const items=[{productId:'__wallet_topup__',title:'Пополнение баланса',quantity:1,price:creditMinor/100,currency:'RUB'}];
       return method(input)==='sbp'?issueSbp(ownerId,telegramId,items,'',minor,null,'topup',requestKey):crypto?issueCrypto(ownerId,telegramId,items,'',minor,input.network,null,'topup',requestKey,{rubCreditMinor:creditMinor}):issue(ownerId,telegramId,items,'',minor,'RUB',null,'topup',requestKey);
@@ -283,7 +295,14 @@ export function createGateway({ db, env, state, now = Date.now, botCall }) {
   function retry(id, visitorId, input) {
     reconcile(); const p = own(id, visitorId);
     const previous = db.prepare('SELECT * FROM payments WHERE retry_of=?').get(id);
-    if (previous) return view(previous);
+    if (previous) return view(currentAttempt(previous));
+    if(p.purpose==='order'){
+      const catalog=state().catalog;
+      for(const item of JSON.parse(p.items)){
+        const product=catalog.products.find(p=>p.id===item.productId);
+        if(!product?.visible||product.saleMode==='request'||product.stock<item.quantity||!catalog.groups.some(g=>g.id===product.groupId&&g.visible))error('Цена или наличие изменились. Обновите корзину.',409);
+      }
+    }
     const nextMethod=method(input),switching=['usdt','sbp'].includes(p.provider)||['usdt','sbp'].includes(nextMethod);
     if(switching)return switchMethod(p,input,nextMethod);
     if (input.notPaid !== true || input.accepted !== true) error('Подтвердите, что перевод ещё не выполнен, и согласитесь с новыми 15 минутами');

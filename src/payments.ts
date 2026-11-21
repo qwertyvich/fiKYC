@@ -1,4 +1,5 @@
 export interface Payment {
+  replacementId?:string|null;
   id: string;
   purpose: 'order' | 'topup';
   provider?:string;

@@ -16,14 +16,17 @@ const browser = await chromium.launch({
     : {}),
 });
 const adminContext = await browser.newContext({
+  locale: 'ru-RU',
   viewport: { width: 1440, height: 1050 },
   reducedMotion: 'reduce',
 });
 const buyerContext = await browser.newContext({
+  locale: 'ru-RU',
   viewport: { width: 390, height: 844 },
   reducedMotion: 'reduce',
 });
 const otherContext = await browser.newContext({
+  locale: 'ru-RU',
   viewport: { width: 390, height: 844 },
   reducedMotion: 'reduce',
 });
@@ -136,7 +139,7 @@ try {
       await admin.getByLabel('Название / источник').fill('Тестовый канал');
       await admin.getByRole('button', { name: 'Создать ссылку', exact: true }).click();
       await expect(admin.locator('.a-link-card')).toHaveCount(1);
-      link = db.prepare('SELECT * FROM links').get();
+      link = db.prepare("SELECT * FROM links WHERE target_kind='product' AND product_id='claude-pro' AND label='Тестовый канал'").get();
       assert.match(
         await admin.locator('.a-url').innerText(),
         /t.me\/fixture_shop_bot\?startapp=p_/,
@@ -149,7 +152,7 @@ try {
         admin.getByRole('switch', { name: 'Включить ссылку Тестовый канал' }),
       ).toHaveAttribute('aria-checked', 'false');
       await other.goto(base + '/?tgWebAppStartParam=p_' + link.token);
-      await expect(other.getByRole('heading', { name: 'Предложение недоступно' })).toBeVisible();
+      await expect(other.getByRole('heading', { name: 'Ссылка недоступна' })).toBeVisible();
     },
   );
   await check(
